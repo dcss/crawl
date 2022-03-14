@@ -1777,6 +1777,31 @@ static const mutation_def mut_data[] =
   {"", "", ""},
 },
 
+{ MUT_DEMON_DASH, 0, 1, mutflag::good, true,
+  "demon dash", // level 1 of "demon wings"
+
+  {"After you move, you can hit harder with your next attack.", "", ""},
+  {"A sense of violence follows you wherever you go.", "", ""},
+  {"", "", ""},
+},
+
+{ MUT_DEMONIC_WINGS, 0, 1, mutflag::good, true,
+  "demon wings",
+
+  {"You have batlike wings.", "", ""},
+  {"Leathery wings sprout from your back, and you take to the air.",
+   "", ""},
+  {"", "", ""},
+},
+
+{ MUT_DEMON_RAMPAGE, 0, 1, mutflag::good, true,
+  "rampage", // level 3 of "demon wings"
+
+  {"You can rampage with your wings.", "", ""},
+  {"You can use your enormous wings for a burst of speed. (Rampage)", "", ""},
+  {"", "", ""},
+},
+
 { MUT_COLD_BLOODED, 0, 1, mutflag::bad, true,
   "cold-blooded",
 

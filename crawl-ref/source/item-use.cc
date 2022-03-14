@@ -1278,6 +1278,12 @@ bool can_wear_armour(const item_def &item, bool verbose, bool ignore_temporary)
                 mpr("You can't wear that with your sharp stinger!");
             return false;
         }
+        if (you.has_mutation(MUT_DEMON_RAMPAGE))
+        {
+            if (verbose)
+                mpr("You can't wear that over your massive wings!");
+            return false;
+        }
     }
 
     // Can't just use Form::slot_available because of shroom caps.
