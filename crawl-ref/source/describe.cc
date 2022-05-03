@@ -1266,15 +1266,24 @@ static void _append_weapon_stats(string &description, const item_def &item)
             " full power of this staff in melee.\n\n",
             skill_name(staff_skill(static_cast<stave_type>(item.sub_type))));
     }
+    if (!is_unrandom_artefact(item, UNRAND_SORCERERS_SHORTBOW)) {
+        description += make_stringf(
+        "Base accuracy: %+d  Base damage: %d  Base attack delay: %.1f"
+        "\nThis weapon's minimum attack delay (%.1f) is reached at skill level %d.",
+            property(item, PWPN_HIT),
+            base_dam,
+            (float) property(item, PWPN_SPEED) / 10,
+            (float) weapon_min_delay(item, item_brand_known(item)) / 10,
+            mindelay_skill / 10);
+    } else {
+        description += make_stringf(
+        "Damage: 6d6,  Base attack delay: %.1f"
+        "\nThis weapon's minimum attack delay (%.1f) is reached at skill level %d.",
+            (float) property(item, PWPN_SPEED) / 10,
+            (float) weapon_min_delay(item, item_brand_known(item)) / 10,
+            mindelay_skill / 10);
+    }
 
-    description += make_stringf(
-    "Base accuracy: %+d  Base damage: %d  Base attack delay: %.1f"
-    "\nThis weapon's minimum attack delay (%.1f) is reached at skill level %d.",
-        property(item, PWPN_HIT),
-        base_dam,
-        (float) property(item, PWPN_SPEED) / 10,
-        (float) weapon_min_delay(item, item_brand_known(item)) / 10,
-        mindelay_skill / 10);
 
     const bool want_player_stats = !is_useless_item(item) && crawl_state.need_save;
     if (want_player_stats)

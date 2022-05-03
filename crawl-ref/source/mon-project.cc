@@ -22,7 +22,9 @@
 #include "mgen-data.h"
 #include "mon-death.h"
 #include "mon-place.h"
+#include "monster-type.h"
 #include "ouch.h"
+#include "random.h"
 #include "shout.h"
 #include "stepdown.h"
 #include "terrain.h"
@@ -31,7 +33,7 @@
 static void _fuzz_direction(const actor *caster, monster& mon, int pow);
 
 spret cast_iood(actor *caster, int pow, bolt *beam, float vx, float vy,
-                     int foe, bool fail, bool needs_tracer)
+                     int foe, bool fail, bool needs_tracer, bool orblet)
 {
     const bool is_player = caster->is_player();
     if (beam && is_player && needs_tracer
@@ -39,13 +41,14 @@ spret cast_iood(actor *caster, int pow, bolt *beam, float vx, float vy,
     {
         return spret::abort;
     }
-
+    
     fail_check();
 
     int mtarg = !beam ? MHITNOT :
                 beam->target == you.pos() ? int{MHITYOU} : env.mgrid(beam->target);
 
-    monster *mon = place_monster(mgen_data(MONS_ORB_OF_DESTRUCTION,
+    monster_type orb_type = orblet ? MONS_ORBLET_OF_DESTRUCTION : MONS_ORB_OF_DESTRUCTION;
+    monster *mon = place_monster(mgen_data(orb_type,
                 (is_player) ? BEH_FRIENDLY :
                     ((monster*)caster)->friendly() ? BEH_FRIENDLY : BEH_HOSTILE,
                 coord_def(),
@@ -279,8 +282,11 @@ static bool _iood_shielded(monster& mon, actor &victim)
     return pro_block >= con_block;
 }
 
-dice_def iood_damage(int pow, int dist, bool random)
+dice_def iood_damage(int pow, int dist, bool random, bool orblet)
 {
+    if (orblet) {
+        return dice_def(6, 6);
+    }
     int flat = 60;
 
     if (dist < 4)
@@ -295,9 +301,10 @@ dice_def iood_damage(int pow, int dist, bool random)
 
 static bool _iood_hit(monster& mon, const coord_def &pos, bool big_boom = false)
 {
+    bool orblet = mon.type == MONS_ORBLET_OF_DESTRUCTION;
     bolt beam;
-    beam.name = "orb of destruction";
-    beam.flavour = BEAM_DEVASTATION;
+    beam.name = orblet ? "orblet of destruction" : "orb of destruction";
+    beam.flavour = orblet ? BEAM_MMISSILE : BEAM_DEVASTATION;
     beam.attitude = mon.attitude;
 
     actor *caster = actor_by_mid(mon.summoner);
@@ -331,14 +338,16 @@ static bool _iood_hit(monster& mon, const coord_def &pos, bool big_boom = false)
     const int pow = mon.props[IOOD_POW].get_short();
     const int dist = mon.props[IOOD_DIST].get_int();
     ASSERT(dist >= 0);
-    beam.damage = iood_damage(pow, dist);
+    beam.damage = iood_damage(pow, dist, true, orblet);
 
     if (dist < 3)
         beam.name = "wavering " + beam.name;
     if (dist < 2)
         beam.hit_verb = "weakly hits";
     beam.ex_size = 1;
-    beam.loudness = 7;
+    if (!orblet) {
+        beam.loudness = 7;
+    }
 
     monster_die(mon, KILL_DISMISSED, NON_MONSTER);
 
@@ -353,6 +362,7 @@ static bool _iood_hit(monster& mon, const coord_def &pos, bool big_boom = false)
 // returns true if the orb is gone
 bool iood_act(monster& mon, bool no_trail)
 {
+    bool orblet = mon.type == MONS_ORBLET_OF_DESTRUCTION;
     ASSERT(mons_is_projectile(mon.type));
 
     float x = mon.props[IOOD_X];
@@ -470,7 +480,9 @@ move_again:
         monster* mons = (victim && victim->is_monster()) ?
             (monster*) victim : 0;
 
-        if (mons && mons_is_projectile(victim->type))
+        // orblets of destruction will ignore other orblets
+        if (mons && mons_is_projectile(victim->type)
+            && !(orblet && victim->type == MONS_ORBLET_OF_DESTRUCTION))
         {
             // Weak orbs just fizzle instead of exploding.
             if (mons->props[IOOD_DIST].get_int() < 2
