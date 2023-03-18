@@ -287,7 +287,6 @@ static void _equip_artefact_effect(item_def &item, bool *show_msgs, bool unmeld,
         you.redraw_evasion = true;
 
     if (proprt[ARTP_SEE_INVISIBLE])
-        autotoggle_autopickup(false);
 
     if (proprt[ARTP_MAGICAL_POWER] && !known[ARTP_MAGICAL_POWER] && msg)
     {
@@ -757,7 +756,6 @@ static void _equip_armour_effect(item_def& arm, bool unmeld,
 
         case SPARM_SEE_INVISIBLE:
             mpr("You feel perceptive.");
-            autotoggle_autopickup(false);
             break;
 
         case SPARM_INVISIBILITY:
@@ -1108,11 +1106,6 @@ static void _equip_jewellery_effect(item_def &item, bool unmeld,
         mpr("You feel more attuned to ice.");
         break;
 
-    case RING_SEE_INVISIBLE:
-        if (item_type_known(item))
-            autotoggle_autopickup(false);
-        break;
-
     case RING_FLIGHT:
         _flight_equip();
         break;
@@ -1236,10 +1229,6 @@ static void _unequip_jewellery_effect(item_def &item, bool mesg, bool meld,
 
     case AMU_REGENERATION:
         _deactivate_regeneration_item(item, meld);
-        break;
-
-    case RING_SEE_INVISIBLE:
-        _mark_unseen_monsters();
         break;
 
     case RING_PROTECTION:

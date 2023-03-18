@@ -225,8 +225,6 @@ bool interrupt_cmd_repeat(activity_interrupt ai,
     {
         const monster* mon = at.mons_data;
         ASSERT(mon);
-        if (!you.can_see(*mon))
-            return false;
 
         if (crawl_state.cmd_repeat_started_unsafe
             && at.context != SC_NEWLY_SEEN)
@@ -285,7 +283,7 @@ bool interrupt_cmd_repeat(activity_interrupt ai,
         // when the only monsters around are 0xp.
         const monster* mon = at.mons_data;
 
-        if (!mons_is_threatening(*mon) && mon->visible_to(&you))
+        if (!mons_is_threatening(*mon))
             return false;
 
         crawl_state.cancel_cmd_repeat("Command repetition interrupted.");

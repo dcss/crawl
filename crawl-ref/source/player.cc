@@ -7120,9 +7120,7 @@ bool player::can_see_invisible() const
     if (crawl_state.game_is_arena())
         return true;
 
-    if (wearing(EQ_RINGS, RING_SEE_INVISIBLE)
-        // armour: (checks head armour only)
-        || wearing_ego(EQ_HELMET, SPARM_SEE_INVISIBLE)
+    if (wearing_ego(EQ_HELMET, SPARM_SEE_INVISIBLE)
         // randart gear
         || scan_artefacts(ARTP_SEE_INVISIBLE) > 0)
     {
@@ -8126,12 +8124,7 @@ void player_close_door(coord_def doorpos)
         {
             const bool mons_unseen = !you.can_see(*mon);
             if (mons_unseen || mons_is_object(mon->type))
-            {
                 mprf("Something is blocking the %s!", waynoun);
-                // No free detection!
-                if (mons_unseen)
-                    you.turn_is_over = true;
-            }
             else
                 mprf("There's a creature in the %s!", waynoun);
             return;
