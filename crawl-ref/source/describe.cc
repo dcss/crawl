@@ -2019,7 +2019,35 @@ static string _describe_armour(const item_def &item, bool verbose, bool monster)
                 description += _warlock_mirror_reflect_desc();
         }
         else if (item.base_type == OBJ_ARMOUR && item.sub_type == ARM_ORB)
-            ;
+        {
+            switch (item.brand)
+            {
+            case SPARM_LIGHT:
+                description += "Within is a thin coil of some otherworldly "
+                        "black metal, scintilliating with eldritch energy.";
+                break;
+            case SPARM_RAGE:
+                description += "Engraven on the surface is the likeness of a "
+                        "raging wolf, with two blood-red rubies for eyes.";
+                break;
+            case SPARM_MAYHEM:
+                description += "It is made out of a dark blue material, "
+                        "unnaturally heavy in your hands.";
+                break;
+            case SPARM_GUILE:
+                description += "It is shaped in the form of an unblinking eye, "
+                        "with a single blue gemstone sitting in its catlike "
+                        "pupil.";
+                break;
+            case SPARM_ENERGY:
+                description += "Seven pink gems adorn the orb, carven in the "
+                        "likeness of some small extinct mammal.";
+                break;
+            default:
+                description += "Within is the likeness of an eggplant.";
+                break;
+            }
+        }
         else
         {
             const int evp = property(item, PARM_EVASION);
