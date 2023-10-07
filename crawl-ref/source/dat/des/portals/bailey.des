@@ -1,128 +1,368 @@
-##############################################################################
+################################################################################
 #
 # Bailey! (Zaba and dpeg)
 #
-# A small portal vault fixated on nasty weapons. (Axes and polearms by now.)
+# A small portal vault fixated on nasty weapons.
 # Castle like layout, with inner bailey and moat. Medieval warfare themed.
 #
 # Currently, the depth is fixed at D:7-10
 #
-##############################################################################
+################################################################################
 
 {{
 function bailey_portal(e, ptype)
-  local timeout_turns = crawl.random_range(600, 800)
+    local timeout_turns = crawl.random_range(600, 800)
 
-  local messager =
-    timed_msg {
-      initmsg = { "You hear the roar of battle.",
-                  "There is an entrance to a bailey on this level. "
-                  .. "Hurry and find it before the portal closes forever!" },
-      finalmsg = "$F{The} has been lowered almost to the ground.",
+    local messager =
+        timed_msg {initmsg = { "You hear the roar of battle.",
+                               "There is an entrance to a bailey "
+                               .. "on this level. Hurry and find it "
+                               .. "before the portal closes forever!" },
+                   finalmsg = "$F{The} has been lowered almost to the ground.",
+                   verb = "creaking",
+                   noisemaker = "portcullis",
+                   ranges = {
+                             { 5000, "faint " },    { 4000, "" },
+                             { 2500, "steady " }, { 1500, "quick " },
+                             { 0, "loud " }
+                   }
+        }
 
-      verb = 'creaking',
-      noisemaker = 'portcullis',
-        ranges = {
-          { 5000, 'faint ' },  { 4000, '' },
-          { 2500, 'steady ' }, { 1500, 'quick ' },
-          { 0, 'loud ' }
-      }
-    }
+    dgn.persist.bailey_type = "bailey_" .. ptype
 
-  dgn.persist.bailey_type = "bailey_" .. ptype
+    e.lua_marker("O",
+                 timed_marker {
+                               disappear = "The portal closes with a thud.",
+                               entity = "portcullis",
+                               bailey_type = ptype,
+                               turns = timeout_turns,
+                               single_timed = true,
+                               floor = "stone_arch",
+                               feat_tile = "dngn_portal_bailey_gone",
+                               msg = messager 
+                 }
+    )
+    e.tags("uniq_bailey chance_bailey")
+    e.chance(1000)
 
-  e.lua_marker('O',
-      timed_marker {
-        disappear = "The portal closes with a thud.",
-        entity = 'portcullis',
-        bailey_type = ptype,
-        turns = timeout_turns,
-        single_timed = true,
-        floor = "stone_arch",
-        feat_tile = "dngn_portal_bailey_gone",
-        msg = messager })
-  e.tags("uniq_bailey chance_bailey")
-  e.chance(1000)
-
-  e.kfeat("O = enter_bailey")
-  e.tile("c = wall_stone_smooth")
+    e.kfeat("O = enter_bailey")
+    e.tile("c = wall_stone_smooth")
 end
 
 function bailey_portal_axe(e)
-  bailey_portal(e, 'axe')
+    bailey_portal(e, "axe")
 end
 
 function bailey_portal_polearm(e)
-  bailey_portal(e, 'polearm')
+    bailey_portal(e, "polearm")
+end
+
+function bailey_portal_mace(e)
+    bailey_portal(e, "mace")
+end
+
+function bailey_portal_sword(e)
+    bailey_portal(e, "sword")
+end
+
+function bailey_portal_random(e)
+    local bailey_types = {"axe", "polearm", "mace", "sword"}
+    bailey_portal(e, util.random_from(bailey_types))
 end
 
 -- colours
 function bailey_setup(e)
-  e.kfeat("< = exit_bailey")
+    e.kfeat("< = exit_bailey")
 end
 
 -- In order to avoid repeating the lengthy monster definitions:
 
--- Axes.
-function axe_returning(e)
-  e.mons("generate_awake kobold ; boomerang ident:type q:2 | \
-                                  boomerang ident:type q:1 / \
-          generate_awake hobgoblin ; boomerang ident:type q:2 | \
-                                     boomerang ident:type q:1")
+--[[
+These functions define default equipment strings, in five tiers
+No demon weapons in Baileys.
+axes: A: hand axe, B: war axe, C: war axe D: broad axe | battleaxe,
+      E: executioner's axe
+polearms: A: spear, B: trident, C: halberd D: glaive, E: bardiche
+maces: A: whip | mace, B: flail, C: morningstar, D: dire flail | great mace
+       E: eveningstar
+swords: A: falchion, B: long sword, C: scimitar, D: great sword,
+        E: double sword | triple sword
+ranged: A: stone | boomerang, B: sling, C: shortbow, D: orcbow | javelin,
+        E: longbow | arbalest
+armour: A: leather, B: ring, C: scale | chain, D: plate, E: crystal plate
+
+popcorn: Tier A w:50, Tier B, Tier C w:2
+warrior: Tier B w:50, Tier C, Tier D w:2
+knight:  Tier B w:20, Tier C
+boss:    Tire D, Tier E w:1
+--]]
+
+local foe_melee = {["popcorn"] = {}, ["warrior"] = {},
+                   ["knight"] = {}, ["boss"] = {}
+                  }
+foe_melee.popcorn.bailey_axe = {
+    {["item"] = "hand axe", ["weight"] = 50},
+    {["item"] = "war axe", ["weight"] = 12}
+}
+foe_melee.popcorn.bailey_polearm = {
+    {["item"] = "spear", ["weight"] = 50},
+    {["item"] = "trident", ["weight"] = 10},
+    {["item"] = "halberd", ["weight"] = 2}
+}
+foe_melee.popcorn.bailey_mace = {
+    {["item"] = "mace", ["weight"] = 30},
+    {["item"] = "whip", ["weight"] = 20},
+    {["item"] = "flail", ["weight"] = 10},
+    {["item"] = "morningstar", ["weight"] = 2}
+}
+foe_melee.popcorn.bailey_sword = {
+    {["item"] = "falchion", ["weight"] = 50},
+    {["item"] = "long sword", ["weight"] = 10},
+    {["item"] = "scimitar", ["weight"] = 2}
+}
+
+foe_melee.warrior.bailey_axe = {
+    {["item"] = "war axe", ["weight"] = 60},
+    {["item"] = "broad axe", ["weight"] = 1},
+    {["item"] = "battleaxe", ["weight"] = 1}
+}
+foe_melee.warrior.bailey_polearm = {
+    {["item"] = "trident", ["weight"] = 50},
+    {["item"] = "halberd", ["weight"] = 10},
+    {["item"] = "glaive", ["weight"] = 2}
+}
+foe_melee.warrior.bailey_mace = {
+    {["item"] = "flail", ["weight"] = 50},
+    {["item"] = "morningstar", ["weight"] = 10},
+    {["item"] = "dire flail", ["weight"] = 1},
+    {["item"] = "great mace", ["weight"] = 1}
+}
+foe_melee.warrior.bailey_sword = {
+    {["item"] = "long sword", ["weight"] = 50},
+    {["item"] = "scimitar", ["weight"] = 10},
+    {["item"] = "great sword", ["weight"] = 2}
+}
+
+foe_melee.knight.bailey_axe = {
+    {["item"] = "war axe", ["weight"] = 20},
+    {["item"] = "broad axe", ["weight"] = 5},
+    {["item"] = "battleaxe", ["weight"] = 5},
+}
+foe_melee.knight.bailey_polearm = {
+    {["item"] = "halberd", ["weight"] = 20},
+    {["item"] = "glaive", ["weight"] = 2}
+}
+foe_melee.knight.bailey_mace = {
+    {["item"] = "morningstar", ["weight"] = 20},
+    {["item"] = "dire flail", ["weight"] = 5},
+    {["item"] = "great mace", ["weight"] = 5}
+}
+foe_melee.knight.bailey_sword = {
+    {["item"] = "scimitar", ["weight"] = 20},
+    {["item"] = "great sword", ["weight"] = 10}
+}
+
+foe_melee.boss.bailey_axe = {
+    {["item"] = "broad axe good_item", ["weight"] = 5},
+    {["item"] = "battleaxe good_item", ["weight"] = 5},
+    {["item"] = "executioner's axe good_item", ["weight"] = 1}
+}
+foe_melee.boss.bailey_polearm = {
+    {["item"] = "glaive good_item", ["weight"] = 10},
+    {["item"] = "bardiche good_item", ["weight"] = 1}
+}
+foe_melee.boss.bailey_mace = {
+    {["item"] = "dire flail good_item", ["weight"] = 5},
+    {["item"] = "great mace good_item", ["weight"] = 5},
+    {["item"] = "eveningstar good_item", ["weight"] = 1}
+}
+foe_melee.boss.bailey_sword = {
+    {["item"] = "great sword good_item", ["weight"] = 20},
+    {["item"] = "double sword good_item", ["weight"] = 1},
+    {["item"] = "triple_sword good_item", ["weight"] = 1}
+}
+
+local foe_ranged = {["popcorn"] = {}, ["warrior"] = {},
+                    ["knight"] = {}, ["boss"] = {}
+                   }
+foe_ranged.popcorn = {
+    {["item"] = "stone", ["weight"] = 25},
+    {["item"] = "boomerang", ["weight"] = 25},
+    {["item"] = "sling", ["weight"] = 10},
+    {["item"] = "shortbow", ["weight"] = 2},
+}
+foe_ranged.warrior = {
+    {["item"] = "sling", ["weight"] = 50},
+    {["item"] = "shortbow", ["weight"] = 10},
+    {["item"] = "orcbow", ["weight"] = 1},
+    {["item"] = "javelin", ["weight"] = 1},
+}
+foe_ranged.knight = {
+    {["item"] = "shortbow", ["weight"] = 20},
+    {["item"] = "orcbow", ["weight"] = 5},
+    {["item"] = "javelin", ["weight"] = 5}
+}
+foe_ranged.boss = {
+    {["item"] = "orcbow", ["weight"] = 10},
+    {["item"] = "javelin", ["weight"] = 10},
+    {["item"] = "longbow", ["weight"] = 1},
+    {["item"] = "arbalest", ["weight"] = 1},
+}
+
+local foe_armour = {["popcorn"] = {}, ["warrior"] = {},
+                    ["knight"] = {}, ["boss"] = {}
+                   }
+foe_armour.popcorn = {
+    {["item"] = "leather armour", ["weight"] = 50},
+    {["item"] = "ring mail", ["weight"] = 10},
+    {["item"] = "scale mail", ["weight"] = 1},
+    {["item"] = "chain mail", ["weight"] = 1},
+}
+foe_armour.warrior = {
+    {["item"] = "ring mail", ["weight"] = 50},
+    {["item"] = "scale mail", ["weight"] = 5},
+    {["item"] = "chain mail", ["weight"] = 5},
+    {["item"] = "plate armour", ["weight"] = 1},
+}
+foe_armour.knight = {
+    {["item"] = "scale mail", ["weight"] = 10},
+    {["item"] = "chain mail", ["weight"] = 10},
+    {["item"] = "plate armour", ["weight"] = 10}
+}
+foe_armour.boss = {
+    {["item"] = "plate armour", ["weight"] = 10},
+    {["item"] = "crystal plate armour", ["weight"] = 1},
+}
+
+local foe_species = {}
+foe_species.popcorn = {"kobold w:6", "goblin w:5", "hobgoblin w:4",
+                       "orc w:3", "gnoll w:2"
+                      }
+foe_species.warrior = {"orc warrior", "gnoll sergeant w:3"}
+foe_species.knight = {"orc knight"}
+foe_species.boss = {"orc warlord"}
+
+-- general foe function used in place of MONS
+
+function choose(weighted_table)
+    return util.random_weighted_from("weight", weighted_table)
 end
 
-function kobold_axe_returning(e)
-  e.mons("generate_awake kobold ; boomerang ident:type q:2 | \
-                                  boomerang ident:type q:1")
+function foe(e, foe_tier, species, melee, ranged, armour)
+    local weapon_type = dgn.persist.bailey_type
+    if species == "any" then
+        species = foe_species[foe_tier]
+    end
+    if melee == "any" then
+        melee = choose(foe_melee[foe_tier][weapon_type])
+    end
+    if ranged == "any" or ranged == "rare" and crawl.one_chance_in(10) then
+        ranged = choose(foe_ranged[foe_tier])
+    else
+        ranged = nil
+    end
+    if armour == "any" then
+        armour = choose(foe_armour[foe_tier])
+    end
+    local equipment = {}
+    local output = {}
+    for i, monster_name in ipairs(species) do
+        if melee ~= nil then
+            table.insert(equipment, melee)
+        end
+        if ranged ~= nil then
+            table.insert(equipment,ranged)
+        end
+        if armour ~= nil then
+            table.insert(equipment,armour)
+        end
+        if equipment ~= {} then
+            local monster_text =  monster_name .. " ; "
+                                  .. table.concat(equipment, " . ") 
+            table.insert(output,monster_text)
+        else
+            table.insert(output,monster_name)            
+        end
+        equipment = {}
+    end
+    e.mons(table.concat(output, " / "))
 end
 
-function easy_axe_fighter(e)
-  e.mons("w:3 orc warrior ; hand axe w:60 | war axe . ring mail / \
-          w:7 gnoll ; hand axe w:60 | war axe . leather armour / \
-          w:10 hobgoblin ; hand axe w:60 | war axe . leather armour / \
-          w:10 orc ; hand axe w:60 | war axe . leather armour / \
-          w:12 goblin ; hand axe w:60 | war axe . leather armour")
+--[[
+Tiered foe functions.
+Place these in the vault header where one would place MONS
+species must be a table of strings, or "any"
+weapon must be a string, or "any", or nil
+ranged must be a string, or "any", or "rare", or nil
+armour must be a string, or "any", or nil
+--]]
+
+function popcorn_foe(e, species, melee, ranged, armour)
+    foe(e, "popcorn", species, melee, ranged, armour)
 end
 
-function hard_axe_fighter(e)
-  e.mons("w:9 orc warrior ; war axe | broad axe w:2 | battleaxe w:1 . \
-                            ring mail | scale mail | chain mail | plate armour / \
-          w:1 orc knight ; war axe | broad axe w:2 | battleaxe w:1 . \
-                           ring mail | scale mail | chain mail | plate armour")
+function warrior_foe(e, species, melee, ranged, armour)
+    foe(e, "warrior", species, melee, ranged, armour)
 end
 
-function orc_warlord_with_axe(e)
-  e.mons("orc warlord ; \
-          battleaxe good_item | broad axe good_item | \
-          executioner's axe good_item w:1 . \
-          chain mail w:20 | plate armour | crystal plate armour w:1")
+function knight_foe(e, species, melee, ranged, armour)
+    foe(e, "knight", species, melee, ranged, armour)
 end
 
--- Polearms.
-function orc_with_polearm(e)
-  e.mons("orc ; \
-          spear | trident | halberd . \
-          ring mail | scale mail | chain mail")
+function hard_foe(e, melee, ranged, armour)
+    if crawl.coinflip() then
+        warrior_foe(e, "any", melee, ranged, armour)
+    else
+        knight_foe(e, "any", melee, ranged, armour)
+    end
 end
 
-function orc_warrior_with_polearm(e)
-  e.mons("orc warrior ; \
-          spear w:5 | trident w:5 | halberd | glaive | bardiche w:1 . \
-          ring mail | scale mail | chain mail | plate armour |\
-          crystal plate armour w:1")
+function boss_foe(e, species, melee, ranged, armour)
+    foe(e, "boss", species, melee, ranged, armour)
 end
 
-function orc_knight_with_polearm(e)
-  e.mons("orc knight ; \
-          trident w:5 | halberd | glaive | bardiche w:1 . \
-          ring mail | scale mail | chain mail | plate armour | \
-          crystal plate armour w:1")
+-- around entry portal
+
+function entry_decor(e)
+    local weapons = { bailey_axe = "hand axe / war axe",
+                      bailey_polearm = "spear / trident",
+                      bailey_mace = "mace / whip / flail",
+                      bailey_sword = "falchion / long sword"
+    }
+    e.item(weapons[dgn.persist.bailey_type])
 end
 
-function orc_warlord_with_polearm(e)
-  e.mons("orc warlord ; \
-          halberd good_item | glaive good_item | bardiche good_item w:1 . \
-          chain mail w:20 | plate armour | crystal plate armour w:1")
+function entry_guards(e, ranged, species)
+    -- for flavor all guards will be the same species and have the same gear
+    if species == "any" then
+        local possible_species = {"goblin", "kobold", "hobgoblin", "gnoll", "orc"
+                           }
+        species = util.random_from(possible_species)
+    end
+    local weapons = { bailey_axe = "hand axe",
+                      bailey_polearm = "spear",
+                      bailey_mace = "mace | whip",
+                      bailey_sword = "falchion" 
+    }
+    local melee = weapons[dgn.persist.bailey_type]
+    if ranged then
+       if crawl.one_chance_in(3) then
+           ranged = " . sling"
+       else
+           ranged = " . boomerang"
+       end
+    else
+       ranged = ""
+    end
+    e.mons(species .. " ; " .. melee .. ranged)
+end
+
+function entry_guards_melee(e, species)
+    entry_guards(e, false, species)
+end
+
+function entry_guards_ranged(e, species)
+    entry_guards(e, true, species)
 end
 
 }}
@@ -134,25 +374,15 @@ NAME: enter_bailey_1
 TAGS: transparent
 WEIGHT: 1
 : local rnd = crawl.random2(2)
-: if rnd == 0 then
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-:   bailey_portal_polearm(_G)
-: end
+: bailey_portal_random(_G)
 MAP
 O
 ENDMAP
 
 NAME: enter_bailey_2
 TAGS: transparent
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-ITEM: hand axe
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-ITEM: halberd / spear
-:   bailey_portal_polearm(_G)
-: end
+: bailey_portal_random(_G)
+: entry_decor(_G)
 MAP
 .....
 ..d..
@@ -163,14 +393,8 @@ ENDMAP
 
 NAME: enter_bailey_3
 TAGS: transparent
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-MONS: goblin ; hand axe
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-MONS: goblin ; spear
-:   bailey_portal_polearm(_G)
-: end
+: bailey_portal_random(_G)
+: entry_guards_melee(_G,"any")
 KMASK: wW = no_monster_gen
 MAP
 .........
@@ -187,21 +411,10 @@ ENDMAP
 NAME:   enter_bailey_4
 TAGS:   transparent
 WEIGHT: 5
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-MONS:   goblin ; hand axe / hobgoblin ; hand axe / orc ; hand axe
-MONS:   goblin ; boomerang ident:type q:2 | \
-                 boomerang ident:type q:1 / \
-        hobgoblin ; boomerang ident:type q:2 | \
-                    boomerang ident:type q:1 / \
-        orc ; boomerang ident:type q:2 | \
-              boomerang ident:type q:1
+: bailey_portal_random(_G)
+: entry_guards_melee(_G,"any")
+: entry_guards_ranged(_G,"any")
 SUBST: 1 = 122
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-MONS:   goblin ; spear / hobgoblin ; spear / orc ; spear
-:   bailey_portal_polearm(_G)
-: end
 KMASK: wW = no_monster_gen
 MAP
 ...........
@@ -217,15 +430,14 @@ ENDMAP
 
 NAME: enter_bailey_5
 TAGS: transparent no_pool_fixup
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-MONS: goblin ; boomerang ident:type q:2 | \
-               boomerang ident:type q:1
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-MONS: goblin ; spear
-:   bailey_portal_polearm(_G)
-: end
+{{
+bailey_portal_random(_G)
+if dgn.persist.bailey_type == "bailey_polearm" then
+    entry_guards_melee(_G,"any")
+else
+    entry_guards_ranged(_G,"any")
+end
+}}
 SHUFFLE: ABCD
 SUBST: A : W, BCD : wW
 KMASK: wW = no_monster_gen
@@ -249,13 +461,13 @@ KMASK:  d = no_monster_gen
 KPROP:  d = no_tele_into
 : local rnd = crawl.random2(2)
 : if rnd == 0 then
-:   set_feature_name("granite_statue", "granite statue wielding a mighty axe")
-    TILE: G = dngn_statue_axe
-:   bailey_portal_axe(_G)
+:     set_feature_name("granite_statue", "granite statue wielding a mighty axe")
+      TILE: G = dngn_statue_axe
+:     bailey_portal_axe(_G)
 : elseif rnd == 1 then
-:   set_feature_name("granite_statue", "granite statue wielding a fearsome trident")
-    TILE: G = dngn_statue_polearm
-:   bailey_portal_polearm(_G)
+:     set_feature_name("granite_statue", "granite statue wielding a fearsome trident")
+      TILE: G = dngn_statue_polearm
+:     bailey_portal_polearm(_G)
 : end
 MAP
 .....G.....
@@ -272,14 +484,8 @@ ENDMAP
 # They were just having a party.
 NAME:   enter_bailey_7
 WEIGHT: 3
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-MONS:   gnoll ; hand axe / goblin ; hand axe
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-MONS:   gnoll ; spear / goblin ; spear
-:   bailey_portal_polearm(_G)
-: end
+: bailey_portal_random(_G)
+: entry_guards_melee(_G,"gnoll")
 SUBST:  . = ...;!
 COLOUR: ; = red
 KITEM:  ! = potion of degeneration q:2 ident:type
@@ -303,13 +509,13 @@ KMASK:  d = no_monster_gen
 KPROP:  d = no_tele_into
 : local rnd = crawl.random2(2)
 : if rnd == 0 then
-:   set_feature_name("granite_statue", "granite statue wielding a mighty axe")
-    TILE: G = dngn_statue_axe
-:   bailey_portal_axe(_G)
+:     set_feature_name("granite_statue", "granite statue wielding a mighty axe")
+      TILE: G = dngn_statue_axe
+:     bailey_portal_axe(_G)
 : elseif rnd == 1 then
-:   set_feature_name("granite_statue", "granite statue wielding a fearsome trident")
-    TILE: G = dngn_statue_polearm
-:   bailey_portal_polearm(_G)
+:     set_feature_name("granite_statue", "granite statue wielding a fearsome trident")
+      TILE: G = dngn_statue_polearm
+:     bailey_portal_polearm(_G)
 : end
 MAP
  xxxxxxxxxxx
@@ -324,16 +530,9 @@ ENDMAP
 NAME: lightli_bailey_entry_fortress
 TAGS: transparent
 WEIGHT: 1
-: local rnd = crawl.random2(2)
-: if rnd == 0 then
-MONS: orc ; boomerang ident:type q:1 | \
-            boomerang ident:type q:2 . hand axe
-MONS: gnoll ; hand axe / goblin ; hand axe
-:   bailey_portal_axe(_G)
-: elseif rnd == 1 then
-MONS: orc ; spear, gnoll ; spear / goblin ; spear
-:   bailey_portal_polearm(_G)
-: end
+: bailey_portal_random(_G)
+: entry_guards_ranged(_G,"orc")
+: entry_guards_melee(_G,"gnoll")
 KMASK: W = no_monster_gen
 MAP
 WWWWWWWWWWWWWWW
@@ -361,42 +560,45 @@ TAGS:   allow_dup
 PLACE:  Bailey
 ORIENT: encompass
 {{
-  local btype = dgn.persist.bailey_type
-  if not btype then -- Wizmode
-    if crawl.coinflip() then
-      btype = "bailey_axe"
-    else
-      btype = "bailey_polearm"
-    end
-  end
-  if crawl.game_started() then
+local btype = dgn.persist.bailey_type
+if not btype then -- Wizmode
+    btypes = {"bailey_axe", "bailey_polearm",
+              "bailey_mace","bailey_sword"
+    }
+    btype = btypes[crawl.random2(4)]
+end
+if crawl.game_started() then
     local map = dgn.map_by_tag(btype)
     assert(map, "Couldn't find a map for " .. btype)
     dgn.place_map(map, false, false)
-  end
+end
 }}
 MAP
 ENDMAP
-
-##########
-#        #
-#  AXES  #
-#        #
-##########
 
 ############################################################################
 # Bailey 2.
 #
 # Apart from weapons and armours left by the monsters, there are about 10
-# potions useful in battle. If those monsters drink them first, of course...
-# this used to be an axe map; it's polearm now and has been renamed accordingly
-NAME:   bailey_polearm_nasty_gnolls
+# potions useful in battle.
+NAME:   bailey_nasty_gnolls
 ORIENT: encompass
-TAGS:   bailey_polearm no_rotate
-: orc_with_polearm(_G)
-MONS:   gnoll ; halberd ego:draining | halberd ego:electrocution ident:type
-MONS:   orc warrior ; halberd ego:electrocution ident:type . plate armour /\
-        orc knight ; halberd
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_rotate
+{{
+local weapons = { bailey_axe = "war axe",
+                  bailey_polearm = "halberd",
+                  bailey_mace = "morningstar",
+                  bailey_sword = "scimitar" }
+local weapon = weapons[dgn.persist.bailey_type]
+local drain = string.gsub("W ego:draining | ","W",weapon)
+local elec = string.gsub("W ego:electrocution ident:type","W",weapon)
+}}
+: popcorn_foe(_G,"any","any",nil,"any")
+: warrior_foe(_G,{"gnoll"},drain .. elec,nil,"any")
+: warrior_foe(_G,{"orc warrior"},elec,nil,"plate armour")
+: knight_foe(_G,{"orc knight"},weapon,nil,"plate armour")
+SUBST: 3 = 34
 NSUBST: d = 1:ddde / *:d, 1 = 5:1 / *=1., 2 = 5:2 / *=2.
 : item(dgn.loot_potions)
 ITEM:   potion of experience ident:type q:1 /\
@@ -428,16 +630,18 @@ ENDMAP
 
 ############################################################################
 # Another actual bailey. Six good items plus two stacks of specialty darts.
-NAME:   bailey_axe_3
+NAME:   bailey_so_many_kobolds
 ORIENT: encompass
-TAGS:   bailey_axe no_rotate no_item_gen no_monster_gen no_pool_fixup
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_rotate no_item_gen no_monster_gen no_pool_fixup
 SUBST:  v : ccv
 ITEM:   any good_item
 ITEM:   dart ego:atropa q:4 / dart ego:datura q:4
 KFEAT:  _ = altar_trog / altar_okawaru / altar_makhleb
-: kobold_axe_returning(_G)
-MONS: kobold brigand ; war axe . dart ego:poisoned | dart ego:curare w:5
-: hard_axe_fighter(_G)
+: popcorn_foe(_G,{"kobold"},nil,"boomerang",nil)
+: local dart_string = "dart ego:poisoned | dart ego:curare w:5"
+: warrior_foe(_G,{"kobold brigand"},"any", dart_string, "any")
+: hard_foe(_G,"any","rare","any")
 SUBST:  2 = 2.
 NSUBST: 1 = 3:2 / *=1., 3 = 1:3 / *=3..
 : bailey_setup(_G)
@@ -487,9 +691,10 @@ ENDMAP
 #
 # Loots consists of six good items and some flight gear.
 #
-NAME:    bailey_axe_4
+NAME:    bailey_river
 ORIENT:  encompass
-TAGS:    bailey_axe no_rotate no_item_gen no_monster_gen no_pool_fixup
+TAGS:    bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:    no_rotate no_item_gen no_monster_gen no_pool_fixup
 #
 ITEM:    any good_item
 ITEM:    potion of enlightenment ident:type
@@ -512,14 +717,11 @@ SUBST:   ? = c.
 SUBST:   N = nc
 SUBST:   H = W.
 SUBST:   ~ = W
-# the following KMONS duplicates monster 1 from kobold_axe_returning
 KFEAT:   ( = exit_bailey
-KMONS:   ( = generate_awake kobold ; boomerang ident:type q:2 | \
-                                     boomerang ident:type q:1
-#
-: kobold_axe_returning(_G)
-: easy_axe_fighter(_G)
-: hard_axe_fighter(_G)
+KMONS:   ( = generate_awake kobold ; boomerang
+: popcorn_foe(_G,{"kobold"},nil,"boomerang",nil)
+: popcorn_foe(_G,"any","any","rare","any")
+: hard_foe(_G,"any",nil,"any")
 SUBST:   1 = 1., ^ = ^^.
 NSUBST:  2 = 1:3 / *=223.
 #
@@ -558,9 +760,10 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ENDMAP
 
-NAME:   bailey_axe_minmay_hex_keep
+NAME:   bailey_minmay_hex_keep
 ORIENT: encompass
-TAGS:   bailey_axe no_item_gen no_monster_gen
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen
 # Loot consists of 8 good potions and scrolls in the last outer room, with a
 # lot of gold and especially good items in the (very dangerous) center room.
 #
@@ -569,12 +772,12 @@ TAGS:   bailey_axe no_item_gen no_monster_gen
 : item(dgn.loot_scrolls .. " / " .. dgn.loot_potions)
 ITEM:   potion of experience ident:type q:1 /\
         scroll of acquirement ident:type q:1
-: easy_axe_fighter(_G)
-: hard_axe_fighter(_G)
-: orc_warlord_with_axe(_G)
-: bailey_setup(_G)
+: popcorn_foe(_G,"any","any","rare","any")
+: hard_foe(_G,"any","rare","any")
+: boss_foe(_G,"any","any",nil,"any")
 SUBST:  I = t., 1 = 11.
 NSUBST: 2 = 3:2 / *=2.
+: bailey_setup(_G)
 MAP
 ttttttttttttttttttttttttttttttttttttt
 ttttttttttttttttttttttttttttttttttttt
@@ -627,27 +830,20 @@ ttttttttttttttttttttttttttttttttttttt
 ttttttttttttttttttttttttttttttttttttt
 ENDMAP
 
-##############
-#            #
-#  POLEARMS  #
-#            #
-##############
-
 ############################################################################
-# A polearm bailey.
-#
 # Loot consists of three items, among them one piece of good heavy body
 # armour and another piece of good additional armour. Apart from what the
 # orcs leave lying around.
 #
-NAME:   bailey_polearm_1
+NAME:   bailey_star_fortress
 ORIENT: encompass
-TAGS:   bailey_polearm no_rotate no_pool_fixup no_monster_gen
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_rotate no_pool_fixup no_monster_gen
 NSUBST: D = 1:+ / *:c
 NSUBST: E = 1:+ / *:c
-: orc_with_polearm(_G)
-: orc_warrior_with_polearm(_G)
-: orc_knight_with_polearm(_G)
+: popcorn_foe(_G,"any","any","rare","any")
+: warrior_foe(_G,"any","any","rare","any")
+: knight_foe(_G,"any","any",nil,"any")
 SUBST:  2 = 22223..
 SUBST:  1 = 1 2:1 .
 ITEM:   good_item crystal plate armour / good_item plate armour w:20 /\
@@ -658,6 +854,7 @@ ITEM:   good_item cloak / good_item pair of gloves /\
         good_item helmet / good_item pair of boots /\
         good_item tower shield / good_item kite shield
 : bailey_setup(_G)
+MAP
 MAP
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xA<xxxxxxxxxx.........xxxxxxxxxxxxx
@@ -693,22 +890,23 @@ ENDMAP
 # Loot is only three items, which have a good chance of being selected by
 # hand, including useful manuals.
 #
-NAME:   bailey_polearm_2
+NAME:   bailey_donjon
 ORIENT: encompass
-TAGS:   bailey_polearm no_rotate no_pool_fixup no_monster_gen
-MONS:   orc warrior w:5 ; arbalest  . ring mail | scale mail / \
-        orc ; arbalest . ring mail | scale mail
-: orc_with_polearm(_G)
-: orc_warrior_with_polearm(_G)
-: orc_knight_with_polearm(_G)
-MONS:   orc knight
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_rotate no_pool_fixup no_monster_gen
+MONS:   orc warrior w:5 ; orcbow | arbalest w:1 . ring mail | scale mail / \
+        orc ; orcbow . ring mail | scale mail
+: popcorn_foe(_G,{"orc"},"any","rare","any")
+: warrior_foe(_G,{"orc"},"any",nil,"any")
+: knight_foe(_G,{"orc"},"any",nil,"any")
+: knight_foe(_G,{"orc"},"any","rare","any")
 SUBST:  1 = 111., 2 = 233.
 NSUBST: 4 = 1:4 / *=433322..
 SUBST:  W : W..
 SUBST:  X = I G C
 KFEAT:  C = altar_beogh
 ITEM:   manual of armour / manual of fighting / manual of shields /\
-        good_item bardiche / good_item executioner's axe /\
+        good_item bardiche / good_item executioner"s axe /\
         good_item triple sword / good_item arbalest / good_item triple crossbow
 ITEM:   potion of experience ident:type q:1 / \
         scroll of acquirement ident:type q:1 /\
@@ -762,9 +960,10 @@ ENDMAP
 # Loot comes in three stages: money, potions, scrolls. No special weapons and
 # armours.
 #
-NAME:   bailey_polearm_5
+NAME:   bailey_infantry
 ORIENT: encompass
-TAGS:   bailey_polearm no_item_gen no_monster_gen
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_axe
+TAGS:   no_item_gen no_monster_gen
 ITEM:   potion of experience ident:type q:1
 : item(dgn.loot_potions)
 ITEM:   scroll of brand weapon ident:type w:5 / \
@@ -782,9 +981,9 @@ NSUBST: ! = 1:deee / *:e
 NSUBST: ? = 1:fffg / *:g
 MONS:   orc warrior ; spear w:5 | trident w:5 | halberd | hand axe | war axe /\
         orc w:110   ; spear w:5 | trident w:5 | halberd | hand axe | war axe
-: orc_with_polearm(_G)
-: orc_warrior_with_polearm(_G)
-: orc_knight_with_polearm(_G)
+: popcorn_foe(_G,{"orc"},"any","rare","any")
+: warrior_foe(_G,{"orc"},"any","rare","any")
+: knight_foe(_G,{"orc"},"any","rare","any")
 : bailey_setup(_G)
 MAP
 cccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -804,8 +1003,8 @@ ENDMAP
 NAME:   bailey_polearm_flooded_kennysheep
 ORIENT: encompass
 TAGS:   bailey_polearm no_item_gen no_monster_gen no_pool_fixup patrolling
-: orc_with_polearm(_G)
-: orc_warrior_with_polearm(_G)
+: popcorn_foe(_G,{"orc"},"spear | trident w:5","rare","any")
+: warrior_foe(_G,{"orc warrior"},"halberd | trident w:5","rare","any")
 MONS:   centaur ; javelin ident:type q:2 | \
             javelin ident:type q:3 . spear | trident | halberd . \
             ring mail | scale mail | chain mail
@@ -815,7 +1014,7 @@ NSUBST: ! = 12=11. / *:.
 NSUBST: 3 = 8:3 / * = 3..
 SUBST:  / = 12
 KITEM:  d = manual of armour / manual of fighting / manual of shields /\
-            good_item bardiche / good_item executioner's axe /\
+            good_item bardiche / good_item executioner"s axe /\
             good_item triple sword
 KITEM:  e = potion of experience ident:type q:1 / \
             scroll of acquirement ident:type q:1 / \
@@ -854,21 +1053,18 @@ ccwwwwwwww;3;.;3.wwwwwwwwccc_____________.......$c
 ENDMAP
 
 #6 items and two gold piles for murdering a bunch of gnolls
-NAME:   bailey_polearm_gnolls_kennysheep
+NAME:   bailey_gnolls_kennysheep
 ORIENT: encompass
-TAGS:   bailey_polearm no_item_gen no_monster_gen no_pool_fixup
-MONS:   gnoll ; spear | trident | halberd . \
-            ring mail | scale mail | chain mail . \
-            throwing net | nothing
-MONS:   gnoll sergeant ; halberd | glaive | bardiche w:1 . \
-            chain mail w:20 | plate armour | crystal plate armour w:1
-MONS:   gnoll bouda ; spear | trident | halberd . \
-            ring mail | scale mail
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen no_pool_fixup
+: popcorn_foe(_G,{"gnoll"},"any","throwing net | nothing","any")
+: knight_foe(_G,{"gnoll sergeant"},"any","rare","any")
+: warrior_foe(_G,{"gnoll bouda"},"any","rare","any")
 MONS:   hound, wolf
 KMONS:  R = grum, gnoll sergeant ; halberd . plate armour
 ITEM:   any good_item
-FTILE:  4't = floor_grass
-KFEAT:  ' = floor
+FTILE:  4"t = floor_grass
+KFEAT:  " = floor
 NSUBST: _ = 40 = 1... / *:., 2 = 4:2 / * = 2., 3 = 4:3 / * = 3.
 NSUBST: R = 1:R22 / *:2, 5 = 2:5 / * = 5..
 SUBST:  d = dd|
@@ -877,10 +1073,10 @@ MAP
 xxxxxxxxxxxxxxxxxxxxxxxxxxx
 xtttttttttttttttttttttttttx
 xttttwwwwwwwwwwwwwwwwwttttx
-xtttww'''''''''''''''wwtttx
-xtttw'''''''''''''''''wtttx
-xtttw''ccccc_3_ccccc''wtttx
-xtttw'cc___c___c___cc'wtttx
+xtttww"""""""""""""""wwtttx
+xtttw"""""""""""""""""wtttx
+xtttw""ccccc_3_ccccc""wtttx
+xtttw"cc___c___c___cc"wtttx
 xtttwcc____+___+____ccwtttx
 xtttwc_____c___c_____cwtttx
 xtttwcG____cc+cc3___Gcwtttx
@@ -894,14 +1090,14 @@ xtttwc__55cc___cc55__cwtttx
 xtttwcG5255cc+cc5525Gcwtttx
 xtttwc2353Rc___cR3532cwtttx
 xtttwccccc+c___c+cccccwtttx
-xtttw'cddd.c___c.dddc'wtttx
-xtttw'cccccc+++cccccc'wtttx
-xtttw''''''41.14''''''wtttx
-xtttww''''''...''''''wwtttx
+xtttw"cddd.c___c.dddc"wtttx
+xtttw"cccccc+++cccccc"wtttx
+xtttw""""""41.14""""""wtttx
+xtttww""""""...""""""wwtttx
 xttttwwwwwww...wwwwwwwttttx
-xttttt''''''...''''''tttttx
-xttttttt''''...''''tttttttx
-xtttttttt'''...'ttttttttttx
+xttttt""""""...""""""tttttx
+xttttttt""""...""""tttttttx
+xtttttttt"""..."ttttttttttx
 xttttttttttt.A.tttttttttttx
 xtttttttttttt.ttttttttttttx
 xtttttttttttt.ttttttttttttx
@@ -909,22 +1105,19 @@ xtttttttttttt<ttttttttttttx
 xxxxxxxxxxxxxxxxxxxxxxxxxxx
 ENDMAP
 
-# loosely based on nethack's castle
+# loosely based on nethack"s castle
 # loot is 4 of each: weapons, armour, and potions/scrolls
 # 1 of each is a guaranteed good item
 # along with 1 guaranteed acquirement scroll and 3 gold piles in the bastions
-NAME:   bailey_axe_of_yendor_kennysheep
+NAME:   bailey_of_yendor_kennysheep
 ORIENT: encompass
-TAGS:   bailey_axe no_item_gen no_monster_gen no_pool_fixup
-: easy_axe_fighter(_G)
-: hard_axe_fighter(_G)
-KMONS:  3 = orc sorcerer ; war axe | broad axe w:2 | battleaxe w:1 . \
-            ring mail | scale mail  / \
-        orc high priest ; war axe | broad axe w:2 | battleaxe w:1 . \
-            ring mail | scale mail / \
-        kobold demonologist w:20 ; war axe | broad axe w:2 | battleaxe w:1 . \
-            ring mail | scale mail
-KMONS:  4 = electric eel
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen no_pool_fixup
+: popcorn_foe(_G,"any","any","rare","any")
+: hard_foe(_G,"any","rare","any")
+: local warriors = {"orc sorcerer","orc high priest","kobold demonologist"}
+: warrior_foe(_G,warriors,"any",nil,"any")
+MONS:  electric eel
 KITEM:  d = any weapon
 KITEM:  D = any weapon good_item
 KITEM:  e = any armour
@@ -998,22 +1191,23 @@ xxxxxxxxxxxxxxxxx.......xxxxxxxxxxxxxxxxx
 ENDMAP
 
 # same loot as minmay_hex_keep, and a similar warlord fight
-# slightly more of the loot is outside of the warlord's room
+# slightly more of the loot is outside of the warlord"s room
 # the warlord fight is a little easier, and the outer fights are harder
-NAME:   bailey_axe_bossmonster_kennysheep
+NAME:   bailey_bossmonster_kennysheep
 ORIENT: encompass
-TAGS:   bailey_axe no_item_gen no_monster_gen no_pool_fixup
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen no_pool_fixup
 : item(dgn.loot_potions .. " / " .. dgn.loot_scrolls)
 ITEM:   potion of experience ident:type q:1 / \
-            scroll of acquirement ident:type q:1
-: easy_axe_fighter(_G)
-: kobold_axe_returning(_G)
-: hard_axe_fighter(_G)
-: orc_warlord_with_axe(_G)
-: bailey_setup(_G)
+        scroll of acquirement ident:type q:1
+: popcorn_foe(_G,"any","any","rare","any")
+: popcorn_foe(_G,{"kobold","goblin"},"any","boomerang","any")
+: hard_foe(_G,"any","rare","any")
+: boss_foe(_G,"any","any",nil,"any")
 SUBST:  1 = 1.., 2 = 22.
 NSUBST: 3 = 2:3 / * = 3.
 NSUBST: e = 1:e / *:d
+: bailey_setup(_G)
 MAP
       ccccc         ccccc
      ccd$1cc       cc1$dcc
@@ -1050,16 +1244,17 @@ tttttttttttttt.<.tttttttttttttt
 ttttttttttttttttttttttttttttttt
 ENDMAP
 
-# orcs are holding an elf hostage... but their prisoner isn't happy to see you.
+# orcs are holding an elf hostage... but their prisoner isn"t happy to see you.
 # 6 gold piles, 4 good potions/scrolls, 4 good armours / superb items
-NAME:   bailey_polearm_elven_captive_hellmonk
+NAME:   bailey_elven_captive_hellmonk
 ORIENT: encompass
-TAGS:   bailey_polearm no_item_gen no_monster_gen no_pool_fixup
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen no_pool_fixup
 : item(dgn.loot_potions .. " / " .. dgn.loot_scrolls)
 ITEM:   any armour good_item no_pickup
-: orc_with_polearm(_G)
-: orc_warrior_with_polearm(_G)
-: orc_knight_with_polearm(_G)
+: popcorn_foe(_G,"any","any","rare","any")
+: warrior_foe(_G,"any","any","rare","any")
+: knight_foe(_G,"any","any","rare","any")
 MONS: deep elf pyromancer / deep elf zephyrmancer w:5
 SUBST:  1 = 1...
 NSUBST: d = 2:$ / 4:d / * = e|
@@ -1106,17 +1301,16 @@ ENDMAP
 # vampire castle
 # total of 9 items, which may be good potions, good armour, or superb item.
 # The vampires themselves will have some good weapons as well.
-NAME:    bailey_polearm_vampire_castle_hellmonk
+NAME:    bailey_vampire_castle_hellmonk
 ORIENT:  encompass
-TAGS:    bailey_polearm no_item_gen no_monster_gen no_pool_fixup
+TAGS:    bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:    no_item_gen no_monster_gen no_pool_fixup
 :item(dgn.loot_potions)
 ITEM:    any armour good_item
 MONS:    wolf zombie, vampire bat
-MONS:    orc zombie ; spear, orc warrior zombie ; trident | halberd
+: popcorn_foe(_G,{"orc zombie","gnoll zombie"}, "any", nil, nil)
 MONS:    gargoyle
-MONS:    vampire ; halberd ego:vampirism w:15 | glaive ego:vampirism w:3 \
-             | bardiche ego:vampirism w:1 \
-             . scale mail | chain mail
+: knight_foe(_G,{"vampire"},"any",nil,"any")
 NSUBST:  d = 2=d / 2=e / | /  dde|, f = f / f..
 NSUBST:  ; = 20=t. / ., - = 4=G / 12=1. / .
 NSUBST:  2 = 5=2 / 2., 3 = 6=3 / 3..., 4 = 3=4 / 4., 5 = 5 / G
@@ -1124,7 +1318,7 @@ NSUBST:  ! = 6 / G
 SHUFFLE: A<
 TILE:    t = dngn_tree_dead, G = dngn_gravestone
 COLOUR:  t = w:5 lightgrey / w:5 darkgrey / brown
-: dgn.delayed_decay(_G, 'f', 'orc skeleton')
+: dgn.delayed_decay(_G, "f", "orc skeleton")
 : set_feature_name("tree", "dead tree")
 : set_feature_name("granite_statue", "a gravestone")
 : bailey_setup(_G)
@@ -1172,17 +1366,32 @@ ttx....x..x....xttttttttt
      xxxxxxxx
 ENDMAP
 
-# Prince Ribbit's fortress
+# Prince Ribbit"s fortress
 # If Prince Ribbit has already generated, his attendants have recovered the
 # wrong frog by mistake. Whoops!
-# Nine items, mostly consumables. Guaranteed broad axes from the vault guards.
-NAME:   bailey_axe_froggy_fort_hellmonk
+# Nine items, mostly consumables. Guaranteed nice weapons from the vault guards.
+NAME:   bailey_froggy_fort_hellmonk
 ORIENT: encompass
-TAGS:   bailey_axe no_item_gen no_monster_gen no_pool_fixup
+TAGS:   bailey_axe bailey_polearm bailey_mace bailey_sword
+TAGS:   no_item_gen no_monster_gen no_pool_fixup
 : item(dgn.loot_potions .. " / " .. dgn.loot_scrolls)
-: easy_axe_fighter(_G)
-MONS:   human ; hand axe ego:heavy | war axe . scale mail | ring mail
-MONS:   vault guard ; broad axe . chain mail | plate armour
+{{
+local weapons = { bailey_axe = {"hand axe ego:heavy | war axe", 
+                                "broad axe"
+                  },
+                  bailey_polearm = {"spear ego:heavy | halberd", "glaive"},
+                  bailey_mace = {"mace ego:heavy | morningstar", 
+                                 "great mace"
+                  },
+                  bailey_sword =  {"falchion ego:heavy | scimitar",
+                                   "great sword"
+                  }
+}
+local weapon = weapons[dgn.persist.bailey_type]
+}}
+: popcorn_foe(_G,"any","any","rare","any")
+: warrior_foe(_G,{"human"},weapon[0],"rare","any")
+: knight_foe(_G,{"vault guard"},weapon[1],nil,"any")
 KMONS:  4 = bullfrog
 KMONS:  5 = prince ribbit, blink frog / cane toad w:1
 KFEAT:  4 = shallow_water
@@ -1245,7 +1454,7 @@ MONS:   two-headed ogre ; halberd | glaive w:3 | bardiche w:1 . \
 KMONS:  D = steam dragon / acid dragon w:3
 KFEAT:  D = deep_water
 SUBST:  ! = t:20 x c:3, - = t c:30 x
-NSUBST: ' = 20 = 1... / 2 = 2... / *:.
+NSUBST: " = 20 = 1... / 2 = 2... / *:.
 NSUBST: " = 1:2 / 12 = 2... / *:., 3 = 1:3 / *:.
 NSUBST:  d = 1:e / * = ddddddde
 FTILE:  ;tA< = floor_grass
@@ -1254,20 +1463,20 @@ MAP
       ccccccccc
      ccccccccccc
     ccc"""""""ccc
-   ccc''"""""''ccc
-  ccc'''"WWW"'''ccc
- ccc''----W----''ccc
-ccc''--"""""""--''ccc
-cc''--""ttttt""--''cc
-cc''-""ttdddtt""-''cc
-cc''-""!ddwdd!""-''cc
-cc''-""!dwDwd!""-''cc
-cc''-""!..w..!""-''cc
-cc''-""tt...tt""-''cc
-cc''--""t!W!t""--''cc
-ccc''--3"""""3--''cc
-  cc''--""3""--''cc
-   cc''-------''cc
+   ccc"""""""""ccc
+  ccc""""WWW""""ccc
+ ccc""----W----""ccc
+ccc""--"""""""--""ccc
+cc""--""ttttt""--""cc
+cc""-""ttdddtt""-""cc
+cc""-""!ddwdd!""-""cc
+cc""-""!dwDwd!""-""cc
+cc""-""!..w..!""-""cc
+cc""-""tt...tt""-""cc
+cc""--""t!W!t""--""cc
+ccc""--3"""""3--""cc
+  cc""--""3""--""cc
+   cc""-------""cc
     cc.........cc
      cc.......cc
       ccWWWWWcc
