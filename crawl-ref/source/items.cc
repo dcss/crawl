@@ -986,8 +986,9 @@ static bool _id_floor_item(item_def &item)
         if (fully_identified(item))
             return false;
 
-        // autopickup hack for previously-unknown items
-        if (item_needs_autopickup(item))
+        // Some people may want to change autopickup settings as soon as
+        // they spot an item but still expect to pick up the item
+        if (item_needs_autopickup(item) && Options.autopickup_decide_on_sight)
             item.props[NEEDS_AUTOPICKUP_KEY] = true;
         identify_item(item);
         // but skip ones that we discover to be useless
