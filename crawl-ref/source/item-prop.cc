@@ -2846,7 +2846,8 @@ int property(const item_def &item, int prop_type)
     {
     case OBJ_ARMOUR:
         if (prop_type == PARM_AC
-            && is_unrandom_artefact(item, UNRAND_SLICK_SLIPPERS))
+            && (is_unrandom_artefact(item, UNRAND_SLICK_SLIPPERS)
+                || is_unrandom_artefact(item, UNRAND_GADGETEER)))
         {
             return 0;
         }
@@ -3324,7 +3325,8 @@ int evoker_max_charges(int evoker_type)
     const evoker_data* edata = map_find(xp_evoker_data,
                                    static_cast<misc_item_type>(evoker_type));
     ASSERT(edata);
-    return edata->max_charges;
+    return edata->max_charges +
+        (player_equip_unrand(UNRAND_GADGETEER) ? 1 : 0);
 }
 
 /**
@@ -3353,8 +3355,8 @@ int evoker_charges(int evoker_type)
     const int max_charges = evoker_max_charges(evoker_type);
     const int charge_xp_debt = evoker_charge_xp_debt(evoker_type);
     const int debt = evoker_debt(evoker_type);
-    return min(max_charges,
-            max_charges - debt / charge_xp_debt - (debt % charge_xp_debt > 0));
+    return max(0, min(max_charges,
+            max_charges - debt / charge_xp_debt - (debt % charge_xp_debt > 0)));
 }
 
 void expend_xp_evoker(int evoker_type)
