@@ -111,6 +111,7 @@ private:
     void do_passive_freeze();
     void do_foul_flame();
     void emit_foul_stench();
+    void ghoul_apply_devour();
 
     /* Divine Effect */
     void do_fiery_armour_burn();

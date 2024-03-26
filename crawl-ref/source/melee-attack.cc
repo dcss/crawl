@@ -286,6 +286,8 @@ bool melee_attack::handle_phase_dodged()
 
     maybe_trigger_jinxbite();
 
+    ghoul_apply_devour();
+
     if (attacker != defender
         && attacker->alive() && defender->can_see(*attacker)
         && !defender->cannot_act() && !defender->confused()
@@ -505,6 +507,8 @@ bool melee_attack::handle_phase_hit()
 
         return false;
     }
+
+    ghoul_apply_devour();
 
     // This does more than just calculate the damage, it also sets up
     // messages, etc. It also wakes nearby creatures on a failed stab,
@@ -800,6 +804,17 @@ static void _consider_devouring(monster &defender)
 
     // chow down.
     _devour(defender);
+}
+
+void melee_attack::ghoul_apply_devour()
+{
+    //enable ghouls to become lucid if target dies
+    if (attacker->is_player()
+    && defender->is_monster()
+    && you.has_mutation(MUT_DEVOUR_ON_KILL))
+    {
+        defender->as_monster()->props[GHOUL_DEVOUR_TURN_KEY] = you.num_turns;
+    }
 }
 
 /**
@@ -1188,6 +1203,7 @@ bool melee_attack::attack()
     if (shield_blocked)
     {
         handle_phase_blocked();
+        ghoul_apply_devour();
         maybe_riposte();
         if (!attacker->alive())
         {
