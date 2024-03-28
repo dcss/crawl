@@ -760,8 +760,7 @@ static spret _rampage_forward(coord_def move)
     // This has the effect of ungoldify+rampage having a great synergy, which
     // is maybe not an awful thing. Additionally if we kill the monster
     // outright, the player will *still* get their free movement after that.
-    if (you.duration[DUR_UNGOLDIFY])
-        handle_ungoldify_movement(move);
+    handle_ungoldify_movement(move);
 
     return spret::success;
 }
@@ -1134,8 +1133,7 @@ void move_player_action(coord_def move)
             remove_ice_movement();
             you.clear_far_engulf(false, true);
             apply_cloud_trail(old_pos);
-            if (you.duration[DUR_UNGOLDIFY])
-                handle_ungoldify_movement(move);
+            handle_ungoldify_movement(move);
         }
 
         // Now it is safe to apply the swappee's location effects and add

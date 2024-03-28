@@ -31,7 +31,7 @@ poison-resistant creatures may resist the effects). The caster will experience
 vertigo briefly if they successfully make contact with other minds. It is
 frequently used as an icebreaker at wizard parties.
 %%%%
-Alistair's Ungoldify spell
+Alistair's Pocket Change spell
 
 The ultimate ambition of every alchemist has long been to achieve the elusive
 transmutation of base metals into gold. Many have died (or worse) in pursuit
@@ -39,15 +39,14 @@ of this "Philosopher's Stone". The reverse, however, is rather more possible
 for one with sufficient mastery of the alchemical arts (although it is no less
 hazardous).
 
-Begins a transmutation of a handful of gold coins into lead, iron, and silver
-slugs. The reaction is highly energetic but must be supplied with kinetic energy
-from the caster by moving immediately after casting, in the direction they
-wish to roughly propel a cone of the shrapnel. Failure to move in time, or
-performing any other action, will cause a far weaker expulsion all around the
-caster instead.
+Begins a transmutation of a handful of gold coins into silver slugs. The
+reaction starts instantly and is highly energetic but must be supplied with
+kinetic energy from the caster's movement, by moving in the direction in which
+they wish to propel a cone of shrapnel. With each movement, more gold will be
+converted and pellets fired, until the reaction ends or the caster takes any
+action other than moving.
 
-Silver slugs cause great damage to chaotic beings, whilst iron causes corrosion,
-and lead will poison and knock targets backward.
+Silver causes especially great damage to chaotic beings.
 %%%%
 Anguish spell
 

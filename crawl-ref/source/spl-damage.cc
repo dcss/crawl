@@ -2053,10 +2053,97 @@ spret cast_irradiate(int powc, actor &caster, bool fail)
     return spret::success;
 }
 
+dice_def ungoldify_damage(int pow, int per_beam, int position)
+{
+    return dice_def(per_beam - abs(position), 5 + pow / 15);
+}
+
+static void _ungoldify_targets(vector<widebeam_beam> beams, int coins, int pow, int range)
+{
+    // Now fire all the beams
+    bolt beam_silver;
+    beam_silver.set_agent(&you);
+    beam_silver.name              = "scintillating silver";
+    beam_silver.flavour           = BEAM_SILVER;
+    beam_silver.glyph             = dchar_glyph(DCHAR_FIRED_BOLT);
+    beam_silver.colour            = ETC_SILVER;
+    beam_silver.range             = range;
+    // Taken from quicksilver
+    // beam_silver.damage            = dice_def(5, 5 + pow / 15);
+    beam_silver.hit               = 10 + pow / 20;
+    beam_silver.source            = you.pos();
+    beam_silver.hit_verb          = "sears";
+    beam_silver.origin_spell      = SPELL_UNGOLDIFY;
+    beam_silver.loudness          = 2;
+    beam_silver.draw_delay        = 0;
+    beam_silver.pierce            = true;
+
+    for (widebeam_beam item : beams)
+    {
+        beam_silver.damage = ungoldify_damage(pow, coins, item.position);
+        beam_silver.target = item.end;
+        beam_silver.source = item.start;
+        beam_silver.fire();
+    }
+}
+
+static void _end_ungoldify() {
+    mpr("The gold remnants are flung out impotently around you.");
+
+    // Extract necessary data
+    const int pow = you.props[UNGOLDIFY_POWER_KEY].get_int();
+    const int coins = you.props[UNGOLDIFY_COINS_KEY].get_int();
+
+    // Casting at half power and lower range with a 360 degree spread. Basically fires
+    // 8 different directions of the targetter but with all the numbers reduced.
+    const int range = max(2, spell_range(SPELL_UNGOLDIFY, pow) - 2);
+
+    for (int x = -1; x <= 1; x++)
+        for (int y= -1; y<1 ; y++)
+        {
+            if (x == 0 && y == 0 || x_chance_in_y(1, 3))
+                continue;
+            targeter_widebeam hitfunc(&you, range, 3, LOS_NO_TRANS);
+            _ungoldify_targets(hitfunc.beams, div_round_up(coins, 10),
+                               div_rand_round(pow, 2), range);
+        }
+
+    you.props.erase(UNGOLDIFY_KEY);
+    you.props.erase(UNGOLDIFY_POWER_KEY);
+    you.props.erase(UNGOLDIFY_COINS_KEY);
+    you.set_duration(DUR_UNGOLDIFY, 0);
+}
+
+static int _finance_ungoldify(int powc, int range)
+{
+    // 5 coins at 0 power; at max power 51-151 coins.
+    const int coins = min(you.gold,
+                          5 + div_rand_round(powc, 4)
+                            + div_rand_round(random2avg(powc, 3), 2));
+    const int coins_per_beam = coins / ungoldify_beam_width(range);
+    you.props[UNGOLDIFY_COINS_KEY] = coins_per_beam;
+
+    // On initial casting we check for > 0 gold, but on subsequent triggerings
+    // the gold has maybe gone
+    if (coins == 0)
+    {
+        mpr("You reach for more coins ... but your purse is empty.");
+        _end_ungoldify();
+    }
+    else
+    {
+        mprf("You grab a handful of %d gold coin%s and they begin to pop and "
+             "fizzle. You have %d gold remaining.",
+             coins, coins != 1 ? "s" : "", you.gold);
+        you.del_gold(coins);
+    }
+    return coins;
+}
+
 /**
- * Attempt to cast the spell "Reverse Chrysopaeia", beginning a transmutation of gold
+ * Attempt to cast the spell "Alistair's Pocket Chnge", beginning a transmutation of gold
  * into base metals (lead, iron and silver) which can be released explosively on your
- * next turn in a 60 degree cone in your direction of movement.
+ * next turn in a 3- 5- or 7- wide beam in your direction of movement.
  *
  * @param powc   The power at which the spell is being cast.
  * @param fail   Whether the player has failed to cast the spell.
@@ -2066,167 +2153,128 @@ spret cast_irradiate(int powc, actor &caster, bool fail)
  */
 spret cast_ungoldify(int powc, bool fail)
 {
-    if (you.duration[DUR_UNGOLDIFY]) {
-        mpr("You are already have a handful of transmuting gold. Your next movement"
-            " will propel it in the same direction.");
+    if (you.props.exists(UNGOLDIFY_KEY))
+    {
+        mpr("You are already transmuting a handful of gold. Your next movement"
+            " will propel silver shrapnel in the direction you move.");
         return spret::abort;
     }
 
-    if (you.gold == 0) {
-        mpr("You are too poor to cast this spell!");
+    if (you.gold == 0)
+    {
+        mpr("You are too poor to cast this spell.");
         return spret::abort;
     }
 
-    // TODO: Ally checks
-
+    // TODO: Check danger to allies
     fail_check();
 
-    // 1 coin at 0 power; at max power 6-26 coins.
-    const int coins = min(you.gold, 
-                          1 + div_rand_round(powc, 40)
-                              + div_rand_round(random2avg(powc, 4), 10));
-    mprf("You grab a handful of %d gold coins and begin transmuting them to"
-         " baser metals.", coins);
+    _finance_ungoldify(powc, spell_range(SPELL_UNGOLDIFY, powc));
+    you.set_duration(DUR_UNGOLDIFY, 1000);
     noisy(spell_effect_noise(SPELL_UNGOLDIFY), you.pos());
-    mprf("You have %d gold piece%s left.",
-          you.gold, you.gold != 1 ? "s" : "");
 
-    // Needs two turns of duration otherwise it times out instantly. Maybe more
-    // for Chei followers; maybe need to set it based on character speed (or use
-    // instant duration but time it out manually on next action whatever it is)
-    you.set_duration(DUR_UNGOLDIFY, 2);
-    you.del_gold(coins);
-    // Save the state for when the effect actually triggers next turn
-    you.props[UNGOLDIFY_COINS_KEY].get_int() = coins;
-    you.props[UNGOLDIFY_POWER_KEY].get_int() = powc;
+    // Save state for when the effect actually happens next turn
+    you.props[UNGOLDIFY_KEY] = 0;
+    you.props[UNGOLDIFY_POWER_KEY] = powc;
+
+    // *Starting* the effect takes zero time, but you must move to use it
+    you.time_taken = 0;
+    // TODO: Could add hitfunc to flash so we get an idea where it's going to go
+    flash_view_delay(UA_PLAYER, ETC_GOLD, 100);
 
     return spret::success;
 }
 
-static void _ungoldify_targets(vector<coord_def> possible_targets, int coins, int pow, int range) {
-    // Randomly pick a square from available ones for each projectile
-    vector<coord_def> actual_targets;
-    // TODO: Roll a dice to see how many slugs we get from each coin (and spell pow)
-    for (int n = 0; n < coins; n++)
-        actual_targets.push_back(possible_targets[random2(possible_targets.size())]);
+static bool _was_goldify_movement_command(command_type cmd)
+{
+    return cmd >= CMD_MOVE_LEFT && cmd <= CMD_SAFE_MOVE_DOWN_RIGHT
+           && cmd != CMD_SAFE_WAIT;
+}
 
-    // Now fire all the beams
-    bolt beam_silver;
-    beam_silver.set_agent(&you);
-    beam_silver.name              = "scintillating silver";
-    beam_silver.flavour           = BEAM_SILVER;
-    beam_silver.glyph             = dchar_glyph(DCHAR_FIRED_BOLT);
-    beam_silver.colour            = ETC_UNGOLD_SILVER;
-    beam_silver.range             = range;
-    // Taken from quicksilver
-    beam_silver.damage            = dice_def(3, 5 + pow / 15);
-    beam_silver.hit               = 10 + pow / 20;
-    beam_silver.source            = you.pos();
-    beam_silver.hit_verb          = "perforates";
-    beam_silver.origin_spell      = SPELL_UNGOLDIFY;
-    beam_silver.loudness          = 2;
-    beam_silver.draw_delay        = 0;
-    beam_silver.pierce            = true;
+int ungoldify_beam_width(int range)
+{
+    return min(3 + 2 * (max(0, range - 3) / 2), 7);
+}
 
-    bolt beam_iron;
-    beam_iron.set_agent(&you);
-    beam_iron.name              = "oxidising iron";
-    beam_iron.flavour           = BEAM_ACID;
-    beam_iron.glyph             = dchar_glyph(DCHAR_FIRED_MISSILE);
-    beam_iron.colour            = ETC_UNGOLD_IRON;
-    beam_iron.range             = range - 1;
-    // Taken from Venom Bolt
-    beam_iron.damage            = dice_def(2, 10 + pow / 10);
-    beam_iron.hit               = 8 + pow / 25;
-    beam_iron.source            = you.pos();
-    beam_iron.hit_verb          = "oxidises";
-    beam_iron.origin_spell      = SPELL_UNGOLDIFY;
-    beam_iron.loudness          = 4;
-    beam_iron.draw_delay = 0;
-    beam_iron.pierce            = true;
+void handle_ungoldify_turn()
+{
+    if (!you.props.exists(UNGOLDIFY_KEY))
+        return;
 
-    bolt beam_lead;
-    beam_lead.set_agent(&you);
-    beam_lead.name              = "molten lead";
-    beam_lead.flavour           = BEAM_POISON;
-    beam_lead.glyph             = dchar_glyph(DCHAR_FIRED_BURST);
-    beam_lead.colour            = ETC_UNGOLD_LEAD;
-    beam_lead.range             = range - 2;
-    // Taken from Magma
-    beam_lead.damage            = dice_def(4, 5 + pow / 20);
-    beam_lead.hit               = 8 + pow / 20;
-    beam_lead.source            = you.pos();
-    beam_lead.hit_verb          = "peppers";
-    beam_lead.origin_spell      = SPELL_UNGOLDIFY;
-    beam_lead.loudness          = 6;
-    beam_lead.draw_delay        = 0;
-    beam_lead.pierce            = true;
+    int &lvl = you.props[UNGOLDIFY_KEY].get_int();
+    ++lvl;
+    if (lvl == 1) // This was the initial casting turn
+        return;
 
-    mpr("You expel the base metals with the kinetic energy of your movement!");
-    for (coord_def target : actual_targets)
+    if (!_was_goldify_movement_command(crawl_state.prev_cmd))
     {
-        const int which_beam = random2(3);
-        switch (which_beam) {
-            case 0:
-                beam_silver.target = target;
-                beam_silver.fire();
-                break;
-            case 1:
-                beam_iron.target = target;
-                beam_iron.fire();
-                break;
-            case 2:
-                beam_lead.target = target;
-                beam_lead.fire();
-                break;
-        }
+        mpr("With no kinetic energy to drive it, the reaction fizzles out.");
+        _end_ungoldify();
+        return;
     }
 }
 
-void handle_ungoldify_movement(coord_def move) {
-    // Clear remaining duration (so we don't also trigger the "didn't move" effect
-    // next turn)
-    you.set_duration(DUR_UNGOLDIFY, 0);
-    // Extract neccessary data
+void handle_ungoldify_movement(coord_def move)
+{
+    if (!you.props.exists(UNGOLDIFY_KEY))
+        return;
+
+    int lvl = you.props[UNGOLDIFY_KEY].get_int();
+
+    // TODO: Get an extra casting with Vehumet like flame wave
+    if (lvl == 4)
+    {
+        _end_ungoldify();
+        return;
+    }
+
+    if (!can_cast_spells(true))
+    {
+        mpr("Unable to use magic, you allow the reaction to consume itself.");
+        _end_ungoldify();
+        return;
+    }
+
+    // Extract various info
     const int pow = you.props[UNGOLDIFY_POWER_KEY].get_int();
-    const int coins = you.props[UNGOLDIFY_COINS_KEY].get_int();
     const int range = spell_range(SPELL_UNGOLDIFY, pow);
+
+    // First time around we already did some of this
+    if (lvl > 1)
+    {
+        // Use 1MP for chanelling and some more gold
+        if (!enough_mp(1, true))
+        {
+            mpr("Without a little magic to sustain it, the reaction ends.");
+            _end_ungoldify();
+            return;
+        }
+
+        // Don't carry on if no coins (message is printed there)
+        if (_finance_ungoldify(pow, range) == 0)
+            return;
+
+        pay_mp(1);
+        finalize_mp_cost();
+    }
+
+    const int coins = you.props[UNGOLDIFY_COINS_KEY].get_int();
 
     // Set up a list of potential projectile targets; use LOS_NONE so the beams
     // are picked evenly regardless of terrain, even if they're aiming through a
     // wall or something else impassible.
     vector<coord_def> possible_targets;
-    targeter_cone hitfunc(&you, range, LOS_NONE);
+    targeter_widebeam hitfunc(&you, range, ungoldify_beam_width(range), LOS_NO_TRANS);
+    // Aim one back (where we originally were)
+    hitfunc.origin = you.pos() - move;
     hitfunc.set_aim(you.pos() + move);
     for (auto ti = hitfunc.affected_iterator(AFF_MAYBE); ti; ++ti)
         possible_targets.push_back(*ti);
 
-    _ungoldify_targets(possible_targets, coins, pow, range);
-}
+    mpr("You expel the base metals with the kinetic energy of your movement!");
+    _ungoldify_targets(hitfunc.beams, coins, pow, range);
 
-void end_ungoldify_movement_window() {
-    mpr("The transmuted metals are flung out impotently around you.");
-
-    // Extract necessary data
-    const int pow = you.props[UNGOLDIFY_POWER_KEY].get_int();
-    const int coins = you.props[UNGOLDIFY_COINS_KEY].get_int();
-
-    // Use a radius targetter with lower range so beams go everywhere instead of aimed
-    const int range = spell_range(SPELL_UNGOLDIFY, pow) - 2;
-    vector<coord_def> possible_targets;
-    targeter_radius hitfunc(&you, LOS_NONE, range);
-    hitfunc.set_aim(you.pos());
-    for (auto ti = hitfunc.affected_iterator(AFF_MAYBE); ti; ++ti)
-    {
-        // Maybe we *should* have the chance of hurting the player here
-        // but since it caused an assert to fail I'm preventing it for now
-        if (*ti != you.pos())
-            possible_targets.push_back(*ti);
-    }
-
-    // Casting at half power and lower range with a 360 degree spread. Same
-    // number of beams though.
-    _ungoldify_targets(possible_targets, coins, div_rand_round(pow, 2), range);
+    trigger_battlesphere(&you);
 }
 
 // How much work can we consider we'll have done by igniting a cloud here?

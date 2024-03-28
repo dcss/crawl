@@ -352,7 +352,28 @@ private:
     los_type los;
 };
 
-#define CLOUD_CONE_BEAM_COUNT 11
+struct widebeam_beam
+{
+    coord_def start;
+    coord_def end;
+    int position;
+};
+
+class targeter_widebeam : public targeter
+{
+public:
+    targeter_widebeam(const actor *act, int r, int w, los_type _los);
+
+    bool valid_aim(coord_def a) override;
+    bool set_aim(coord_def a) override;
+    aff_type is_affected(coord_def loc) override;
+    map<coord_def, aff_type> zapped;
+    vector<widebeam_beam> beams;
+private:
+    int range;
+    int width;
+    los_type los;
+};
 
 class targeter_monster_sequence : public targeter_beam
 {

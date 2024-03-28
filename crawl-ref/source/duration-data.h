@@ -637,9 +637,9 @@ static const duration_def duration_data[] =
       "You may recruit a defeated apostle into your service", D_EXPIRES,
        {{ "", end_beogh_recruit_window}}},
     { DUR_UNGOLDIFY, YELLOW, "-Gold", "", "transmuting gold to base metals",
-      "You are transmuting gold to baser metals and will propel them with your"
-      " next movement", D_EXPIRES,
-       {{ "", end_ungoldify_movement_window}}},
+      "You are transmuting gold into silver slugs and will propel them as you move.",
+      D_DISPELLABLE,
+       {{ "The last of the transmuted silver is flung out impotently around you." }}},
 
     // The following are visible in wizmode only, or are handled
     // specially in the status lights and/or the % or @ screens.

@@ -1679,6 +1679,144 @@ aff_type targeter_cone::is_affected(coord_def loc)
     return zapped[loc];
 }
 
+/**
+ * Models several (an odd number of) parallel beams that can be aimed
+ * only in the compass directions to avoid intricacies of uneven beam paths.
+ */
+targeter_widebeam::targeter_widebeam(const actor *act, int r, int w, los_type _los)
+{
+    ASSERT(act);
+    agent = act;
+    origin = act->pos();
+    aim = origin;
+    los = _los;
+    ASSERT_RANGE(r, 2, you.current_vision + 1);
+    range = r;
+    ASSERT(w % 2 == 1); // Width must be an odd number
+    width = w;
+}
+
+bool targeter_widebeam::valid_aim(coord_def a)
+{
+    if (a != origin && !cell_see_cell(origin, a, los))
+    {
+        // Scrying/glass/tree/grate.
+        if (agent->see_cell(a))
+            return notify_fail("There's something in the way.");
+        return notify_fail("You cannot see that place.");
+    }
+    if ((origin - a).rdist() > range)
+        return notify_fail("Out of range.");
+    return true;
+}
+
+bool targeter_widebeam::set_aim(coord_def a)
+{
+    aim = a;
+    zapped.clear();
+    beams.clear();
+
+    if (a == origin)
+        return false;
+
+    const coord_def delta = a - origin;
+
+    coord_def unit_forward;
+
+    // Determine closest compass direction to actual aim of the player
+    const int absx = abs(delta.x);
+    const int absy = abs(delta.y);
+    if (absx > absy)
+    {
+        unit_forward = coord_def(delta.x / absx,
+                                 (abs(delta.y) >= div_round_up(absx, 2)) ? delta.y/absy : 0);
+    }
+    else
+        unit_forward = coord_def((abs(delta.x) >= div_round_up(absy, 2)) ? delta.x/absx : 0,
+                                 delta.y / absy);
+
+    const bool is_diag = unit_forward.x != 0 && unit_forward.y != 0;
+
+    // "right-hand" direction perpendicular to forward (doesn't really
+    // matter if it's really right or left since all the beams get mirrored
+    // regardless)
+    coord_def unit_right;
+    coord_def unit_left;
+    if (is_diag)
+    {
+        unit_right = coord_def(0, unit_forward.y);
+        unit_left  = coord_def(unit_forward.x, 0);
+    }
+    else
+    {
+        unit_right = coord_def(unit_forward.x == 0 ? 1 : unit_forward.x,
+                               unit_forward.y == 0 ? 1 : unit_forward.y);
+        unit_left  = coord_def(unit_forward.x == 0 ? -1 : unit_forward.x,
+                               unit_forward.y == 0 ? -1 : unit_forward.y);;
+    }
+
+    // Create the beams, mirroring left and right
+    const int passes = div_round_up(width, 2);
+    for (int n=0; n < passes; n++)
+    {
+        for (int m = 1; m >= -1; m -= 2)
+        {
+            // Central beam doesn't need mirroring
+            if (n == 0 && m < 0)
+                continue;
+
+            const int position = n * m;
+            const coord_def offset = (position < 0 ? unit_left : unit_right) * abs(position);
+            // Offset by -1 in the forward direction unless at origin because beam sources
+            // are 1 tile before what will actually get hit, at origin we offset 1 tile forward
+            // because we need a space to move into and still not get hit
+            const int beam_range = range - (offset.zero() ? 2 : abs(position));
+            const coord_def start = origin + (offset.zero() ? unit_forward
+                                                            : (offset - unit_forward));
+            const coord_def end = start + unit_forward * beam_range;
+            const widebeam_beam beam = widebeam_beam{start, end, position};
+
+            // Advance the beam to zap all positions
+            bool unblocked = false;
+            for (int s = 0; s < beam_range; s++)
+            {
+                const coord_def at = start + unit_forward * (s + 1);
+
+                if (zapped[at] <= 0)
+                    if (map_bounds(at)
+                        && opc_solid_see(at) < OPC_OPAQUE
+                        && cell_see_cell(origin, at, los))
+                {
+                    zapped[at] = AFF_YES;
+                    // We have seen at least one cell that is clear so mark
+                    // unblocked so the beam gets added
+                    unblocked = true;
+                }
+                // Stop advancing beam if blocked
+                else
+                    break;
+            }
+            if (unblocked)
+                beams.push_back(beam);
+        }
+    }
+
+    zapped[origin] = AFF_NO;
+
+    return true;
+}
+
+aff_type targeter_widebeam::is_affected(coord_def loc)
+{
+    if (loc == aim)
+        return zapped[loc] ? AFF_YES : AFF_TRACER;
+
+    if ((loc - origin).rdist() > range)
+        return AFF_NO;
+
+    return zapped[loc];
+}
+
 targeter_monster_sequence::targeter_monster_sequence(const actor *act, int pow, int r) :
                           targeter_beam(act, r, ZAP_DEBUGGING_RAY, pow, 0, 0)
 {

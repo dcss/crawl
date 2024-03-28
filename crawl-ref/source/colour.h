@@ -65,8 +65,6 @@ enum element_type
     ETC_CANDLES,        // Ignis flickering candles
     ETC_STEEL,          // a brighter iron
     ETC_UNGOLD_SILVER,
-    ETC_UNGOLD_IRON,
-    ETC_UNGOLD_LEAD,
     ETC_DISCO = 96,
     ETC_FIRST_LUA = ETC_DISCO, // colour indices have to be <128
 

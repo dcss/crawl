@@ -3342,12 +3342,12 @@ static const struct spell_desc spelldata[] =
 },
 
 {
-    SPELL_UNGOLDIFY, "Alistair's Ungoldify",
+    SPELL_UNGOLDIFY, "Alistair's Pocket Change",
     spschool::alchemy,
-    spflag::destructive | spflag::area,
-    8,
+    spflag::dir_or_target | spflag::destructive | spflag::area,
+    7,
     200,
-    6, 6,
+    3, 6,
     4,
     TILEG_UNGOLDIFY,
 },

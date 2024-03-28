@@ -1323,6 +1323,10 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_IGNITION:
         return make_unique<targeter_multifireball>(&you,
                    get_ignition_blast_sources(&you, true));
+    case SPELL_UNGOLDIFY:
+        return make_unique<targeter_widebeam>(&you, range,
+                                              ungoldify_beam_width(range),
+                                              LOS_NO_TRANS);
 
     // Summons. Most summons have a simple range 2 radius, see
     // find_newmons_square
@@ -2145,7 +2149,9 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
 
         if (you.props.exists(BATTLESPHERE_KEY)
             && (actual_spell || you.divine_exegesis)
-            && battlesphere_can_mirror(spell))
+            && battlesphere_can_mirror(spell)
+            // Should not trigger on the *initial* cast, only on actual fires
+            && spell != SPELL_UNGOLDIFY)
         {
             trigger_battlesphere(&you);
         }
