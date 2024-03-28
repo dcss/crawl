@@ -340,7 +340,7 @@ private:
 class targeter_cone : public targeter
 {
 public:
-    targeter_cone(const actor *act, int r);
+    targeter_cone(const actor *act, int r, los_type _los);
 
     bool valid_aim(coord_def a) override;
     bool set_aim(coord_def a) override;
@@ -349,6 +349,7 @@ public:
     FixedVector< map<coord_def, aff_type>, LOS_RADIUS + 1 > sweep;
 private:
     int range;
+    los_type los;
 };
 
 #define CLOUD_CONE_BEAM_COUNT 11

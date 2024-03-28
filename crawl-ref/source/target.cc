@@ -1586,19 +1586,20 @@ aff_type targeter_refrig::is_affected(coord_def loc)
     }
 }
 
-targeter_cone::targeter_cone(const actor *act, int r)
+targeter_cone::targeter_cone(const actor *act, int r, los_type _los)
 {
     ASSERT(act);
     agent = act;
     origin = act->pos();
     aim = origin;
+    los = _los;
     ASSERT_RANGE(r, 1 + 1, you.current_vision + 1);
     range = r;
 }
 
 bool targeter_cone::valid_aim(coord_def a)
 {
-    if (a != origin && !cell_see_cell(origin, a, LOS_NO_TRANS))
+    if (a != origin && !cell_see_cell(origin, a, los))
     {
         // Scrying/glass/tree/grate.
         if (agent->see_cell(a))
@@ -1653,7 +1654,7 @@ bool targeter_cone::set_aim(coord_def a)
                 if (zapped[p] <= 0
                     && map_bounds(p)
                     && opc_solid_see(p) < OPC_OPAQUE
-                    && cell_see_cell(origin, p, LOS_NO_TRANS))
+                    && cell_see_cell(origin, p, los))
                 {
                     zapped[p] = AFF_YES;
                     sweep[(origin - p).rdist()][p] = AFF_YES;

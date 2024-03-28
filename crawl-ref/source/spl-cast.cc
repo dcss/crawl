@@ -1214,7 +1214,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_FULMINANT_PRISM:
         return make_unique<targeter_smite>(&you, range, 0, 2);
     case SPELL_GLACIATE:
-        return make_unique<targeter_cone>(&you, range);
+        return make_unique<targeter_cone>(&you, range, LOS_NO_TRANS);
     case SPELL_GRAVITAS:
         return make_unique<targeter_smite>(&you, range, gravitas_radius(pow),
                                                         gravitas_radius(pow));
@@ -2535,6 +2535,9 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
 
     case SPELL_PILEDRIVER:
         return cast_piledriver(powc, fail);
+
+    case SPELL_UNGOLDIFY:
+        return cast_ungoldify(powc, fail);
 
     // Just to do extra messaging; spell is handled by default zapping
     case SPELL_COMBUSTION_BREATH:

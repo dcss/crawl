@@ -1759,6 +1759,14 @@ int mons_adjust_flavoured(monster* mons, bolt &pbolt, int hurted,
         }
         break;
 
+    case BEAM_SILVER: {
+        string msg;
+        const int extra_dam = silver_damages_victim(mons, hurted, msg);
+        hurted += extra_dam;
+        if (extra_dam > 0 && doFlavouredEffects)
+            mpr(msg);
+    }
+
     default:
         break;
     }
@@ -7257,6 +7265,7 @@ static string _beam_type_name(beam_type type)
     case BEAM_CRYSTALLIZING:         return "crystallizing";
     case BEAM_WARPING:               return "spatial disruption";
     case BEAM_QAZLAL:                return "upheaval targetter";
+    case BEAM_SILVER:                return "silver";
 
     case NUM_BEAMS:                  die("invalid beam type");
     }

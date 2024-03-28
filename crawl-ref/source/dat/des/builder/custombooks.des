@@ -87,7 +87,8 @@ local books = {
 "Modern_Magic,_Vol._30 numspells:7 spells:kiss_of_death&"
   .. "cigotuvi's_dreadful_rot&momentum_strike&vhi's_electric_charge&"
   .. "volatile_blastmotes&arcjolt&plasma_beam",
-"Modern_Magic,_Vol._31 numspells:1 spells:brom's_barrelling_boulder&bombard",
+"Modern_Magic,_Vol._31 numspells:2 spells:brom's_barrelling_boulder&bombard",
+"Modern_Magic,_Vol._32 numspells:2 spells:permafrost_eruption&alistair's_ungoldify",
 "Multidimensional_Combat numspells:6 spells:momentum_strike&"
   .. "dimensional_bullseye&vhi's_electric_charge&volatile_blastmotes&"
   .. "iskenderun's_mystic_blast&summon_forest",

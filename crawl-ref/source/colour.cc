@@ -663,6 +663,31 @@ void init_element_colours()
                               {40,  YELLOW},
                               {40,  WHITE},
                             }));
+    // Scintillating silver with flecks of gold
+    add_element_colour(new random_element_colour_calc(
+                            ETC_UNGOLD_SILVER, "ungold_silver",
+                            { {60,  LIGHTGREY},
+                              {30,  WHITE},
+                              {30,  LIGHTCYAN},
+                              {10,  YELLOW},
+                            }));
+    // Oxidising iron with flecks of gold
+    add_element_colour(new random_element_colour_calc(
+                            ETC_UNGOLD_IRON, "ungold_iron",
+                            { {40,  RED},
+                              {30,  BROWN},
+                              {20,  MAGENTA},
+                              {10,  YELLOW},
+                            }));
+    // Molten lead with flecks of gold
+    add_element_colour(new random_element_colour_calc(
+                            ETC_UNGOLD_LEAD, "ungold_lead",
+                            { {40,  DARKGREY},
+                              {40,  BLUE},
+                              {30,  LIGHTRED},
+                              {10,  YELLOW},
+                            }));
+
     // redefined by Lua later
     add_element_colour(new element_colour_calc(
                             ETC_DISCO, "disco", _etc_random
