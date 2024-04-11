@@ -3342,7 +3342,7 @@ static const struct spell_desc spelldata[] =
 },
 
 {
-    SPELL_UNGOLDIFY, "Alistair's Pocket Change",
+    SPELL_UNGOLDIFY, "Alistair's Pocket Shrapnel",
     spschool::alchemy,
     spflag::dir_or_target | spflag::destructive | spflag::area,
     7,

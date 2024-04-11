@@ -2088,8 +2088,9 @@ static void _ungoldify_targets(vector<widebeam_beam> beams, int coins, int pow, 
 }
 
 static void _end_ungoldify() {
-    mpr("The gold remnants are flung out impotently around you.");
-
+    mpr("The last of the transmuted silver is flung out impotently around you.");
+    // { DUR_UNGOLDIFY, YELLOW, "-Gold", "", "transmuting gold to base metals",
+    //   "You are transmuting gold into silver slugs and will propel them as you move.",
     // Extract necessary data
     const int pow = you.props[UNGOLDIFY_POWER_KEY].get_int();
     const int coins = you.props[UNGOLDIFY_COINS_KEY].get_int();
@@ -2111,16 +2112,20 @@ static void _end_ungoldify() {
     you.props.erase(UNGOLDIFY_KEY);
     you.props.erase(UNGOLDIFY_POWER_KEY);
     you.props.erase(UNGOLDIFY_COINS_KEY);
-    you.set_duration(DUR_UNGOLDIFY, 0);
 }
 
-static int _finance_ungoldify(int powc, int range)
+static int _finance_ungoldify(int powc, int range, int level)
 {
-    // 5 coins at 0 power; at max power 51-151 coins.
+    ASSERT(level > 0);
+    // Numerators and denominators are simplified into the roundings. Basically I'm multiplying
+    // the gold amounts by (2*level-1)/level, which means:
+    // 1x at level 1, 3/2x at level 2, 5/3x at level 3, 7/4x at level 4.
+    // Base value is: 5 coins at 0 power; at max power 26-76 coins; then nearly doubled by
+    // level factor at level 4.
     const int coins = min(you.gold,
-                          5 + div_rand_round(powc, 4)
-                            + div_rand_round(random2avg(powc, 3), 2));
-    const int coins_per_beam = coins / ungoldify_beam_width(range);
+                          5 + div_rand_round(powc * (2 * level - 1), 8 * level)
+                            + div_rand_round(random2avg(powc * (2 * level - 1), 3), 4 * level));
+    const int coins_per_beam = div_round_up(coins, ungoldify_beam_width(range));
     you.props[UNGOLDIFY_COINS_KEY] = coins_per_beam;
 
     // On initial casting we check for > 0 gold, but on subsequent triggerings
@@ -2169,8 +2174,7 @@ spret cast_ungoldify(int powc, bool fail)
     // TODO: Check danger to allies
     fail_check();
 
-    _finance_ungoldify(powc, spell_range(SPELL_UNGOLDIFY, powc));
-    you.set_duration(DUR_UNGOLDIFY, 1000);
+    _finance_ungoldify(powc, spell_range(SPELL_UNGOLDIFY, powc), 1);
     noisy(spell_effect_noise(SPELL_UNGOLDIFY), you.pos());
 
     // Save state for when the effect actually happens next turn
@@ -2222,7 +2226,7 @@ void handle_ungoldify_movement(coord_def move)
     int lvl = you.props[UNGOLDIFY_KEY].get_int();
 
     // TODO: Get an extra casting with Vehumet like flame wave
-    if (lvl == 4)
+    if (lvl > 4)
     {
         _end_ungoldify();
         return;
@@ -2251,7 +2255,7 @@ void handle_ungoldify_movement(coord_def move)
         }
 
         // Don't carry on if no coins (message is printed there)
-        if (_finance_ungoldify(pow, range) == 0)
+        if (_finance_ungoldify(pow, range, lvl) == 0)
             return;
 
         pay_mp(1);
