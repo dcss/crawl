@@ -2061,29 +2061,29 @@ dice_def ungoldify_damage(int pow, int per_beam, int position)
 static void _ungoldify_targets(vector<widebeam_beam> beams, int coins, int pow, int range)
 {
     // Now fire all the beams
-    bolt beam_silver;
-    beam_silver.set_agent(&you);
-    beam_silver.name              = "scintillating silver";
-    beam_silver.flavour           = BEAM_SILVER;
-    beam_silver.glyph             = dchar_glyph(DCHAR_FIRED_BOLT);
-    beam_silver.colour            = ETC_SILVER;
-    beam_silver.range             = range;
+    bolt beam;
+    beam.set_agent(&you);
+    beam.name              = "ungold silver";
+    beam.flavour           = BEAM_SILVER;
+    beam.glyph             = dchar_glyph(DCHAR_ITEM_GOLD);
+    beam.colour            = ETC_UNGOLD;
+    beam.range             = range;
     // Taken from quicksilver
-    // beam_silver.damage            = dice_def(5, 5 + pow / 15);
-    beam_silver.hit               = 10 + pow / 20;
-    beam_silver.source            = you.pos();
-    beam_silver.hit_verb          = "sears";
-    beam_silver.origin_spell      = SPELL_UNGOLDIFY;
-    beam_silver.loudness          = 2;
-    beam_silver.draw_delay        = 0;
-    beam_silver.pierce            = true;
+    // beam.damage            = dice_def(5, 5 + pow / 15);
+    beam.hit               = 10 + pow / 20;
+    beam.hit_verb          = "sears";
+    beam.origin_spell      = SPELL_UNGOLDIFY;
+    beam.loudness          = 2;
+    beam.draw_delay        = 5;
+    beam.pierce            = true;
+    beam.aimed_at_spot     = true;
 
     for (widebeam_beam item : beams)
     {
-        beam_silver.damage = ungoldify_damage(pow, coins, item.position);
-        beam_silver.target = item.end;
-        beam_silver.source = item.start;
-        beam_silver.fire();
+        beam.damage = ungoldify_damage(pow, coins, item.position);
+        beam.target = item.end;
+        beam.source = item.start;
+        beam.fire();
     }
 }
 
@@ -2097,17 +2097,18 @@ static void _end_ungoldify() {
 
     // Casting at half power and lower range with a 360 degree spread. Basically fires
     // 8 different directions of the targetter but with all the numbers reduced.
-    const int range = max(2, spell_range(SPELL_UNGOLDIFY, pow) - 2);
+    // const int range = max(2, spell_range(SPELL_UNGOLDIFY, pow) - 2);
+    const int range = max(3, spell_range(SPELL_UNGOLDIFY, pow) - 4);
+    targeter_widebeam_compass hitfunc(&you, range, 3);
 
-    for (int x = -1; x <= 1; x++)
-        for (int y= -1; y<1 ; y++)
-        {
-            if (x == 0 && y == 0 || x_chance_in_y(1, 3))
-                continue;
-            targeter_widebeam hitfunc(&you, range, 3, LOS_NO_TRANS);
-            _ungoldify_targets(hitfunc.beams, div_round_up(coins, 10),
-                               div_rand_round(pow, 2), range);
-        }
+    for (targeter_widebeam item : hitfunc.beams)
+    {
+        if (x_chance_in_y(1, 3))
+            continue;
+
+        _ungoldify_targets(item.beams, div_round_up(coins, 10),
+                           div_rand_round(pow, 2), range);
+    }
 
     you.props.erase(UNGOLDIFY_KEY);
     you.props.erase(UNGOLDIFY_POWER_KEY);
@@ -2174,7 +2175,9 @@ spret cast_ungoldify(int powc, bool fail)
     // TODO: Check danger to allies
     fail_check();
 
-    _finance_ungoldify(powc, spell_range(SPELL_UNGOLDIFY, powc), 1);
+    const int range = spell_range(SPELL_UNGOLDIFY, powc);
+
+    _finance_ungoldify(powc, range, 1);
     noisy(spell_effect_noise(SPELL_UNGOLDIFY), you.pos());
 
     // Save state for when the effect actually happens next turn
@@ -2183,8 +2186,8 @@ spret cast_ungoldify(int powc, bool fail)
 
     // *Starting* the effect takes zero time, but you must move to use it
     you.time_taken = 0;
-    // TODO: Could add hitfunc to flash so we get an idea where it's going to go
-    flash_view_delay(UA_PLAYER, ETC_GOLD, 100);
+    targeter_widebeam_compass flashfunc = targeter_widebeam_compass(&you, range, ungoldify_beam_width(range));
+    flash_view_delay(UA_PLAYER, ETC_GOLD, 100, &flashfunc);
 
     return spret::success;
 }
@@ -2270,13 +2273,11 @@ void handle_ungoldify_movement(coord_def move)
     // Set up a list of potential projectile targets; use LOS_NONE so the beams
     // are picked evenly regardless of terrain, even if they're aiming through a
     // wall or something else impassible.
-    vector<coord_def> possible_targets;
-    targeter_widebeam hitfunc(&you, range, ungoldify_beam_width(range), LOS_NO_TRANS);
-    // Aim one back (where we originally were)
-    hitfunc.origin = you.pos() - move;
+    targeter_widebeam hitfunc(&you, range, ungoldify_beam_width(range));
+    // Aim from one back (should be where we originally were, assuming movement
+    // was 1 tile)
+    hitfunc.origin = you.pos() - move.sgn();
     hitfunc.set_aim(you.pos() + move);
-    for (auto ti = hitfunc.affected_iterator(AFF_MAYBE); ti; ++ti)
-        possible_targets.push_back(*ti);
 
     mpr("You expel the base metals with the kinetic energy of your movement!");
     _ungoldify_targets(hitfunc.beams, coins, pow, range);
@@ -4234,7 +4235,7 @@ dice_def glaciate_damage(int pow, int eff_range)
 spret cast_glaciate(actor *caster, int pow, coord_def aim, bool fail)
 {
     const int range = spell_range(SPELL_GLACIATE, pow);
-    targeter_cone hitfunc(caster, range, LOS_NO_TRANS);
+    targeter_cone hitfunc(caster, range);
     hitfunc.set_aim(aim);
 
     if (caster->is_player()
@@ -4324,14 +4325,7 @@ spret cast_starburst(int pow, bool fail, bool tracer)
 {
     int range = spell_range(SPELL_STARBURST, pow);
 
-    vector<coord_def> offsets = { coord_def(range, 0),
-                                coord_def(range, range),
-                                coord_def(0, range),
-                                coord_def(-range, range),
-                                coord_def(-range, 0),
-                                coord_def(-range, -range),
-                                coord_def(0, -range),
-                                coord_def(range, -range) };
+    vector<coord_def> offsets = compass_offsets(range);
 
     bolt beam;
     beam.range        = range;

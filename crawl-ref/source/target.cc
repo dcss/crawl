@@ -1586,20 +1586,19 @@ aff_type targeter_refrig::is_affected(coord_def loc)
     }
 }
 
-targeter_cone::targeter_cone(const actor *act, int r, los_type _los)
+targeter_cone::targeter_cone(const actor *act, int r)
 {
     ASSERT(act);
     agent = act;
     origin = act->pos();
     aim = origin;
-    los = _los;
     ASSERT_RANGE(r, 1 + 1, you.current_vision + 1);
     range = r;
 }
 
 bool targeter_cone::valid_aim(coord_def a)
 {
-    if (a != origin && !cell_see_cell(origin, a, los))
+    if (a != origin && !cell_see_cell(origin, a, LOS_NO_TRANS))
     {
         // Scrying/glass/tree/grate.
         if (agent->see_cell(a))
@@ -1654,7 +1653,7 @@ bool targeter_cone::set_aim(coord_def a)
                 if (zapped[p] <= 0
                     && map_bounds(p)
                     && opc_solid_see(p) < OPC_OPAQUE
-                    && cell_see_cell(origin, p, los))
+                    && cell_see_cell(origin, p, LOS_NO_TRANS))
                 {
                     zapped[p] = AFF_YES;
                     sweep[(origin - p).rdist()][p] = AFF_YES;
@@ -1683,13 +1682,12 @@ aff_type targeter_cone::is_affected(coord_def loc)
  * Models several (an odd number of) parallel beams that can be aimed
  * only in the compass directions to avoid intricacies of uneven beam paths.
  */
-targeter_widebeam::targeter_widebeam(const actor *act, int r, int w, los_type _los)
+targeter_widebeam::targeter_widebeam(const actor *act, int r, int w)
 {
     ASSERT(act);
     agent = act;
     origin = act->pos();
     aim = origin;
-    los = _los;
     ASSERT_RANGE(r, 2, you.current_vision + 1);
     range = r;
     ASSERT(w % 2 == 1); // Width must be an odd number
@@ -1698,7 +1696,7 @@ targeter_widebeam::targeter_widebeam(const actor *act, int r, int w, los_type _l
 
 bool targeter_widebeam::valid_aim(coord_def a)
 {
-    if (a != origin && !cell_see_cell(origin, a, los))
+    if (a != origin && !cell_see_cell(origin, a, LOS_NO_TRANS))
     {
         // Scrying/glass/tree/grate.
         if (agent->see_cell(a))
@@ -1752,7 +1750,7 @@ bool targeter_widebeam::set_aim(coord_def a)
         unit_right = coord_def(unit_forward.x == 0 ? 1 : unit_forward.x,
                                unit_forward.y == 0 ? 1 : unit_forward.y);
         unit_left  = coord_def(unit_forward.x == 0 ? -1 : unit_forward.x,
-                               unit_forward.y == 0 ? -1 : unit_forward.y);;
+                               unit_forward.y == 0 ? -1 : unit_forward.y);
     }
 
     // Create the beams, mirroring left and right
@@ -1770,7 +1768,7 @@ bool targeter_widebeam::set_aim(coord_def a)
             // Offset by -1 in the forward direction unless at origin because beam sources
             // are 1 tile before what will actually get hit, at origin we offset 1 tile forward
             // because we need a space to move into and still not get hit
-            const int beam_range = range - (offset.zero() ? 2 : abs(position));
+            const int beam_range = range - (offset.zero() ? 2 : abs(position)) + 1;
             const coord_def start = origin + (offset.zero() ? unit_forward
                                                             : (offset - unit_forward));
             const coord_def end = start + unit_forward * beam_range;
@@ -1785,7 +1783,7 @@ bool targeter_widebeam::set_aim(coord_def a)
                 if (zapped[at] <= 0)
                     if (map_bounds(at)
                         && opc_solid_see(at) < OPC_OPAQUE
-                        && cell_see_cell(origin, at, los))
+                        && cell_see_cell(origin, at, LOS_NO_TRANS))
                 {
                     zapped[at] = AFF_YES;
                     // We have seen at least one cell that is clear so mark
@@ -1815,6 +1813,29 @@ aff_type targeter_widebeam::is_affected(coord_def loc)
         return AFF_NO;
 
     return zapped[loc];
+}
+
+targeter_widebeam_compass::targeter_widebeam_compass(const actor *a, int range, int width)
+    : targeter()
+{
+    agent = a ? a : &you;
+    const vector<coord_def> offsets = compass_offsets(1);
+
+    // Use 8 copies of the widebeam targetter to cover the whole field
+    for (auto &o : offsets)
+    {
+        targeter_widebeam beam(agent, range, width);
+        beam.set_aim(o + agent->pos());
+        beams.push_back(beam);
+    }
+}
+
+aff_type targeter_widebeam_compass::is_affected(coord_def loc)
+{
+    for (auto &t : beams)
+        if (auto r = t.is_affected(loc))
+            return r;
+    return AFF_NO;
 }
 
 targeter_monster_sequence::targeter_monster_sequence(const actor *act, int pow, int r) :
@@ -2116,6 +2137,18 @@ aff_type targeter_walls::is_affected(coord_def loc)
     return cell_is_solid(loc) ? AFF_YES : AFF_MAYBE;
 }
 
+vector<coord_def> compass_offsets(int range)
+{
+    return { coord_def(range, 0),
+             coord_def(range, range),
+             coord_def(0, range),
+             coord_def(-range, range),
+             coord_def(-range, 0),
+             coord_def(-range, -range),
+             coord_def(0, -range),
+             coord_def(range, -range) };
+}
+
 // note: starburst is not in spell_to_zap
 targeter_starburst_beam::targeter_starburst_beam(const actor *a, int _range, int pow, const coord_def &offset)
     : targeter_beam(a, _range, ZAP_BOLT_OF_FIRE, pow, 0, 0)
@@ -2127,15 +2160,7 @@ targeter_starburst::targeter_starburst(const actor *a, int range, int pow)
     : targeter()
 {
     agent = a ? a : &you;
-    // XX code duplication with cast_starburst
-    const vector<coord_def> offsets = { coord_def(range, 0),
-                                        coord_def(range, range),
-                                        coord_def(0, range),
-                                        coord_def(-range, range),
-                                        coord_def(-range, 0),
-                                        coord_def(-range, -range),
-                                        coord_def(0, -range),
-                                        coord_def(range, -range) };
+    const vector<coord_def> offsets = compass_offsets(range);
 
     // extremely brute force...
     for (auto &o : offsets)

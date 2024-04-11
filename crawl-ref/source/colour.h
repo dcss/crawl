@@ -64,7 +64,7 @@ enum element_type
     ETC_AWOKEN_FOREST,  // Angry trees.
     ETC_CANDLES,        // Ignis flickering candles
     ETC_STEEL,          // a brighter iron
-    ETC_UNGOLD_SILVER,
+    ETC_UNGOLD,         // Gold transmuting to silver
     ETC_DISCO = 96,
     ETC_FIRST_LUA = ETC_DISCO, // colour indices have to be <128
 

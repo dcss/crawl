@@ -1214,7 +1214,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
     case SPELL_FULMINANT_PRISM:
         return make_unique<targeter_smite>(&you, range, 0, 2);
     case SPELL_GLACIATE:
-        return make_unique<targeter_cone>(&you, range, LOS_NO_TRANS);
+        return make_unique<targeter_cone>(&you, range);
     case SPELL_GRAVITAS:
         return make_unique<targeter_smite>(&you, range, gravitas_radius(pow),
                                                         gravitas_radius(pow));
@@ -1325,8 +1325,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
                    get_ignition_blast_sources(&you, true));
     case SPELL_UNGOLDIFY:
         return make_unique<targeter_widebeam>(&you, range,
-                                              ungoldify_beam_width(range),
-                                              LOS_NO_TRANS);
+                                              ungoldify_beam_width(range));
 
     // Summons. Most summons have a simple range 2 radius, see
     // find_newmons_square

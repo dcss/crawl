@@ -340,7 +340,7 @@ private:
 class targeter_cone : public targeter
 {
 public:
-    targeter_cone(const actor *act, int r, los_type _los);
+    targeter_cone(const actor *act, int r);
 
     bool valid_aim(coord_def a) override;
     bool set_aim(coord_def a) override;
@@ -349,7 +349,6 @@ public:
     FixedVector< map<coord_def, aff_type>, LOS_RADIUS + 1 > sweep;
 private:
     int range;
-    los_type los;
 };
 
 struct widebeam_beam
@@ -362,7 +361,7 @@ struct widebeam_beam
 class targeter_widebeam : public targeter
 {
 public:
-    targeter_widebeam(const actor *act, int r, int w, los_type _los);
+    targeter_widebeam(const actor *act, int r, int w);
 
     bool valid_aim(coord_def a) override;
     bool set_aim(coord_def a) override;
@@ -372,7 +371,15 @@ public:
 private:
     int range;
     int width;
-    los_type los;
+};
+
+class targeter_widebeam_compass : public targeter
+{
+public:
+    targeter_widebeam_compass(const actor *act, int r, int w);
+    bool valid_aim(coord_def) override { return true; }
+    aff_type is_affected(coord_def loc) override;
+    vector<targeter_widebeam> beams;
 };
 
 class targeter_monster_sequence : public targeter_beam
@@ -515,6 +522,8 @@ public:
     aff_type is_affected(coord_def loc) override;
     bool can_affect_walls() override { return true; }
 };
+
+vector<coord_def> compass_offsets(int range);
 
 // a class for fixed beams at some offset from the player
 class targeter_starburst_beam : public targeter_beam

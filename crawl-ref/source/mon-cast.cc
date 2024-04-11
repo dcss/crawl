@@ -3607,7 +3607,7 @@ void aura_of_brilliance(monster* agent)
 
 static bool _glaciate_tracer(monster *caster, int pow, coord_def aim)
 {
-    targeter_cone hitfunc(caster, spell_range(SPELL_GLACIATE, pow), LOS_NO_TRANS);
+    targeter_cone hitfunc(caster, spell_range(SPELL_GLACIATE, pow));
     hitfunc.set_aim(aim);
 
     mon_attitude_type castatt = caster->temp_attitude();

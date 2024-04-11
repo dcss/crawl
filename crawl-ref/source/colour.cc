@@ -663,13 +663,12 @@ void init_element_colours()
                               {40,  YELLOW},
                               {40,  WHITE},
                             }));
-    // Scintillating silver with flecks of gold
+    // Gold transitioning to silver
     add_element_colour(new random_element_colour_calc(
-                            ETC_UNGOLD_SILVER, "ungold_silver",
-                            { {60,  LIGHTGREY},
-                              {30,  WHITE},
-                              {30,  LIGHTCYAN},
-                              {10,  YELLOW},
+                            ETC_UNGOLD, "ungold",
+                            { {20,  YELLOW},
+                              {20,  BROWN},
+                              {40,  LIGHTGREY},
                             }));
 
     // redefined by Lua later
