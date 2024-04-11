@@ -2197,7 +2197,10 @@ static bool _was_goldify_movement_command(command_type cmd)
 
 int ungoldify_beam_width(int range)
 {
-    return min(3 + 2 * (max(0, range - 3) / 2), 7);
+    // Five with Vehumet, otherwise 3
+    return range > 6 ? 5 : 3;
+    // Old version:
+    // return min(3 + 2 * (max(0, range - 3) / 2), 7);
 }
 
 void handle_ungoldify_turn()

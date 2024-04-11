@@ -3347,7 +3347,7 @@ static const struct spell_desc spelldata[] =
     spflag::dir_or_target | spflag::destructive | spflag::area,
     7,
     200,
-    3, 6,
+    6, 6,
     4,
     TILEG_UNGOLDIFY,
 },
