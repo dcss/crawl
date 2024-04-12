@@ -663,6 +663,14 @@ void init_element_colours()
                               {40,  YELLOW},
                               {40,  WHITE},
                             }));
+    // Gold transitioning to silver
+    add_element_colour(new random_element_colour_calc(
+                            ETC_UNGOLD, "ungold",
+                            { {20,  YELLOW},
+                              {20,  BROWN},
+                              {40,  LIGHTGREY},
+                            }));
+
     // redefined by Lua later
     add_element_colour(new element_colour_calc(
                             ETC_DISCO, "disco", _etc_random

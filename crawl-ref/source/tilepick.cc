@@ -3368,6 +3368,10 @@ tileidx_t tileidx_bolt(const bolt &bolt)
         if (bolt.name == "irradiate" || bolt.name == "unravelling")
             return TILE_BOLT_IRRADIATE;
         break;
+
+    // Used by SPELL_UNGOLDIFY; more coins as damage dice increase
+    case ETC_UNGOLD:
+        return TILE_BOLT_UNGOLD + min(bolt.damage.num / 10, 3);
     }
 
     return tileidx_zap(col);
@@ -3387,6 +3391,14 @@ tileidx_t vary_bolt_tile(tileidx_t tile, int dist)
         return tile + ui_random(tile_main_count(tile));
     case TILE_MI_BOOMERANG0:
         return tile + ui_random(4);
+
+    // Turning to gold over distance, but we have to allow for 4 different
+    // base tiles (for different damage levels)
+    case TILE_BOLT_UNGOLD:
+    case TILE_BOLT_UNGOLD + 1:
+    case TILE_BOLT_UNGOLD + 2:
+    case TILE_BOLT_UNGOLD + 3:
+        return tile + min(12, max(0, 4 * (dist - 1)));
     default:
         return tile;
     }

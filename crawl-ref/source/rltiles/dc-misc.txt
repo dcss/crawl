@@ -86,6 +86,23 @@ sting0 BOLT_STING
 sting1
 sting2
 
+ungold_1_1 BOLT_UNGOLD
+ungold_1_2
+ungold_1_3
+ungold_1_4
+ungold_2_1
+ungold_2_2
+ungold_2_3
+ungold_2_4
+ungold_3_1
+ungold_3_2
+ungold_3_3
+ungold_3_4
+ungold_4_1
+ungold_4_2
+ungold_4_3
+ungold_4_4
+
 zap0 BOLT_ZAP
 zap1
 zap2

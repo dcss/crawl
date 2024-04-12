@@ -23,6 +23,9 @@ const int MAX_AIRSTRIKE_BONUS = 8 * AIRSTRIKE_PER_SPACE_BONUS;
 #define FROZEN_RAMPARTS_POWER_KEY "frozen_ramparts_power"
 #define TOXIC_RADIANCE_POWER_KEY "toxic_radiance_power"
 #define VORTEX_POWER_KEY "vortex_power"
+#define UNGOLDIFY_KEY "ungoldify"
+#define UNGOLDIFY_COINS_KEY "ungoldify_coins"
+#define UNGOLDIFY_POWER_KEY "ungoldify_power"
 
 void setup_fire_storm(const actor *source, int pow, bolt &beam);
 spret cast_fire_storm(int pow, bolt &beam, bool fail);
@@ -53,6 +56,11 @@ dice_def shatter_damage(int pow, monster *mons = nullptr, bool random = false);
 int terrain_shatter_chance(coord_def where, const actor &agent);
 spret cast_irradiate(int powc, actor &caster, bool fail);
 dice_def irradiate_damage(int powc, bool random = true);
+dice_def ungoldify_damage(int powc, int coins_per_beam, int position = 0);
+int ungoldify_beam_width(int range);
+spret cast_ungoldify(int powc, bool fail);
+void handle_ungoldify_turn();
+void handle_ungoldify_movement(coord_def move);
 bool ignite_poison_affects_cell(const coord_def where, actor* agent);
 spret cast_ignite_poison(actor *agent, int pow, bool fail,
                               bool tracer = false);

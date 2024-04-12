@@ -2825,6 +2825,12 @@ static void _do_wait_spells()
     handle_searing_ray(you);
     handle_maxwells_coupling();
     handle_flame_wave();
+
+    // Not a "wait" channelled spell, triggers on movement instead
+    // (If we moved, we triggered it at the time, when we knew the movement
+    // direction; here we just have to check if the spell should end of a non-
+    // movement action was taken)
+    handle_ungoldify_turn();
 }
 
 static void _safe_move_player(coord_def move)
