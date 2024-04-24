@@ -69,9 +69,9 @@ struct item_def
     /// inventory, equal to NON_ITEM + 1 + mindex. For items in shops,
     /// equal to ITEM_IN_SHOP.
     short  link;
-    /// Inventory letter of the item. For items in player inventory, equal
-    /// to index_to_letter(link). For other items, equal to the slot letter
-    /// the item had when it was last in player inventory.
+    /// Inventory character of the item. For items in player inventory, equal
+    /// to index_to_alphanumeric(link). For other items, equal to the slot
+    /// character the item had when it was last in player inventory.
     short  slot;
 
     level_id orig_place;
@@ -92,7 +92,7 @@ public:
     string name(description_level_type descrip, bool terse = false,
                 bool ident = false, bool with_inscription = true,
                 bool quantity_in_words = false,
-                iflags_t ignore_flags = 0x0) const;
+                iflags_t ignore_flags = 0x0, bool show_index = true) const;
     bool has_spells() const;
     bool cursed() const;
     colour_t get_colour() const;

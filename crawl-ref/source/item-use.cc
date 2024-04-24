@@ -838,9 +838,7 @@ string UseItemMenu::get_keyhelp(bool) const
 
 bool UseItemMenu::process_key(int key)
 {
-    // TODO: should check inscriptions here
-    if (isadigit(key)
-        || key == '-' && show_unarmed())
+    if (key == '-' && show_unarmed())
     {
         lastch = key;
         return false;
@@ -1215,17 +1213,6 @@ operation_types use_an_item_menu(item_def *&target, operation_types oper, int it
             choice_made = true;
             tmp_tgt = const_cast<item_def*>(menu.item_floor[0]);
         }
-        else if (isadigit(keyin))
-        {
-            // select by inscription
-            // This allows you to select stuff by inscription that is not on the
-            // screen, but only if you couldn't by default use it for that
-            // operation anyway. It's a bit weird, but it does save a '*'
-            // keypress for bread-swingers.
-            tmp_tgt = digit_inscription_to_item(keyin, oper);
-            if (tmp_tgt)
-                choice_made = true;
-        }
         else if (keyin == '-' && menu.show_unarmed())
         {
             choice_made = true;
@@ -1594,12 +1581,12 @@ static bool _pick_wield_weapon(item_def &wpn,
                 clear_messages();
                 return false;
             }
-            if (c == index_to_letter(old_wpn->link))
+            if (c == index_to_alphanumeric(old_wpn->link))
             {
                 clear_messages();
                 return _do_wield_weapon(wpn, old_wpn);
             }
-            if (c == index_to_letter(old_offhand->link))
+            if (c == index_to_alphanumeric(old_offhand->link))
             {
                 clear_messages();
                 return _do_wield_weapon(wpn, old_offhand, false);
@@ -1687,12 +1674,12 @@ static bool _pick_unwield_weapon(const item_def *wpn, const item_def *offhand)
                 clear_messages();
                 return false;
             }
-            if (wpn && c == index_to_letter(wpn->link))
+            if (wpn && c == index_to_alphanumeric(wpn->link))
             {
                 clear_messages();
                 return unwield_weapon(*wpn);
             }
-            if (offhand && c == index_to_letter(offhand->link))
+            if (offhand && c == index_to_alphanumeric(offhand->link))
             {
                 clear_messages();
                 return unwield_weapon(*offhand);
@@ -2376,6 +2363,19 @@ static char _ring_slot_key(equipment_type slot)
     }
 }
 
+static char _ring_remove_slot_key(equipment_type slot)
+{
+    switch (slot)
+    {
+    case EQ_LEFT_RING:      return '<';
+    case EQ_RIGHT_RING:     return '>';
+    case EQ_RING_AMULET:    return '^';
+    default:
+        die("Invalid ring slot");
+    }
+}
+
+
 static int _prompt_ring_to_remove()
 {
     const vector<equipment_type> ring_types = _current_ring_types();
@@ -2385,7 +2385,7 @@ static int _prompt_ring_to_remove()
     {
         rings.push_back(you.slot_item(eq, true));
         ASSERT(rings.back());
-        slot_chars.push_back(index_to_letter(rings.back()->link));
+        slot_chars.push_back(index_to_alphanumeric(rings.back()->link));
     }
 
     if (slot_chars.size() + 2 > msgwin_lines() || ui::has_layout())
@@ -2402,13 +2402,28 @@ static int _prompt_ring_to_remove()
 
     for (size_t i = 0; i < rings.size(); i++)
     {
-        string m = "<w>";
-        const char key = _ring_slot_key(ring_types[i]);
-        m += key;
-        if (key == '<')
-            m += '<';
+        string m = "";
+        switch (ring_types[i])
+        {
+        case EQ_LEFT_RING:
+        case EQ_RIGHT_RING:
+        case EQ_RING_AMULET:
+            {
+                m += "<w>";
+                const char key = _ring_remove_slot_key(ring_types[i]);
+                m += key;
+                if (key == '<')
+                m += '<';
 
-        m += "</w> or " + rings[i]->name(DESC_INVENTORY);
+                m += "</w> or " + rings[i]->name(DESC_INVENTORY);
+                break;
+            }
+        default:
+            //octopode rings overlap 62 inventory, so only allow selecting by item key
+            m = rings[i]->name(DESC_INVENTORY);
+            break;
+        }
+
         mprf_nocap("%s", m.c_str());
     }
     flush_prev_message();
@@ -2426,7 +2441,7 @@ static int _prompt_ring_to_remove()
         for (size_t i = 0; i < slot_chars.size(); i++)
         {
             if (c == slot_chars[i]
-                || c == _ring_slot_key(ring_types[i]))
+                || c == _ring_remove_slot_key(ring_types[i]))
             {
                 eqslot = ring_types[i];
                 c = ' ';
@@ -2767,7 +2782,7 @@ static equipment_type _choose_ring_slot()
 
         item_def* ring = you.slot_item(eq, true);
         if (ring)
-            msg += "</w> or " + ring->name(DESC_INVENTORY);
+            msg += "</w> - " + ring->name(DESC_INVENTORY, false, false, true, false, 0, false);
         else
             msg += "</w> - no ring";
 
@@ -2789,9 +2804,7 @@ static equipment_type _choose_ring_slot()
         c = getchm();
         for (auto eq : slots)
         {
-            if (c == _ring_slot_key(eq)
-                || (you.slot_item(eq, true)
-                    && c == index_to_letter(you.slot_item(eq, true)->link)))
+            if (c == _ring_slot_key(eq))
             {
                 eqslot = eq;
                 c = ' ';
@@ -3572,9 +3585,9 @@ static bool _handle_brand_weapon(bool alreadyknown, const string &pre_msg)
         if (!clua.error.empty())
             mprf(MSGCH_ERROR, "Lua error: %s", clua.error.c_str());
     }
-    else if (isalpha(letter.c_str()[0]))
+    else if (isaalnum(letter.c_str()[0]))
     {
-        item_def &item = you.inv[letter_to_index(letter.c_str()[0])];
+        item_def &item = you.inv[alphanumeric_to_index(letter.c_str()[0])];
         if (item.defined() && is_brandable_weapon(item, true))
             weapon = &item;
     }
@@ -3638,9 +3651,9 @@ static bool _identify(bool alreadyknown, const string &pre_msg, int &link)
         if (!clua.error.empty())
             mprf(MSGCH_ERROR, "Lua error: %s", clua.error.c_str());
     }
-    else if (isalpha(letter.c_str()[0]))
+    else if (isaalnum(letter.c_str()[0]))
     {
-        item_def &item = you.inv[letter_to_index(letter.c_str()[0])];
+        item_def &item = you.inv[alphanumeric_to_index(letter.c_str()[0])];
         if (item.defined() && !fully_identified(item))
             itemp = &item;
     }
@@ -3692,9 +3705,9 @@ static bool _handle_enchant_weapon(bool alreadyknown, const string &pre_msg)
         if (!clua.error.empty())
             mprf(MSGCH_ERROR, "Lua error: %s", clua.error.c_str());
     }
-    else if (isalpha(letter.c_str()[0]))
+    else if (isaalnum(letter.c_str()[0]))
     {
-        item_def &item = you.inv[letter_to_index(letter.c_str()[0])];
+        item_def &item = you.inv[alphanumeric_to_index(letter.c_str()[0])];
         if (item.defined() && is_enchantable_weapon(item, true))
             weapon = &item;
     }
@@ -3756,9 +3769,9 @@ static bool _handle_enchant_armour(bool alreadyknown, const string &pre_msg)
         if (!clua.error.empty())
             mprf(MSGCH_ERROR, "Lua error: %s", clua.error.c_str());
     }
-    else if (isalpha(letter.c_str()[0]))
+    else if (isaalnum(letter.c_str()[0]))
     {
-        item_def &item = you.inv[letter_to_index(letter.c_str()[0])];
+        item_def &item = you.inv[alphanumeric_to_index(letter.c_str()[0])];
         if (item.defined() && is_enchantable_armour(item, true))
             target = &item;
     }
