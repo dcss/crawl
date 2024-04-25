@@ -2855,6 +2855,8 @@ static dice_def _spell_damage(spell_type spell, int power)
             return boulder_damage(power, false);
         case SPELL_THUNDERBOLT:
             return thunderbolt_damage(power, 1);
+        case SPELL_GASTRONOMIC_EXPANSE:
+            return gastronomic_damage(power, false);
         default:
             break;
     }
