@@ -1458,6 +1458,12 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
+    {  MST_BALLOON_YAK,
+      {
+       { SPELL_BLINK_OTHER_CLOSE, 7, MON_SPELL_NATURAL | MON_SPELL_BREATH },
+      }
+    },
+
     // ('5') Minor demons.
     {  MST_WHITE_IMP,
       {

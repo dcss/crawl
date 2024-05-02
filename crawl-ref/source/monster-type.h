@@ -92,6 +92,9 @@ enum monster_type                      // env.mons[].type
 #endif
     MONS_YAK,
     MONS_DEATH_YAK,
+#if TAG_MAJOR_VERSION > 34
+    MONS_BALLOON_YAK,
+#endif
     MONS_CATOBLEPAS,
     MONS_ELEPHANT,
     MONS_DIRE_ELEPHANT,
@@ -1259,6 +1262,7 @@ enum monster_type                      // env.mons[].type
     MONS_MARROWCUDA,
     MONS_UNDYING_ARMOURY,
     MONS_XAKKRIXIS,
+    MONS_BALLOON_YAK,
 #endif
 
     NUM_MONSTERS,               // used for polymorph
