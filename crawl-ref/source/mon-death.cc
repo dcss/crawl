@@ -27,6 +27,7 @@
 #include "dgn-overview.h"
 #include "english.h"
 #include "env.h"
+#include "evoke.h" // Windblast death effect
 #include "fineff.h"
 #include "god-abil.h"
 #include "god-blessing.h"
@@ -2574,6 +2575,12 @@ item_def* monster_die(monster& mons, killer_type killer,
         }
     }
 
+    // Some standard checks common to a few death effects: were they actually
+    // killed or otherwise non-fatally removed from the map?
+    const bool was_real_death = !in_transit && !was_banished
+                                && !mons_reset && !mons.pacified()
+                                && (!summoned || duration > 0) && !wizard;
+
     // None of these effects should trigger on illusory copies.
     if (!mons.is_illusion())
     {
@@ -2614,9 +2621,7 @@ item_def* monster_die(monster& mons, killer_type killer,
         }
         else if (mons_is_elven_twin(&mons))
             elven_twin_died(&mons, in_transit, killer, killer_index);
-        else if (mons.type == MONS_BENNU && !in_transit && !was_banished
-                 && !mons_reset && !mons.pacified()
-                 && (!summoned || duration > 0) && !wizard
+        else if (mons.type == MONS_BENNU && was_real_death
                  && mons_bennu_can_revive(&mons))
         {
             // All this information may be lost by the time the monster revives.
@@ -2675,11 +2680,32 @@ item_def* monster_die(monster& mons, killer_type killer,
         end_flayed_effect(&mons);
     // Give the treant a last chance to release its hornets if it is killed in a
     // single blow from above half health
-    else if (mons.type == MONS_SHAMBLING_MANGROVE && !was_banished
-             && !mons.pacified() && (!summoned || duration > 0) && !wizard
-             && !mons_reset)
-    {
+    else if (mons.type == MONS_SHAMBLING_MANGROVE && was_real_death)
         treant_release_fauna(mons);
+    else if (mons.type == MONS_BALLOON_YAK && was_real_death)
+    {
+        if (you.can_see(mons))
+        {
+            mprf(MSGCH_WARN, "The %s ruptures with a %s and chaos begins "
+                 "spilling from the puncture!", mons.name(DESC_PLAIN).c_str(),
+                 silenced(you.pos()) ? "rush of air" : "loud pop");
+
+            // Wind blast their foe or otherwise you. The real spell power
+            // would knock you well out of reach of the clouds, 50 is about right.
+            auto foe = mons.get_foe();
+            wind_blast(&mons, 50, foe ? foe->pos() : you.pos());
+        }
+        else if (!silenced(you.pos()))
+            mprf(MSGCH_WARN, "You hear a loud pop and a rush of air!");
+
+        map_cloud_spreader_marker *marker =
+            new map_cloud_spreader_marker(mons.pos(), CLOUD_CHAOS, 8,
+                                          40 + random2(25), LOS_DEFAULT_RANGE,
+                                          8, &mons);
+        // Start the cloud at radius 1, regardless of the speed of the killing blow
+        marker->speed_increment -= you.time_taken;
+        env.markers.add(marker);
+        env.markers.clear_need_activate();
     }
     else if (!mons.is_summoned() && mummy_curse_power(mons.type) > 0)
     {

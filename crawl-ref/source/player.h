@@ -502,6 +502,7 @@ public:
     // Move the player during an abyss shift.
     void shiftto(const coord_def &c);
     bool blink_to(const coord_def& c, bool quiet = false) override;
+    bool blink_to(const coord_def& c, bool quiet, bool jump);
 
     void set_level_visited(const level_id &level);
     bool level_visited(const level_id &level);

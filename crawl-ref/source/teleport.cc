@@ -11,6 +11,7 @@
 #include "coord.h"
 #include "coordit.h"
 #include "delay.h"
+#include "english.h"
 #include "env.h"
 #include "fprop.h"
 #include "libutil.h"
@@ -25,6 +26,12 @@
 #include "view.h"
 
 bool player::blink_to(const coord_def& dest, bool quiet)
+{
+    // Players aren't normally jumping
+    return blink_to(dest, quiet, false);
+}
+
+bool player::blink_to(const coord_def& dest, bool quiet, bool jump)
 {
     // We rely on the non-generalized move_player_to_cell.
     ASSERT(is_player());
@@ -47,7 +54,7 @@ bool player::blink_to(const coord_def& dest, bool quiet)
     const coord_def origin = pos();
     move_player_to_grid(dest, false);
 
-    if (!cell_is_solid(origin))
+    if (!jump && !cell_is_solid(origin))
         place_cloud(CLOUD_TLOC_ENERGY, origin, 1 + random2(3), this);
 
     return true;
@@ -72,7 +79,7 @@ bool monster::blink_to(const coord_def& dest, bool quiet, bool jump)
     if (is_constricted())
     {
         was_constricted = true;
-        stop_being_constricted(false, "blinks");
+        stop_being_constricted(false, conj_verb(verb));
     }
 
     if (!quiet)
@@ -370,11 +377,13 @@ void blink_other_close(actor* victim, const coord_def &target)
     coord_def dest = random_space_weighted(victim, caster, true);
     if (!in_bounds(dest))
         return;
-    // If it's a monster, force them to "blink" rather than "jump"
+
+    // Balloon yaks are sucking in air, so treat like a jump
+    bool quiet = caster->type == MONS_BALLOON_YAK;
     if (victim->is_monster())
-        victim->as_monster()->blink_to(dest, false, false);
+        victim->as_monster()->blink_to(dest, quiet, quiet);
     else
-        victim->blink_to(dest);
+        victim->as_player()->blink_to(dest, quiet, quiet);
 }
 
 // Blink the player away from a given monster
