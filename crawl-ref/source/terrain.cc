@@ -1257,7 +1257,23 @@ static void _dgn_check_terrain_player(const coord_def pos)
     if (you.can_pass_through(pos))
         move_player_to_grid(pos, false);
     else
-        you_teleport_now();
+    {
+        // Try pushing the player out of the wall first. If this fails, find the
+        // nearest place in los range they *could* be and put them there.
+        // Teleport only if both fail.
+        if (push_actor_from(pos, nullptr, true).origin())
+        {
+            for (distance_iterator di(pos, false, true, LOS_RADIUS); di; ++di)
+            {
+                if (you.can_pass_through(*di) && !actor_at(*di))
+                {
+                    move_player_to_grid(*di, false);
+                    return;
+                }
+            }
+            you_teleport_now();
+        }
+    }
 }
 
 /**
@@ -2187,7 +2203,7 @@ bool revert_terrain_change(coord_def pos, terrain_change_type ctype)
         if (ctype == TERRAIN_CHANGE_BOG)
             env.map_knowledge(pos).set_feature(newfeat, colour);
         dungeon_terrain_changed(pos, newfeat, false, true, false, false,
-            newfeat_flv, newfeat_flv_idx);
+                                newfeat_flv, newfeat_flv_idx);
         env.grid_colours(pos) = colour;
         return true;
     }

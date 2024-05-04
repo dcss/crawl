@@ -53,6 +53,7 @@ public:
 
     virtual bool set_aim(coord_def a);
     virtual bool valid_aim(coord_def a) = 0;
+    virtual bool preferred_aim(coord_def a);
     virtual bool can_affect_outside_range();
     virtual bool can_affect_walls();
 
@@ -645,4 +646,27 @@ public:
     aff_type is_affected(coord_def loc) override;
 private:
     vector<coord_def> affected_monsters;
+};
+
+class targeter_magnavolt : public targeter_smite
+{
+public:
+    targeter_magnavolt(const actor *act, int range);
+    bool valid_aim(coord_def a) override;
+    bool preferred_aim(coord_def a) override;
+    bool set_aim(coord_def a) override;
+    aff_type is_affected(coord_def loc) override;
+private:
+    vector<coord_def> beam_targets;
+    vector<coord_def> beam_paths;
+};
+
+class targeter_mortar : public targeter_beam
+{
+public:
+    targeter_mortar(const actor* act, int max_range);
+    aff_type is_affected(coord_def loc) override;
+    bool can_affect_unseen() override;
+    bool can_affect_walls() override;
+    bool affects_monster(const monster_info& mon) override;
 };

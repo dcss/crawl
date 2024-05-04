@@ -169,7 +169,9 @@ enum monster_info_flags
     MB_CHANT_WORD_OF_ENTROPY,
 #endif
     MB_AIRBORNE,
+#if TAG_MAJOR_VERSION == 34
     MB_BRILLIANCE_AURA,
+#endif
     MB_EMPOWERED_SPELLS,
     MB_READY_TO_HOWL,
     MB_PARTIALLY_CHARGED,
@@ -227,6 +229,9 @@ enum monster_info_flags
     MB_TOUCH_OF_BEOGH,
     MB_AWAITING_RECRUITMENT,
     MB_VENGEANCE_TARGET,
+    MB_MAGNETISED,
+    MB_RIMEBLIGHT,
+    MB_ARMED,
     NUM_MB_FLAGS
 };
 
@@ -349,6 +354,7 @@ struct monster_info : public monster_info_base
         return get_damage_level_string(holi, dam);
     }
     string get_max_hp_desc() const;
+    int get_known_max_hp() const;
     int regen_rate(int scale) const;
 
     inline bool neutral() const

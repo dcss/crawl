@@ -2072,15 +2072,20 @@ int piledriver_collision_power(int pow, int dist)
 
 spret cast_piledriver(int pow, bool fail)
 {
+    // Calculate all possible valid targets first, so we can prompt the player
+    // about anything they *might* hit.
+    vector<coord_def> targs = possible_piledriver_targets();
+    vector<coord_def> path = piledriver_beam_paths(targs);
+    if (warn_about_bad_targets(SPELL_PILEDRIVER, path))
+        return spret::abort;
+
     fail_check();
 
-    vector<coord_def> targs = possible_piledriver_targets();
+    // Now that they've confirmed, pick the *real* target
     shuffle_array(targs);
     targs.resize(1);
-
     monster* mon = monster_at(targs[0]);
-
-    vector<coord_def> path = piledriver_beam_paths(targs);
+    path = piledriver_beam_paths(targs);
 
     mprf("Space contracts around you and %s and then re-expands violently!",
             mon->name(DESC_THE).c_str());
@@ -2118,25 +2123,29 @@ int gavotte_impact_power(int pow, int dist)
     return (pow * 3 / 4 + 35) * (dist + 5) / 2;
 }
 
-static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
+static void _maybe_penance_for_collision(god_conduct_trigger conducts[3], actor& victim)
 {
-    const bool god_prot = victim.is_monster()
-                                && god_protects(&you, victim.as_monster());
-
     if (victim.is_monster() && victim.alive())
     {
         //potentially penance
         if (!mons_is_conjured(victim.as_monster()->type))
         {
-            god_conduct_trigger conducts[3];
             set_attack_conducts(conducts, *victim.as_monster(),
                 you.can_see(*victim.as_monster()));
         }
     }
+}
+
+static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
+{
+    const bool god_prot = victim.is_monster()
+                                && god_protects(&you, victim.as_monster());
+
+    god_conduct_trigger conducts[3];
 
     if (victim.is_monster() && !god_prot)
     {
-        behaviour_event(victim.as_monster(), ME_ANNOY, &you, you.pos());
+        behaviour_event(victim.as_monster(), ME_ALERT, &you, you.pos());
         victim.as_monster()->speed_increment -= 10;
     }
 
@@ -2149,6 +2158,7 @@ static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
             && !victim.is_player())
         {
             victim.collide(next_pos, &you, gavotte_impact_power(pow, i));
+            _maybe_penance_for_collision(conducts, victim);
             break;
         }
         else if (actor* act_at_space = actor_at(next_pos))
@@ -2157,6 +2167,8 @@ static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
                 && !act_at_space->is_player())
             {
                 victim.collide(next_pos, &you, gavotte_impact_power(pow, i));
+                _maybe_penance_for_collision(conducts, victim);
+                _maybe_penance_for_collision(conducts, *act_at_space);
             }
             break;
         }
@@ -2176,6 +2188,17 @@ static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
 
 spret cast_gavotte(int pow, const coord_def dir, bool fail)
 {
+    vector<monster*> affected = gavotte_affected_monsters(dir);
+    if (!affected.empty())
+    {
+        vector<coord_def> spots;
+        for (unsigned int i = 0; i < affected.size(); ++i)
+            spots.push_back(affected[i]->pos());
+
+        if (warn_about_bad_targets(SPELL_GELLS_GAVOTTE, spots))
+            return spret::abort;
+    }
+
     fail_check();
 
     // XXX: Surely there's a better way to do this
@@ -2199,9 +2222,16 @@ spret cast_gavotte(int pow, const coord_def dir, bool fail)
 
     mprf("Gravity reorients to the %s!", dir_msg.c_str());
 
-    // Gather all monsters we will be moving
+    if (you.stasis())
+        canned_msg(MSG_STRANGE_STASIS);
+
+    // Gather all actors we will be moving
     vector<actor*> targs;
-    targs.push_back(&you);
+
+    // Don't move stationary players (or formicids)
+    if (!you.is_stationary() && !you.stasis())
+        targs.push_back(&you);
+
     for (monster_near_iterator mi(you.pos()); mi; ++mi)
     {
         if (!mi->is_stationary() && you.see_cell_no_trans(mi->pos()))

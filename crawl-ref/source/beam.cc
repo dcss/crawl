@@ -294,7 +294,6 @@ bool player_tracer(zap_type ztype, int power, bolt &pbolt, int range)
     pbolt.foe_ratio        = 100;
     pbolt.beam_cancelled   = false;
     pbolt.dont_stop_player = false;
-    pbolt.dont_stop_trees  = false;
 
     // Clear misc
     pbolt.seen          = false;
@@ -597,6 +596,12 @@ bool bolt::can_affect_actor(const actor *act) const
     else if (item
             && item->props.exists(DAMNATION_BOLT_KEY)
             && act->mid == source_id)
+    {
+        return false;
+    }
+    // Xak'krixis' prisms are smart enough not to affect friendlies
+    else if (origin_spell == SPELL_FULMINANT_PRISM && thrower == KILL_MON
+        && act->temp_attitude() == attitude)
     {
         return false;
     }
@@ -2239,7 +2244,6 @@ void bolt_parent_init(const bolt &parent, bolt &child)
     child.friend_info.dont_stop = parent.friend_info.dont_stop;
     child.foe_info.dont_stop    = parent.foe_info.dont_stop;
     child.dont_stop_player      = parent.dont_stop_player;
-    child.dont_stop_trees       = parent.dont_stop_trees;
 
 #ifdef DEBUG_DIAGNOSTICS
     child.quiet_debug    = parent.quiet_debug;
@@ -2629,6 +2633,31 @@ void bolt::affect_endpoint()
     }
     break;
 
+    case SPELL_FLASHING_BALESTRA:
+    {
+        coord_def spot;
+        int num_found = 0;
+        for (adjacent_iterator ai(pos()); ai; ++ai)
+        {
+            if (feat_is_solid(env.grid(*ai)) || actor_at(*ai))
+                continue;
+
+            if (one_chance_in(++num_found))
+                spot = *ai;
+        }
+
+        if (!spot.origin())
+        {
+            create_monster(mgen_data(MONS_DANCING_WEAPON,
+                                SAME_ATTITUDE(agent(true)->as_monster()),
+                                spot,
+                                agent(true)->as_monster()->foe,
+                                MG_FORCE_PLACE)
+                        .set_summoned(agent(true), 1, SPELL_FLASHING_BALESTRA, GOD_NO_GOD));
+        }
+    }
+    break;
+
     default:
         break;
     }
@@ -2717,6 +2746,7 @@ bool bolt::can_burn_trees() const
     case SPELL_STARBURST:
     case SPELL_FLAME_WAVE:
     case SPELL_SUMMON_BLAZEHEART_GOLEM: // core breach!
+    case SPELL_HELLFIRE_MORTAR:
         return true;
     default:
         return false;
@@ -3099,7 +3129,8 @@ bool bolt::harmless_to_player() const
         return true;
 
     if (origin_spell == SPELL_COMBUSTION_BREATH
-        || origin_spell == SPELL_NULLIFYING_BREATH)
+        || origin_spell == SPELL_NULLIFYING_BREATH
+        || origin_spell == SPELL_RIMEBLIGHT)
     {
         return true;
     }
@@ -4113,9 +4144,7 @@ void bolt::affect_player()
     int pre_ac_dam = 0;
 
     // Roll the damage.
-    if (!(origin_spell == SPELL_FLASH_FREEZE && you.duration[DUR_FROZEN]))
-        pre_ac_dam += damage.roll();
-
+    pre_ac_dam += damage.roll();
     int pre_res_dam = apply_AC(&you, pre_ac_dam);
 
 #ifdef DEBUG_DIAGNOSTICS
@@ -4282,15 +4311,10 @@ void bolt::affect_player()
         || name == "blast of ice"
         || origin_spell == SPELL_GLACIATE && !is_explosion)
     {
-        if (you.duration[DUR_FROZEN])
-        {
-            if (origin_spell == SPELL_FLASH_FREEZE)
-                canned_msg(MSG_YOU_UNAFFECTED);
-        }
-        else
+        if (!you.duration[DUR_FROZEN])
         {
             mprf(MSGCH_WARN, "You are encased in ice.");
-            you.duration[DUR_FROZEN] = (2 + random2(3)) * BASELINE_DELAY;
+            you.duration[DUR_FROZEN] = (random_range(3, 5)) * BASELINE_DELAY;
         }
     }
 }
@@ -4302,7 +4326,14 @@ bool bolt::ignores_player() const
         return true;
 
     if (origin_spell == SPELL_COMBUSTION_BREATH
-        || origin_spell == SPELL_NULLIFYING_BREATH)
+        || origin_spell == SPELL_NULLIFYING_BREATH
+        || origin_spell == SPELL_RIMEBLIGHT)
+    {
+        return true;
+    }
+
+    if (origin_spell == SPELL_HOARFROST_BULLET && is_explosion
+        && agent() && agent()->wont_attack())
     {
         return true;
     }
@@ -4411,9 +4442,6 @@ bool bolt::determine_damage(monster* mon, int& preac, int& postac, int& final)
 {
     preac = postac = final = 0;
 
-    const bool freeze_immune =
-        origin_spell == SPELL_FLASH_FREEZE && mon->has_ench(ENCH_FROZEN);
-
     // [ds] Changed how tracers determined damage: the old tracer
     // model took the average damage potential, subtracted the average
     // AC damage reduction and called that the average damage output.
@@ -4439,9 +4467,7 @@ bool bolt::determine_damage(monster* mon, int& preac, int& postac, int& final)
     // hurt monsters with low-damage ranged attacks and high-damage
     // melee attacks. I judge this an acceptable compromise (for now).
     //
-    const int preac_max_damage =
-        (freeze_immune) ? 0
-                        : damage.num * damage.size;
+    const int preac_max_damage = damage.num * damage.size;
 
     // preac: damage before AC modifier
     // postac: damage after AC modifier
@@ -4453,7 +4479,7 @@ bool bolt::determine_damage(monster* mon, int& preac, int& postac, int& final)
         // Was mean between min and max;
         preac = preac_max_damage;
     }
-    else if (!freeze_immune)
+    else
         preac = damage.roll();
 
     int tracer_postac_max = preac_max_damage;
@@ -4983,15 +5009,11 @@ void bolt::monster_post_hit(monster* mon, int dmg)
         _combustion_breath_explode(this, mon->pos());
 
     if (origin_spell == SPELL_FLASH_FREEZE
+             || origin_spell == SPELL_HOARFROST_BULLET
              || name == "blast of ice"
              || origin_spell == SPELL_GLACIATE && !is_explosion)
     {
-        if (mon->has_ench(ENCH_FROZEN))
-        {
-            if (origin_spell == SPELL_FLASH_FREEZE)
-                simple_monster_message(*mon, " is unaffected.");
-        }
-        else
+        if (!mon->has_ench(ENCH_FROZEN))
         {
             simple_monster_message(*mon, " is flash-frozen.");
             mon->add_ench(ENCH_FROZEN);
@@ -5046,6 +5068,13 @@ void bolt::monster_post_hit(monster* mon, int dmg)
         mon->speed_increment += 10;
         simple_monster_message(*mon, " is empowered.");
     }
+
+    // Give electroferric vorticies a little more life if the player is shooting them
+    if (origin_spell == SPELL_MAGNAVOLT && mon->type == MONS_ELECTROFERRIC_VORTEX)
+        mon->add_ench(mon_enchant(ENCH_SLOWLY_DYING, 0, nullptr, BASELINE_DELAY * 2));
+
+    if (origin_spell == SPELL_RIMEBLIGHT)
+        maybe_spread_rimeblight(*mon, ench_power);
 }
 
 static int _knockback_dist(spell_type origin, int pow)
@@ -5508,6 +5537,11 @@ void bolt::affect_monster(monster* mon)
 
 bool bolt::ignores_monster(const monster* mon) const
 {
+    // This is the lava digging tracer. It will stop at anything which cannot
+    // survive having lava put beneath it (ie: ignore everything else)
+    if (origin_spell == SPELL_HELLFIRE_MORTAR)
+        return mon->airborne() || monster_habitable_grid(mon, DNGN_LAVA);
+
     // Digging doesn't affect monsters (should it harm earth elementals?).
     if (flavour == BEAM_DIGGING)
         return true;
@@ -5539,6 +5573,13 @@ bool bolt::ignores_monster(const monster* mon) const
 
     if (flavour == BEAM_WATER && mon->type == MONS_WATER_ELEMENTAL)
         return true;
+
+    // Rimeblight explosions won't hurt allies OR the monster that is exploding
+    if (origin_spell == SPELL_RIMEBLIGHT && is_explosion)
+        return mon->friendly() || mon->pos() == source;
+
+    if (origin_spell == SPELL_HOARFROST_BULLET)
+        return in_explosion_phase && mons_aligned(agent(), mon);
 
     int summon_type = 0;
     mon->is_summoned(nullptr, &summon_type);
@@ -5591,6 +5632,7 @@ bool bolt::has_saving_throw() const
     case BEAM_CONCENTRATE_VENOM:
     case BEAM_ENFEEBLE:
     case BEAM_VITRIFYING_GAZE:
+    case BEAM_RIMEBLIGHT:
         return false;
     case BEAM_VULNERABILITY:
         return !one_chance_in(3);  // Ignores will 1/3 of the time
@@ -5711,6 +5753,11 @@ bool ench_flavour_affects_monster(actor *agent, beam_type flavour,
         rc = mons_has_attacks(*mon)
              || mon->antimagic_susceptible()
              || !mons_invuln_will(*mon);
+        break;
+
+    case BEAM_RIMEBLIGHT:
+        rc = !mon->has_ench(ENCH_RIMEBLIGHT)
+             && mon->holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY);
         break;
 
     default:
@@ -6401,6 +6448,15 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
             obvious_effect = true;
         return MON_AFFECTED;
 
+    case BEAM_RIMEBLIGHT:
+        if (apply_rimeblight(*mon, ench_power, true))
+        {
+            mprf("A stygian plague fills %s body.",
+                 apostrophise(mon->name(DESC_THE)).c_str());
+            obvious_effect = true;
+        }
+        return MON_AFFECTED;
+
     default:
         break;
     }
@@ -6522,6 +6578,10 @@ const map<spell_type, explosion_sfx> spell_explosions = {
     { SPELL_NULLIFYING_BREATH, {
         "The antimagic surges outward!",
         "a quiet echo",
+    } },
+    { SPELL_HOARFROST_BULLET, {
+        "The shards fragment into shrapnel!",
+        "an explosion",
     } },
 };
 
@@ -6962,6 +7022,7 @@ bool bolt::nasty_to(const monster* mon) const
         case BEAM_MINDBURST:
         case BEAM_VAMPIRIC_DRAINING:
         case BEAM_ENFEEBLE:
+        case BEAM_RIMEBLIGHT:
             return ench_flavour_affects_monster(agent(), flavour, mon);
         case BEAM_TUKIMAS_DANCE:
             return tukima_affects(*mon); // XXX: move to ench_flavour_affects?
@@ -7257,6 +7318,7 @@ static string _beam_type_name(beam_type type)
     case BEAM_CRYSTALLIZING:         return "crystallizing";
     case BEAM_WARPING:               return "spatial disruption";
     case BEAM_QAZLAL:                return "upheaval targetter";
+    case BEAM_RIMEBLIGHT:            return "rimeblight";
 
     case NUM_BEAMS:                  die("invalid beam type");
     }

@@ -134,6 +134,9 @@ static bool _decrement_a_duration(duration_type dur, int delay,
             "expiration delay loss %d not less than duration expiration point %d",
             exploss * BASELINE_DELAY, exppoint);
 
+    if (dur == DUR_SENTINEL_MARK && aura_is_active_on_player(OPHAN_MARK_KEY))
+        return false;
+
     const int old_dur = you.duration[dur];
     you.duration[dur] -= delay;
 
@@ -916,6 +919,9 @@ static void _decrement_durations()
 
     if (you.duration[DUR_BLOOD_FOR_BLOOD])
         beogh_blood_for_blood_tick(delay);
+
+    if (you.duration[DUR_FUSILLADE] && you.time_taken > 0)
+        fire_fusillade();
 
     // these should be after decr_ambrosia, transforms, liquefying, etc.
     for (int i = 0; i < NUM_DURATIONS; ++i)

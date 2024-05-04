@@ -49,7 +49,6 @@ static const vector<monster_info_flag_name> monster_info_flag_names = {
     { MB_STILL_WINDS, "stilling wind", "stilling the winds", "stilling wind"},
     { MB_SILENCING, "silencing", "radiating silence", "silencing"},
     { MB_READY_TO_HOWL, "can howl", "ready to howl", "can howl"},
-    { MB_BRILLIANCE_AURA, "brilliance aura", "brilliance aura", "brilliance auras"},
     { MB_VORTEX, "vortex", "surrounded by a freezing vortex", "vortices"},
     { MB_VORTEX_COOLDOWN, "gusty", "surrounded by restless winds", "gusty"},
     { MB_FRENZIED, "frenzied", "frenzied and wild", "frenzied"},
@@ -146,4 +145,6 @@ static const vector<monster_info_flag_name> monster_info_flag_names = {
     { MB_TOUCH_OF_BEOGH, "divinely empowered", "empowered by the touch of Beogh", "divinely empowered"},
     { MB_AWAITING_RECRUITMENT, "anointable", "ready to become your apostle", "anointable"},
     { MB_VENGEANCE_TARGET, "target of vengeance", "target of orcish vengeance", "targets of vengeance"},
+    { MB_MAGNETISED, "magnetised", "covered in magnetic dust", "magnetised"},
+    { MB_RIMEBLIGHT, "rimeblight", "afflicted by rimeblight", "rimeblight"},
 };

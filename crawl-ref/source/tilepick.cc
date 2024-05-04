@@ -569,7 +569,8 @@ tileidx_t tileidx_feature(const coord_def &gc)
                         && feat != DNGN_PASSAGE_OF_GOLUBRIA
                         && feat != DNGN_MALIGN_GATEWAY
                         && feat != DNGN_BINDING_SIGIL
-                        && feat != DNGN_UNKNOWN_PORTAL;
+                        && feat != DNGN_UNKNOWN_PORTAL
+                        && feat != DNGN_TREE; // summon forest spell
     if (override && can_override)
         return override;
 
@@ -589,6 +590,7 @@ tileidx_t tileidx_feature(const coord_def &gc)
         }
         // deliberate fall-through
     case DNGN_ROCK_WALL:
+    case DNGN_CLEAR_ROCK_WALL:
     case DNGN_STONE_WALL:
     case DNGN_CRYSTAL_WALL:
     case DNGN_PERMAROCK_WALL:
@@ -617,6 +619,16 @@ tileidx_t tileidx_feature(const coord_def &gc)
             unsigned rc = real_colour(colour, gc);
             return tile_dngn_coloured(base, rc) + spec; // XXX
         }
+        // If there's an unseen change here, the old (remembered) flavour is
+        // available in the terrain change marker
+        if (!you.see_cell(gc))
+            if (map_marker *mark = env.markers.find(gc, MAT_TERRAIN_CHANGE))
+            {
+                map_terrain_change_marker *marker =
+                    dynamic_cast<map_terrain_change_marker*>(mark);
+                if (marker->flv_old_feature)
+                    return marker->flv_old_feature;
+            }
         return tileidx_feature_base(feat);
     }
 
@@ -2272,6 +2284,9 @@ static const map<monster_info_flags, tileidx_t> status_icons = {
     { MB_RETREATING, TILEI_RETREAT  },
     { MB_TOUCH_OF_BEOGH, TILEI_TOUCH_OF_BEOGH },
     { MB_VENGEANCE_TARGET, TILEI_VENGEANCE_TARGET },
+    { MB_MAGNETISED, TILEI_BULLSEYE },  // Placeholder
+    { MB_RIMEBLIGHT, TILEI_RIMEBLIGHT },
+    { MB_ARMED, TILEI_UNDYING_ARMS },
 };
 
 set<tileidx_t> status_icons_for(const monster_info &mons)
@@ -2835,7 +2850,8 @@ static tileidx_t _tileidx_misc(const item_def &item)
         return TILE_MISC_HORN_OF_GERYON;
 
     case MISC_BOX_OF_BEASTS:
-        return TILE_MISC_BOX_OF_BEASTS;
+        return evoker_charges(item.sub_type) ? TILE_MISC_BOX_OF_BEASTS
+                                             : TILE_MISC_BOX_OF_BEASTS_INERT;
 
 #if TAG_MAJOR_VERSION == 34
     case MISC_CRYSTAL_BALL_OF_ENERGY:
@@ -2850,7 +2866,8 @@ static tileidx_t _tileidx_misc(const item_def &item)
         return TILE_MISC_SACK_OF_SPIDERS;
 
     case MISC_GRAVITAMBOURINE:
-        return TILE_MISC_TAMBOURINE;
+        return evoker_charges(item.sub_type) ? TILE_MISC_TAMBOURINE
+                                             : TILE_MISC_TAMBOURINE_INERT;
 
     // Default for summary menus
     case NUM_MISCELLANY:
@@ -3278,8 +3295,13 @@ tileidx_t tileidx_bolt(const bolt &bolt)
             return TILE_BOLT_CRYSTAL_SPEAR + dir;
         else if (bolt.name == "puff of frost")
             return TILE_BOLT_FROST;
-        else if (bolt.name == "shard of ice")
+        else if (bolt.name == "shard of ice"
+                 || bolt.name == "shard of alchemical ice"
+                 || bolt.name == "salvo of alchemical ice"
+                    && !bolt.in_explosion_phase)
+        {
             return TILE_BOLT_ICICLE + dir;
+        }
         else if (bolt.name == "searing ray")
             return TILE_BOLT_SEARING_RAY;
         else if (bolt.name == "bolt of light"
@@ -3333,7 +3355,7 @@ tileidx_t tileidx_bolt(const bolt &bolt)
         break;
 
     case LIGHTGREY:
-        if (bolt.name == "stone arrow")
+        if (bolt.name == "stone arrow" || bolt.name == "stone bullet")
             return TILE_BOLT_STONE_ARROW + dir;
         break;
 
@@ -3353,8 +3375,11 @@ tileidx_t tileidx_bolt(const bolt &bolt)
         break;
 
     case ETC_MUTAGENIC:
-        if (bolt.name == "irradiate" || bolt.name == "unravelling")
+        if (bolt.name == "irradiate" || bolt.name == "unravelling"
+            || bolt.name == "burst of quintessence")
+        {
             return TILE_BOLT_IRRADIATE;
+        }
         break;
     }
 

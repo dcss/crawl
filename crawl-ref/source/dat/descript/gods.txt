@@ -237,7 +237,7 @@ Beogh powers
 
 Worshippers will gain the power to call down Beogh's wrath upon their
 oppressors, and other orcs will start to see you as one of their own. Especially
-promising adherents will find themselves beset by rivals for Beogh's favor, but
+promising adherents will find themselves beset by rivals for Beogh's favour, but
 overcoming these trials without fleeing will gain you loyal companions whom
 Beogh will resurrect time and time again - just so long as you continue to fight
 and avenge in their name. A true chosen one may even rally an entire orcish army
@@ -632,7 +632,7 @@ dangerous.
 the Shining One wrath
 
 The Shining One's wrath is straightforward and unmistakable. Its victims find
-themselves smote with holy fire and beset with holy warriors. Sinners will be
+themselves smitten with holy fire and beset with holy warriors. Sinners will be
 silenced, and the Shining One will also shout to alert the victim's foes.
 %%%%
 Trog wrath

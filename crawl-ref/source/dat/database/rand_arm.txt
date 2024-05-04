@@ -82,6 +82,8 @@ Barracuda
 
 Catfish
 
+Cichlid
+
 Mackerel
 
 Marlin
@@ -157,7 +159,7 @@ Circus Animal
 
 Monkey's Uncle
 
-#classical mythical animals
+# classical mythical animals
 Centaur
 
 Cockatrice
@@ -208,7 +210,9 @@ Mpinguari
 
 # Unlikely hybrids
 
-Giraffatuar
+Giraffataur
+
+Elephantaur
 
 Mertaur
 
@@ -232,6 +236,10 @@ Chupacabra
 Dropbear
 
 Jackalope
+
+Jersey Devil
+
+Snallygaster
 
 Wild Haggis
 
@@ -1037,10 +1045,10 @@ Vermicelli
 
 Macaroni
 
+Strozzapreti
+
 w:1
 the Pastamancer
-
-
 %%%%
 _card_
 

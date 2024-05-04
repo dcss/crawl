@@ -842,6 +842,11 @@ bool fill_status_info(int status, status_info& inf)
             _fill_inf_from_ddef(DUR_LOWERED_WL, inf);
         break;
 
+    case DUR_FUSILLADE:
+        if (!enough_mp(2, true))
+            inf.light_colour = DARKGREY;
+        break;
+
     default:
         if (!found)
         {

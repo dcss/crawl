@@ -1170,6 +1170,7 @@ string casting_uselessness_reason(spell_type spell, bool temp)
     case SPELL_SIMULACRUM:
     case SPELL_INFESTATION:
     case SPELL_TUKIMAS_DANCE:
+    case SPELL_HOARFROST_CANNONADE:
         if (you.allies_forbidden())
             return "you cannot coerce anything to obey you.";
         break;
@@ -1465,6 +1466,14 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
         if (temp && you.duration[DUR_GAVOTTE_COOLDOWN])
             return "local gravity is still too unstable to reorient.";
 
+    case SPELL_FULSOME_FUSILLADE:
+        if (temp && you.duration[DUR_FUSILLADE])
+            return "you are already unleashing a barrage of alchemical concoctions!";
+
+    case SPELL_HELLFIRE_MORTAR:
+        if (temp && hellfire_mortar_active(you))
+            return "you already have an active mortar!";
+
     default:
         break;
     }
@@ -1534,6 +1543,7 @@ bool spell_no_hostile_in_range(spell_type spell)
     case SPELL_OLGREBS_TOXIC_RADIANCE:
     case SPELL_IGNITION:
     case SPELL_FROZEN_RAMPARTS:
+    case SPELL_FULSOME_FUSILLADE:
         return minRange > you.current_vision;
 
     // Special handling for cloud spells.

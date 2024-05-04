@@ -96,6 +96,9 @@ bool melee_attack::bad_attempt()
     if (!attacker->is_player() || !defender || !defender->is_monster())
         return false;
 
+    if (god_protects(attacker, defender->as_monster(), false))
+        return true;
+
     if (player_unrand_bad_attempt(offhand_weapon()))
         return true;
 
@@ -3022,7 +3025,7 @@ void melee_attack::mons_apply_attack_flavour()
 
         if (one_chance_in(3))
         {
-            if (attk_type != AT_SPORE)
+            if (attk_type != AT_SPORE && defender_visible)
             {
                 mprf("%s %s afflicted by dizzying energies!",
                      defender->name(DESC_THE).c_str(),
@@ -3394,6 +3397,13 @@ void melee_attack::mons_apply_attack_flavour()
             mprf("Faint brimstone surges around %s!",
                  defender_name(true).c_str());
         }
+        break;
+    }
+
+    case AF_SWARM:
+    {
+        if (!defender->is_monster() || !mons_is_firewood(*defender->as_monster()))
+            summon_swarm_clone(*attacker->as_monster(), defender->pos());
         break;
     }
 

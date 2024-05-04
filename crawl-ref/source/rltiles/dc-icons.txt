@@ -87,6 +87,8 @@ regeneration REGENERATION
 retreat RETREAT
 vengeance VENGEANCE_TARGET
 beogh_touch TOUCH_OF_BEOGH
+rimeblight RIMEBLIGHT
+arms UNDYING_ARMS
 
 something_under SOMETHING_UNDER
 new_stair NEW_STAIR

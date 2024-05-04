@@ -8,14 +8,18 @@
 
 #include "spl-monench.h"
 
+#include "beam.h"
 #include "coordit.h"
 #include "english.h" // apostrophise
 #include "env.h"
+#include "fight.h"
 #include "losglobal.h"
 #include "message.h"
+#include "mon-tentacle.h"
 #include "spl-util.h"
 #include "stringutil.h" // make_stringf
 #include "terrain.h"
+#include "view.h"
 
 int englaciate(coord_def where, int pow, actor *agent)
 {
@@ -29,12 +33,19 @@ int englaciate(coord_def where, int pow, actor *agent)
 
     monster* mons = victim->as_monster();
 
-    if (victim->res_cold() > 0
-        || victim->is_stationary())
+    // Skip some ineligable monster categories
+    if (mons &&
+        (mons_is_conjured(mons->type) || mons_is_firewood(*mons)
+        || mons_is_tentacle_segment(mons->type)))
+    {
+        return 0;
+    }
+
+    if (victim->res_cold() > 0)
     {
         if (!mons)
             canned_msg(MSG_YOU_UNAFFECTED);
-        else if (!mons_is_firewood(*mons))
+        else
             simple_monster_message(*mons, " is unaffected.");
         return 0;
     }
@@ -104,8 +115,7 @@ bool do_slow_monster(monster& mon, const actor* agent, int dur)
     if (mon.stasis())
         return true;
 
-    if (!mon.is_stationary()
-        && mon.add_ench(mon_enchant(ENCH_SLOW, 0, agent, dur)))
+    if (mon.add_ench(mon_enchant(ENCH_SLOW, 0, agent, dur)))
     {
         if (!mon.paralysed() && !mon.petrified()
             && simple_monster_message(mon, " seems to slow down."))
@@ -200,4 +210,102 @@ bool start_ranged_constriction(actor& caster, actor& target, int duration,
     }
 
     return true;
+}
+
+dice_def rimeblight_dot_damage(int pow)
+{
+    return dice_def(2, 3 + div_rand_round(pow, 17));
+}
+
+string describe_rimeblight_damage(int pow, bool terse)
+{
+    dice_def dot_damage = rimeblight_dot_damage(pow);
+    dice_def shards_damage = zap_damage(ZAP_RIMEBLIGHT_SHARDS, pow, false, false);
+
+    if (terse)
+    {
+        return make_stringf("%dd%d/%dd%d", dot_damage.num, dot_damage.size,
+                                           shards_damage.num, shards_damage.size);
+    }
+
+    return make_stringf("%dd%d (primary target), %dd%d (explosion)",
+                        dot_damage.num, dot_damage.size,
+                        shards_damage.num, shards_damage.size);
+}
+
+bool maybe_spread_rimeblight(monster& victim, int power)
+{
+    if (victim.holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY)
+        && !victim.has_ench(ENCH_RIMEBLIGHT)
+        && x_chance_in_y(2, 3)
+        && you.see_cell_no_trans(victim.pos()))
+    {
+        apply_rimeblight(victim, power);
+        return true;
+    }
+
+    return false;
+}
+
+bool apply_rimeblight(monster& victim, int power, bool quiet)
+{
+    if (victim.has_ench(ENCH_RIMEBLIGHT)
+        || !(victim.holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY)))
+    {
+        return false;
+    }
+
+    int duration = (random_range(6, 10) + div_rand_round(power, 30))
+                    * BASELINE_DELAY;
+    victim.add_ench(mon_enchant(ENCH_RIMEBLIGHT, 0, &you, duration));
+    victim.props[RIMEBLIGHT_POWER_KEY] = power;
+    victim.props[RIMEBLIGHT_TICKS_KEY] = random_range(0, 2);
+
+    if (!quiet)
+        simple_monster_message(victim, " is afflicted with rimeblight.");
+
+    return true;
+}
+
+void do_rimeblight_explosion(coord_def pos, int power, int size)
+{
+    bolt shards;
+    zappy(ZAP_RIMEBLIGHT_SHARDS, power, false, shards);
+    shards.ex_size = size;
+    shards.source_id     = MID_PLAYER;
+    shards.thrower       = KILL_YOU_MISSILE;
+    shards.origin_spell  = SPELL_RIMEBLIGHT;
+    shards.target        = pos;
+    shards.source        = pos;
+    shards.hit_verb      = "hits";
+    shards.aimed_at_spot = true;
+    shards.explode();
+}
+
+void tick_rimeblight(monster& victim)
+{
+    const int pow = victim.props[RIMEBLIGHT_POWER_KEY].get_int();
+    int ticks = victim.props[RIMEBLIGHT_TICKS_KEY].get_int();
+
+    // Determine chance to explode with ice (rises over time)
+    // Never happens below 3, always happens at 4, random chance beyond that
+    if (ticks == 4 || ticks > 4 && x_chance_in_y(ticks, ticks + 16)
+        && you.see_cell_no_trans(victim.pos()))
+    {
+        mprf("Shards of ice erupt from %s body!", apostrophise(victim.name(DESC_THE)).c_str());
+        do_rimeblight_explosion(victim.pos(), pow, 1);
+    }
+
+    // Injury bond or some other effects may have killed us by now
+    if (!victim.alive())
+        return;
+
+    // Apply direct AC-ignoring cold damage
+    int dmg = rimeblight_dot_damage(pow).roll();
+    dmg = resist_adjust_damage(&victim, BEAM_COLD, dmg);
+    victim.hurt(&you, dmg, BEAM_COLD, KILLED_BY_FREEZING);
+
+    // Increment how long rimeblight has been active
+    if (victim.alive())
+        victim.props[RIMEBLIGHT_TICKS_KEY] = (++ticks);
 }

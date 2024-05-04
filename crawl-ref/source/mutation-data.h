@@ -785,7 +785,7 @@ static const mutation_def mut_data[] =
   {"", "", ""},
 },
 
-{ MUT_NO_JEWELLERY, 0, 1, mutflag::bad, true,
+{ MUT_NO_JEWELLERY, 0, 1, mutflag::bad, false,
   "no jewellery",
 
   {"You cannot equip rings or amulets.",
@@ -2328,7 +2328,7 @@ static const mutation_def mut_data[] =
   {"You gain the ability to drink.", "", ""},
 },
 
-{ MUT_FAITH, 0, 1, mutflag::bad, false,
+{ MUT_FAITH, 0, 1, mutflag::good, false,
   "faith",
 
   {"You have a special connection with the divine. (Faith)", "", ""},

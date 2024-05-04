@@ -144,6 +144,7 @@ _xom_esteem_
 # chosen 20% of the time
 w:40
 @divine_esteem@
+
 Absentmindedness
 
 Amusement
@@ -178,6 +179,8 @@ Wantonness
 
 Whimsicality
 
+Temerity
+
 %%%%
 _time_name_
 Autumn
@@ -185,6 +188,8 @@ Autumn
 Dawn
 
 Day
+
+Dusk
 
 Eternal Night
 
@@ -1075,6 +1080,8 @@ Hairy
 Haunted
 
 Histrionic
+
+Impassible
 
 Impish
 
