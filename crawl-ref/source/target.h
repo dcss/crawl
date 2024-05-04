@@ -525,6 +525,7 @@ class targeter_gastronomic : public targeter_smite
 {
 public:
     targeter_gastronomic(const actor *a, int pow);
+    bool valid_aim(coord_def) override;
 };
 
 
