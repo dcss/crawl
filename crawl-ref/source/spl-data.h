@@ -3982,7 +3982,7 @@ static const struct spell_desc spelldata[] =
     1, 1,
     0,
     TILEG_GAVOTTE,
-}
+},
 
 {
     SPELL_NO_SPELL, "nonexistent spell",
