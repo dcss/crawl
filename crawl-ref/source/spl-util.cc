@@ -1461,7 +1461,7 @@ string spell_uselessness_reason(spell_type spell, bool temp, bool prevent,
         break;
 
     case SPELL_SIGIL_OF_BINDING:
-        if (temp && cast_sigil_of_binding(0, false, true) == spret::abort)
+        if (temp && cast_sigil_of_binding(you, 0, false, true) == spret::abort)
             return "there is no room nearby to place a sigil.";
         break;
 

@@ -64,6 +64,7 @@
 #include "spl-damage.h"
 #include "spl-goditem.h"
 #include "spl-monench.h"
+#include "spl-other.h"
 #include "spl-summoning.h"
 #include "spl-transloc.h"
 #include "spl-util.h"
@@ -691,6 +692,24 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
         MSPELL_LOGIC_NONE,
         18, // 1.5x iceblast
     } },
+    { SPELL_SIGIL_OF_BINDING, {
+        [](const monster &caster) {
+            const coord_def where = sigil_target_location(caster);
+            if (!in_bounds(where))
+                return ai_action::impossible();
+            auto locations = find_sigil_locations(caster, where, true);
+            if (locations.size() == 0)
+                return ai_action::impossible();
+            if (locations.size() == 1)
+                return ai_action::bad();
+            // 2 or more locations is preferable
+            return ai_action::good();
+        },
+        [] (monster &caster, mon_spell_slot /*slot*/, bolt& /*beem*/) {
+            const int pow = mons_spellpower(caster, SPELL_SIGIL_OF_BINDING);
+            cast_sigil_of_binding(caster, pow, false, false);
+        }
+    } }
 };
 
 /// Create the appropriate casting logic for a simple conjuration.

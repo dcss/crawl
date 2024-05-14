@@ -9,6 +9,7 @@
 #include "spl-other.h"
 
 #include "act-iter.h"
+#include "areas.h" // silenced
 #include "coordit.h"
 #include "delay.h"
 #include "env.h"
@@ -487,14 +488,22 @@ spret cast_intoxicate(int pow, bool fail, bool tracer)
     return spret::success;
 }
 
-vector<coord_def> find_sigil_locations(bool tracer)
+vector<coord_def> find_sigil_locations(const actor &caster, coord_def where, bool tracer)
 {
     vector<coord_def> positions;
-    for (radius_iterator ri(you.pos(), 2, C_SQUARE); ri; ++ri)
+
+    // Should only ever be casting at an actual target
+    const auto target = actor_at(where);
+    if (!target)
+        return positions;
+
+    for (radius_iterator ri(where, 2, C_SQUARE); ri; ++ri)
     {
-        if (you.see_cell(*ri) && env.grid(*ri) == DNGN_FLOOR
+        // Check the *target* can see the cell, as the caster can already see
+        // the target, otherwise at LOS range we don't get sigils behind player
+        if (target->see_cell_no_trans(*ri) && env.grid(*ri) == DNGN_FLOOR
             && (!actor_at(*ri) || (actor_at(*ri) && tracer
-                                   && !you.can_see(*actor_at(*ri)))))
+                                   && !caster.can_see(*actor_at(*ri)))))
         {
             positions.push_back(*ri);
         }
@@ -503,122 +512,227 @@ vector<coord_def> find_sigil_locations(bool tracer)
     return positions;
 }
 
-spret cast_sigil_of_binding(int pow, bool fail, bool tracer)
+const coord_def sigil_target_location(const actor &caster)
 {
-    // Fill list of viable locations to create the sigil (keeping separate lists
-    // for distance 1 and 2)
-    vector<coord_def> positions = find_sigil_locations(tracer);
+    if (caster.is_player())
+        return you.pos();
+    auto foe = caster.as_monster()->get_foe();
+    // Monster version casts sigils *around* their foe instead
+    return foe ? foe->pos() : coord_def(0, 0);
+}
+
+spret cast_sigil_of_binding(const actor &caster, int pow, bool fail, bool tracer)
+{
+    coord_def where = sigil_target_location(caster);
+    if (!in_bounds(where))
+        return spret::abort;
+    actor *who = actor_at(where);
+
+    // Fill list of viable locations to create the sigil
+    vector<coord_def> positions = find_sigil_locations(caster, where, tracer);
+
+    // If the caster knows there are no valid places for a sigil, abort.
+    bool success = !positions.empty();
+    if (tracer)
+        return success ? spret::success : spret::abort;
+
+    fail_check();
+
+    // If we got here, invisible monsters were standing on the only valid locations;
+    // fails at cast time.
+    if (!success)
+    {
+        if (caster.is_player())
+            mpr("There was nowhere nearby to inscribe sigils!");
+        else if (you.see_cell(where))
+        {
+            mprf("Glowing lines form in the air around %s then dissipate.",
+                 who->name(mons_aligned(&you, who) ? DESC_YOUR : DESC_THE).c_str());
+        }
+        return spret::success;
+    }
+
+    // Remove any old sigils that may still be active.
+    timeout_binding_sigils(caster);
+
+    // Sort into separate lists for distance 1 and 2 to manage placement
     vector<coord_def> sigil_pos_d1;
     vector<coord_def> sigil_pos_d2;
     for (auto p : positions)
     {
-        if (grid_distance(you.pos(), p) == 1)
+        if (grid_distance(where, p) == 1)
             sigil_pos_d1.push_back(p);
         else
             sigil_pos_d2.push_back(p);
     }
 
-    // If the player knows there are no valid places for a sigil, abort. But if
-    // invisible monsters are standing on the only valid locations, we will need
-    // to simply fail at cast time.
-    bool success = !(sigil_pos_d1.empty() && sigil_pos_d2.empty());
-    if (tracer)
-        return success ? spret::success : spret::abort;
-
-    fail_check();
-    if (!success)
-    {
-        mpr("There was nowhere nearby to inscribe sigils!");
-        return spret::success;
-    }
-
-    // Remove any old sigil that may still be active.
-    timeout_binding_sigils();
-
-    int dur = BASELINE_DELAY * random_range(5 + div_rand_round(pow, 4),
-                                            8 + div_rand_round(pow, 2));
-    // Now select a random spot for each range and put the sigil there -
-    // attempting to favor placing the sigils in two positions that are
-    // non-adjacent.
+    // Mix up the lists now so selection is randomised
     shuffle_array(sigil_pos_d1);
     shuffle_array(sigil_pos_d2);
 
-    if (!sigil_pos_d1.empty())
+    // How many positions do we want to take from each list? For the player
+    // ideally take one from each and non-adjacent, for a monster we take more,
+    // preferably just from the d1 list, and we don't care if they're adjacent.
+    int d1_sigils = 1;
+    int d2_sigils = 1;
+
+    if (caster.is_player())
     {
-        temp_change_terrain(sigil_pos_d1[0], DNGN_BINDING_SIGIL, dur,
-                            TERRAIN_CHANGE_BINDING_SIGIL, you.mid);
+        if (sigil_pos_d1.size() == 0)
+        {
+            d1_sigils = 0;
+            d2_sigils = min(2, (int)sigil_pos_d2.size());
+        }
+        else if (sigil_pos_d2.size() == 0)
+        {
+            d2_sigils = 0;
+            d1_sigils = min(2, (int)sigil_pos_d1.size());
+        }
+    }
+    else
+    {
+        int total_sigils = min((int)positions.size(), random_range(2, 2 + div_rand_round(pow, 30)));
+        d1_sigils = min((int)sigil_pos_d1.size(), total_sigils);
+        d2_sigils = min((int)sigil_pos_d2.size(), total_sigils - d1_sigils);
+
+        // Animate a beam before we lay the sigils down
+        const feature_def &feat_def = get_feature_def(DNGN_BINDING_SIGIL);
+        bolt beam;
+        beam.range   = INFINITE_DISTANCE;
+        beam.flavour = BEAM_VISUAL;
+        beam.glyph   = feat_def.symbol();
+        beam.colour  = MAGENTA;
+        beam.source  = caster.pos();
+        beam.target  = where;
+        beam.name    = "string of glyphs";
+        beam.draw_delay = 30;
+        beam.aimed_at_spot = true;
+        beam.fire();
     }
 
-    if (!sigil_pos_d2.empty())
-    {
-        // If this is in fact the second sigil, try to place it non-adjacent to
-        // the first one.
-        bool non_adj = false;
-        if (!sigil_pos_d1.empty())
-        {
-            for (unsigned int i = 0; i < sigil_pos_d2.size(); ++i)
-            {
-                // Skip adjacent grids on first pass
-                if (grid_distance(sigil_pos_d1[0], sigil_pos_d2[i]) <= 1)
-                    continue;
+    ASSERT(d1_sigils <= (int)sigil_pos_d1.size() && d2_sigils <= (int)sigil_pos_d2.size()
+           && (d1_sigils + d2_sigils) <= (int)positions.size());
 
-                temp_change_terrain(sigil_pos_d2[i], DNGN_BINDING_SIGIL, dur,
-                                    TERRAIN_CHANGE_BINDING_SIGIL, you.mid);
-                non_adj = true;
-                break;
+    int dur = BASELINE_DELAY * random_range(5 + div_rand_round(pow, 4),
+                                            8 + div_rand_round(pow, 2));
+
+    // Now pick as many as we need from each list in turn
+    int seen = 0;
+    coord_def picked = {0,0};
+
+    for (int d=1; d<=2; d++)
+    {
+        // How many and which list?
+        int sigils = d == 1 ? d1_sigils : d2_sigils;
+        if (sigils == 0)
+            continue;
+        auto sigil_pos = d == 1 ? sigil_pos_d1 : sigil_pos_d2;
+
+        for (int n=0; n<sigils; n++)
+        {
+            int m = n;
+            bool placed = false;
+            bool try_adjacent = false;
+            // This loop should always be able to place one, since we are already
+            // trying to place no more tiles than there are positions available;
+            // but just to make sure we never get an infinite loop, exit if we
+            // tried all positions anyway
+            while (!placed && m < sigils)
+            {
+                if (caster.is_monster() || picked.origin() || try_adjacent
+                    || grid_distance(sigil_pos[m], picked) > 1)
+                {
+                    temp_change_terrain(sigil_pos[m], DNGN_BINDING_SIGIL, dur,
+                                        TERRAIN_CHANGE_BINDING_SIGIL, caster.mid);
+                    picked = sigil_pos[m];
+                    placed = true;
+                    if (you.see_cell(sigil_pos[m]))
+                        seen++;
+                }
+                m++;
+                // If we reached the end of the loop and didn't find a non-adjacent
+                // tile, reset the loop and try again. It only ever happens for the
+                // player and only for 2nd tile so we don't need further checks
+                // to make sure we aren't overwriting other sigils.
+                if (m >= sigils && !try_adjacent && !placed)
+                {
+                    m = n;
+                    try_adjacent = true;
+                }
             }
         }
-
-        // If we couldn't find a non-adjacent position to put the second sigil,
-        // or if this is the only sigil, just take any viable space instead.
-        if (!non_adj)
-        {
-            temp_change_terrain(sigil_pos_d2[0], DNGN_BINDING_SIGIL, dur,
-                                TERRAIN_CHANGE_BINDING_SIGIL, you.mid);
-        }
     }
 
-    if (!sigil_pos_d1.empty() && !sigil_pos_d2.empty())
-        mpr("You inscribe a pair of binding sigils.");
-    else
-        mpr("You inscribe a binding sigil.");
-
+    if (seen > 0)
+    {
+        mprf("%s %s a %sbinding sigil%s.", caster.name(DESC_THE).c_str(),
+              caster.conj_verb("inscribe").c_str(),
+              seen > 2 ? "number of " : seen == 2 ? "pair of " : "",
+              seen > 1 ? "s" : "");
+    }
+    // If the monster somehow placed sigils outside of your LOS: it shouldn't
+    // really happen, but perhaps if they targetted your ally on edge of LOS.
+    else if (!silenced(you.pos()) && !silenced(where))
+        mpr("You hear the scratching of a quill on parchment.");
     return spret::success;
 }
 
-void trigger_binding_sigil(actor& actor)
+void trigger_binding_sigil(actor& victim)
 {
-    if (actor.is_binding_sigil_immune())
+    // Check for some basic avoidance criteria
+    if (victim.is_binding_sigil_immune())
     {
-        mprf("%s cannot be bound by the sigil due to %s high momentum!",
-             actor.name(DESC_THE).c_str(), actor.pronoun(PRONOUN_POSSESSIVE).c_str());
+        if (you.see_cell(victim.pos()))
+        {
+            mprf("%s cannot be bound by the sigil due to %s high momentum!",
+                victim.name(DESC_THE).c_str(), victim.pronoun(PRONOUN_POSSESSIVE).c_str());
+        }
         return;
     }
 
-    if (actor.is_player())
+    actor *binder = nullptr;
+
+    // Find the binding sigil details to calculate spell power
+    for (map_marker *mark : env.markers.get_markers_at(victim.pos()))
+    {
+        if (mark->get_type() != MAT_TERRAIN_CHANGE)
+            continue;
+        map_terrain_change_marker *marker =
+            dynamic_cast<map_terrain_change_marker*>(mark);
+
+        binder = actor_by_mid(marker->mon_num);
+    }
+
+    int dur = 0;
+    monster* m = victim.as_monster();
+    if (binder->is_player() && m)
+    {
+        int pow = calc_spell_power(SPELL_SIGIL_OF_BINDING);
+        dur = max(2, random_range(4 + div_rand_round(pow, 12),
+                                  7 + div_rand_round(pow, 8))
+                            - div_rand_round(m->get_hit_dice(), 4));
+    }
+    else
+        dur = random_range(3, 6);
+
+    // Player binding has nothing to do with original spell power whoever cast it
+    if (victim.is_player())
     {
         mprf(MSGCH_WARN, "You move over the binding sigil and are bound in place!");
-        you.increase_duration(DUR_NO_MOMENTUM, random_range(3, 6));
-        revert_terrain_change(you.pos(), TERRAIN_CHANGE_BINDING_SIGIL);
-        return;
+        you.increase_duration(DUR_NO_MOMENTUM, dur);
     }
-
-    monster* m = actor.as_monster();
-    const int pow = calc_spell_power(SPELL_SIGIL_OF_BINDING);
-    const int dur = max(2, random_range(4 + div_rand_round(pow, 12),
-                                        7 + div_rand_round(pow, 8))
-                        - div_rand_round(m->get_hit_dice(), 4))
-                    * BASELINE_DELAY;
-
-    if (m->add_ench(mon_enchant(ENCH_BOUND, 0, &you, dur)))
+    else
     {
-        simple_monster_message(*m,
-            " moves over the binding sigil and is bound in place!",
-            MSGCH_FRIEND_SPELL);
+        if (m->add_ench(mon_enchant(ENCH_BOUND, 0, binder, dur * BASELINE_DELAY)))
+        {
+            simple_monster_message(*m,
+                " moves over the binding sigil and is bound in place!",
+                MSGCH_FRIEND_SPELL);
 
-        // The enemy will gain swift for twice as long as it was bound
-        m->props[BINDING_SIGIL_DURATION_KEY] = dur * 2;
+            // The enemy will gain swift for twice as long as it was bound
+            m->props[BINDING_SIGIL_DURATION_KEY] = dur * 2;
+        }
     }
 
-    revert_terrain_change(actor.pos(), TERRAIN_CHANGE_BINDING_SIGIL);
+    revert_terrain_change(victim.pos(), TERRAIN_CHANGE_BINDING_SIGIL);
 }
