@@ -3091,11 +3091,11 @@ yaktaur captain
 An exceptionally strong and brutish yaktaur, able to order its weaker brethren
 around to do its bidding.
 %%%%
-yaktaur glyphcaster
+yaktaur scribe
 
 They say the quill is mightier than the sword and perhaps this creature is the
 evidence: a yaktaur learned in the written arts able to inscribe powerful
-sigils to frustrate its foes just as well as it wields a weapon.
+sigils to frustrate its foes just as effectively as it wields a crossbow.
 %%%%
 yellow draconian
 

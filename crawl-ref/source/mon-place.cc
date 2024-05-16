@@ -2214,7 +2214,7 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
     { BAND_MELIAI,              {{{MONS_MELIAI, 1}}}},
     { BAND_BOGGARTS,            {{{MONS_BOGGART, 1}}}},
     { BAND_CENTAURS,            {{{MONS_CENTAUR, 1}}}},
-    { BAND_YAKTAURS,            {{{MONS_YAKTAUR_GLYPHCASTER, 1},
+    { BAND_YAKTAURS,            {{{MONS_YAKTAUR_SCRIBE, 1},
                                   {MONS_POLTERGUARDIAN, 1},
                                   {MONS_YAKTAUR, 1}},
                                  {{MONS_YAKTAUR, 1}}}},
