@@ -5,7 +5,7 @@ xp_mult: 9
 species: yaktaur
 will: 70
 attacks:
- - {type: hit, damage: 25}
+ - {type: hit, damage: 26}
 hd: 11
 hp_10x: 620
 ac: 3
