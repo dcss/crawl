@@ -1378,7 +1378,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
         return make_unique<targeter_passage>(range);
     case SPELL_SIGIL_OF_BINDING:
         return make_unique<targeter_multiposition>(&you,
-                                                   find_sigil_locations(true));
+                                    find_sigil_locations(you, you.pos(), true));
     case SPELL_BOULDER:
         return make_unique<targeter_boulder>(&you);
     case SPELL_PERMAFROST_ERUPTION:
@@ -2546,7 +2546,7 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
         return cast_jinxbite(powc, fail);
 
     case SPELL_SIGIL_OF_BINDING:
-        return cast_sigil_of_binding(powc, fail, false);
+        return cast_sigil_of_binding(you, powc, fail, false);
 
     case SPELL_BOULDER:
         return cast_broms_barrelling_boulder(you, beam.target, powc, fail);

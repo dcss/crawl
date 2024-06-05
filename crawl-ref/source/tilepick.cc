@@ -697,6 +697,14 @@ tileidx_t tileidx_feature(const coord_def &gc)
 
             return t;
         }
+    case DNGN_BINDING_SIGIL:
+        {
+            // Slightly different colour for monster sigils
+            auto mark = get_temp_terrain(gc);
+            if (mark && mark->mon_num != (int)you.mid)
+                return TILE_DNGN_BINDING_SIGIL_MONSTER;
+            return TILE_DNGN_BINDING_SIGIL;
+        }
     default:
         return tileidx_feature_base(feat);
     }
@@ -3363,6 +3371,8 @@ tileidx_t tileidx_bolt(const bolt &bolt)
         break;
 
     case MAGENTA:
+        if (bolt.name == "string of glyphs")
+            return TILE_DNGN_BINDING_SIGIL_MONSTER;
         break;
 
     case CYAN:
