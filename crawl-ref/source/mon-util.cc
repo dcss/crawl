@@ -583,7 +583,6 @@ int monster::scan_artefacts(artefact_prop_type ra_prop,
 
     int ret = 0;
 
-    // TODO: do we really want to prevent randarts from working for zombies?
     if (mons_itemuse(*this) >= MONUSE_STARTING_EQUIPMENT)
     {
         const int weap      = inv[MSLOT_WEAPON];
@@ -616,11 +615,12 @@ int monster::scan_artefacts(artefact_prop_type ra_prop,
             ret += artefact_property(env.item[shld], ra_prop);
         }
 
-        if (jewellery != NON_ITEM && env.item[jewellery].base_type == OBJ_JEWELLERY
-            && is_artefact(env.item[jewellery]))
-        {
+        // XXX: Because monster armour slots are awkward, Wiglaf wears his hat
+        //      in the jewelry slot. Since it is always an artefact, this should
+        //      mostly work out fine, but I'd be happy for a better solution in
+        //      future.
+        if (jewellery != NON_ITEM && is_artefact(env.item[jewellery]))
             ret += artefact_property(env.item[jewellery], ra_prop);
-        }
     }
 
     return ret;
@@ -1774,10 +1774,14 @@ bool mons_class_can_be_spectralised(monster_type mzc, bool divine)
 // Does this monster have a soul that can be used for necromancy (Death
 // Channel, Simulacrum, Yredelemnul's Bind Soul)? For Bind Soul, allow
 // monsters with no attacks if they have some spells to use.
-bool mons_can_be_spectralised(const monster& mon, bool divine)
+// When called from Bind Soul's targeting interface, take into account only
+// known effects.
+bool mons_can_be_spectralised(const monster& mon, bool divine, bool only_known)
 {
     return mons_class_can_be_spectralised(mon.type, divine)
-           && !mon.is_summoned()
+           && (!mon.is_summoned()
+               || only_known && mon.has_ench(ENCH_PHANTOM_MIRROR)
+                    && mon.mons_species() != MONS_PLAYER_ILLUSION)
            && !mons_is_tentacle_or_tentacle_segment(mon.type)
            && (!testbits(mon.flags, MF_NO_REWARD)
                || mon.props.exists(KIKU_WRETCH_KEY))
@@ -1820,6 +1824,13 @@ bool mons_can_use_stairs(const monster& mon, dungeon_feature_type stair)
         return false;
     }
 
+    // Don't let the pieces of Blorkula individually follow the player between floors
+    if (mon.type == MONS_VAMPIRE_BAT
+        && mon.props.exists(BLORKULA_REVIVAL_TIMER_KEY))
+    {
+        return false;
+    }
+
     // Everything else is fine
     return true;
 }
@@ -1828,13 +1839,9 @@ void name_zombie(monster& mon, monster_type mc, const string &mon_name)
 {
     mon.mname = mon_name;
 
-    // Special case for Blork the orc: shorten his name to "Blork" to
-    // avoid mentions of "Blork the orc the orc zombie".
-    if (mc == MONS_BLORK_THE_ORC)
-        mon.mname = "Blork";
-    // Also for the Lernaean hydra: treat Lernaean as an adjective to
+    // For the Lernaean hydra: treat Lernaean as an adjective to
     // avoid mentions of "the Lernaean hydra the X-headed hydra zombie".
-    else if (mc == MONS_LERNAEAN_HYDRA)
+    if (mc == MONS_LERNAEAN_HYDRA)
     {
         mon.mname = "Lernaean";
         mon.flags |= MF_NAME_ADJECTIVE;
@@ -4027,9 +4034,11 @@ bool monster_senior(const monster& m1, const monster& m2, bool fleeing)
     }
 
     // Band leaders can displace followers regardless of type considerations.
+    if (m1.is_band_leader_of(m2))
+        return true;
     // And prevent followers to displace the leader to avoid constant swapping.
     // -cao
-    if (m1.is_band_leader_of(m2) || m1.is_band_follower_of(m2))
+    else if (m1.is_band_follower_of(m2))
         return false;
 
     // Monsters smart enough to use stairs can push past monsters too stupid
@@ -4808,6 +4817,17 @@ monster *monster_by_mid(mid_t m, bool require_valid)
     if (unsigned short *mc = map_find(env.mid_cache, m))
         return &env.mons[*mc];
     return 0;
+}
+
+monster *cached_monster_copy_by_mid(mid_t m)
+{
+    for (size_t i = 0; i < env.final_effect_monster_cache.size(); ++i)
+    {
+        if (env.final_effect_monster_cache[i].mid == m)
+            return &env.final_effect_monster_cache[i];
+    }
+
+    return nullptr;
 }
 
 void init_anon()

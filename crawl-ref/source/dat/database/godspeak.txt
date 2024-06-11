@@ -108,6 +108,242 @@ Xom's power almost touches on you for a moment.
 
 You almost hear Xom's maniacal laughter.
 %%%%
+Xom feature lava
+
+@The_feature@ spits out sparks!
+%%%%
+Xom feature shallow water
+
+@The_feature@ briefly bubbles.
+
+@The_feature@ briefly swirls.
+
+@The_feature@ briefly glows.
+
+@The_feature@ briefly flashes @any_colour@.
+
+@The_feature@ briefly boils.
+
+@The_feature@ briefly freezes.
+%%%%
+Xom feature deep water
+
+@Xom feature shallow water@
+
+From the corner of your eye, you spot something lurking in @the_feature@.
+%%%%
+Xom feature blood
+
+@Xom feature shallow water@
+
+@The_feature@ briefly coagulates.
+%%%%
+Xom feature dry
+
+Water briefly sprays from @the_feature@.
+
+Blood briefly sprays from @the_feature@.
+
+Dust puffs up from @the_feature@.
+%%%%
+Xom feature statue
+
+@The_feature@ turns to glare at you.
+
+@The_feature@ turns to stare at you.
+
+@The_feature@ turns away from you.
+
+@The_feature@ spins in place.
+%%%%
+Xom feature translucent wall
+
+Dim shapes swim through @the_feature@.
+
+Faint @any_colour@ flames crawl over @the_feature@.
+
+@The_feature@ is briefly covered in @any_colour_pattern@.
+%%%%
+Xom feature metal wall
+
+Tendrils of electricity crawl over @the_feature@.
+
+@The_feature@ briefly appears tarnished.
+%%%%
+Xom feature stone arch
+
+@The_feature@ briefly shows a sunny meadow on the other side.
+
+@The_feature@ briefly shows a lifeless wasteland on the other side.
+%%%%
+Xom underfoot general
+
+@The_feature@ briefly shifts under you.
+
+Something invisible lands on @the_feature@ beside you!
+%%%%
+Xom underfoot water
+
+@The_feature@ briefly recedes away from you.
+
+Something invisible splashes into @the_feature@ beside you!
+%%%%
+Xom underfoot airborne general
+
+@The_feature@ seems to fall away from under you!
+
+@The_feature@ seems to rush up at you!
+%%%%
+Xom underfoot airborne water
+
+@Xom underfoot airborne general@
+
+Something invisible splashes into @the_feature@ beneath you!
+%%%%
+Xom inventory singular
+
+@Your_item@ briefly glows.
+
+@Your_item@ briefly vibrates.
+
+@Your_item@ briefly flashes @any_colour@.
+%%%%
+Xom inventory plural
+
+One of @your_item@ briefly glows.
+
+One of @your_item@ briefly vibrates.
+
+One of @your_item@ briefly flashes @any_colour@.
+
+@Your_item@ briefly glow.
+
+@Your_item@ briefly vibrate.
+
+@Your_item@ briefly flash @any_colour@.
+%%%%
+Xom floor inventory singular
+
+@Xom inventory singular@
+
+@Your_item@ falls out of your pack, then immediately jumps back in!
+%%%%
+Xom floor inventory plural
+
+@Xom inventory plural@
+
+One of @your_item@ falls out of your pack, then immediately jumps back in!
+
+@Your_item@ fall out of your pack, then immediately jump back in!
+%%%%
+Xom bandages
+
+You briefly get tangled in your bandages.
+%%%%
+Xom floor bandages
+
+@Xom bandages@
+
+You trip over your bandages.
+%%%%
+Xom one eye
+
+A monocle briefly appears over your eye.
+
+An eyepatch briefly covers your eye.
+%%%%
+Xom two eyes
+
+A monocle briefly appears over your [right|left] eye.
+
+An eyepatch briefly covers your [right|left] eye.
+%%%%
+Xom hair
+
+Your eyebrows briefly feel incredibly bushy.
+
+Your eyebrows wriggle.
+
+You briefly grow a large moustache and beard.
+%%%%
+Xom impromptu dance
+
+You perform an impromptu @dance_name@.
+
+You compulsively click your heels together three times.
+%%%%
+dance_name
+
+ballet
+
+cha-cha
+
+fandango
+
+jig
+
+line dance
+
+macarena
+
+tango
+
+tapdance
+
+waltz
+%%%%
+Xom unarmed one hand
+
+A fancy cane briefly appears in your @hand@.
+
+You compulsively punch the air.
+%%%%
+Xom unarmed two hands
+
+@Xom unarmed one hand@
+
+Two fancy canes briefly appear in your @hands@.
+
+You compulsively clap your @hands@ three times.
+%%%%
+Xom cloak slot
+
+@Your_item@ billows in an unfelt wind.
+
+@Your_item@ briefly wraps itself around your head!
+
+@Your_item@ is briefly covered in lurid @any_colour_pattern@!
+%%%%
+Xom helmet slot
+
+@Your_item@ leaps into the air, briefly spins, then lands back on your head!
+%%%%
+Xom offhand slot
+
+@Your_item@ spins!
+
+@Your_item@ briefly flashes a lurid @any_colour@!
+%%%%
+Xom dragon armour
+
+The scales on @your_item@ wiggle briefly.
+%%%%
+Xom animal skin
+
+The fur on @your_item@ grows longer at an alarming rate, then retracts back to normal.
+%%%%
+Xom leather armour
+
+@Your_item@ briefly grows fur, then returns to normal.
+%%%%
+Xom robe
+
+You briefly become tangled in @your_item@.
+%%%%
+Xom metal armour
+
+@Your_item@ briefly appears rusty.
+%%%%
 Xom rearrange the pieces
 
 Xom decides to rearrange the pieces.
@@ -180,7 +416,6 @@ w:30
 "No, I've changed my mind."
 
 Xom pulls you back into the comparable quietude of the dungeon.
-%%%%
 %%%%
 Xom revert other banishment
 
@@ -284,6 +519,8 @@ Xom good mutations
 Xom's power touches on you for a moment.
 
 You hear Xom's maniacal cackling.
+
+With a gout of [@rainbow_colour@|@misc_colour@] light, Xom rebuilds you.
 %%%%
 Xom random mutations
 
@@ -294,6 +531,16 @@ Xom random mutations
 Xom's power brushes against you for a moment.
 
 You hear Xom's avuncular chuckle.
+
+With a flash of [@rainbow_colour@|@misc_colour@] light, Xom rebuilds you.
+%%%%
+Xom divine lightning
+
+The area is suffused with divine lightning!
+
+Xom hurls a blast of lightning!
+
+"Ready, aim, fire!"
 %%%%
 Xom snakes to sticks
 
@@ -352,6 +599,8 @@ Xom smiles on you.
 
 "Toy, don't you die on me yet!"
 
+Xom saves you before everything goes @mono_colour@.
+
 w:1
 "One more [life|try|go]."
 %%%%
@@ -360,6 +609,10 @@ Xom repel stairs
 Xom changes the scenery.
 
 Xom pokes at a nearby @staircase@.
+
+Xom pushes on a nearby @staircase@.
+
+Xom pulls on a nearby @staircase@.
 
 "Tag, you're it!"
 

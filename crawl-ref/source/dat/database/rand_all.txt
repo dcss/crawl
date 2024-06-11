@@ -250,6 +250,8 @@ Blue
 
 Grey
 
+Indigo
+
 Orange
 
 Purple
@@ -307,8 +309,6 @@ Discretion
 
 Generosity
 
-Generosity
-
 Grace
 
 Honesty
@@ -316,6 +316,8 @@ Honesty
 Hospitality
 
 Kindness
+
+Largesse
 
 Modesty
 
@@ -594,6 +596,8 @@ Dances
 Deaths
 
 Defenders
+
+Domains
 
 Demons
 
@@ -1214,6 +1218,10 @@ Mango
 
 Watermelon
 
+Rockmelon
+
+Strawberry
+
 Coconut
 
 Breadfruit
@@ -1233,6 +1241,8 @@ Tamarind
 Guava
 
 Mangosteen
+
+Soursop
 
 Tangerine
 

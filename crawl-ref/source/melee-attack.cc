@@ -741,7 +741,7 @@ static void _devour(monster &victim)
         // 'flavourful' this way??
     }
     if (victim.has_ench(ENCH_STICKY_FLAME))
-        mprf("Spicy!");
+        mpr("Spicy!");
 
     // Devour the corpse.
     victim.props[NEVER_CORPSE_KEY] = true;
@@ -2812,7 +2812,7 @@ bool melee_attack::mons_attack_effects()
     if (charge_pow > 0 && defender->alive() && defender->res_elec() <= 0)
     {
        int dmg = electrolunge_damage(charge_pow).roll();
-       int hurt = attacker->apply_ac(dmg, 0, ac_type::half);
+       int hurt = defender->apply_ac(dmg, 0, ac_type::half);
        inflict_damage(hurt, BEAM_ELECTRICITY);
     }
 

@@ -69,10 +69,14 @@ known for quarrelling with saints and flooding unfortunate temples. If pressed
 to her limits, she will reveal her true form, the mere sight of which struck
 her husband dead. Adventurers may wish they were so lucky!
 %%%%
-Blork the orc
+Blorkula the Orcula
 
-A particularly fat and ugly orc. He's scavenged a pair of rainbow-coloured
-suspenders from somewhere. Strangely, they seem to be glowing.
+Once a gangly and bedraggled vampire with a strange obsession with colour,
+Blorkula was offered succour by a missionary of Beogh and became a portly and
+vigorous orc with a strange obsession with colour instead.
+
+He wields magic tinged with every hue of the rainbow, and has mastered the art
+of dividing his own form among its many colours to avoid killing blows.
 %%%%
 Boris
 
@@ -541,6 +545,12 @@ remaining eye is not very good, and she has mistaken you for one.
         return "She smells terrible."
     end
 }}
+%%%%
+Wiglaf
+
+A cantankerous dwarf wearing a stupid-looking hat. He eyes you sourly, as if
+deciding exactly how much offence he should take to the way you're staring at
+it.
 %%%%
 Vashnia
 
@@ -1398,9 +1408,9 @@ howling blasts of cold.
 %%%%
 fulminant prism
 
-A slender prism that crackles with barely-contained destructive energy. Any
-blow which cracks its fragile surface is likely to result in a violent
-explosion.
+A slender prism of unstable, soft gold that crackles with barely-contained
+destructive energy. Any blow which cracks its fragile surface is likely to
+result in a violent explosion.
 %%%%
 fungus
 
@@ -1438,8 +1448,9 @@ such a curious servitor.
 %%%%
 glowing orange brain
 
-A huge wrinkled brain, floating just off the floor and glowing with mutagenic
-energies. Every now and then it seems to pulsate.
+A huge pulsating brain, floating just off the floor and glowing with mutagenic
+energies. It radiates a constant psychic influence upon nearby allies, using its
+vast intellect to empower their spellcasting abilities.
 %%%%
 glowing shapeshifter
 

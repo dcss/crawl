@@ -1994,7 +1994,7 @@ NAME:    hangedman_minor_magic
 TAGS:    no_monster_gen transparent
 DEPTH:   D:9-11, Orc
 MONS:    crimson imp, white imp, shadow imp, iron imp
-MONS:    orc, orc wizard w:39 / Blork the orc w:1, swamp drake
+MONS:    orc, orc wizard w:39 / Blorkula the orcula w:1, swamp drake
 KMONS:   0 = orc ; robe . wand of charming | wand of flame
 KMONS:   89 = deep elf pyromancer / deep elf zephyrmancer
 KMONS:   & = obsidian bat
@@ -3191,9 +3191,9 @@ SUBST:  '3456 = ., 1 = 7, 2 = 8, " = %
 : end
 SHUFFLE: yz / CC / CC
 SUBST:   C = c
-TILE:    y = bedeviled_crystal_gehenna
-TILE:    z = bedeviled_crystal_cocytus
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:    y = bedevilled_crystal_gehenna
+TILE:    z = bedevilled_crystal_cocytus
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
 ............. .............
 ..ccccccc.........ccccccc..
@@ -3328,8 +3328,8 @@ NSUBST:  3 = 1:5 / *:3
 SUBST:   b = bbv
 SHUFFLE: {( / <<
 KPROP:   2345*| = no_tele_into
-TILE:    b = bedeviled_crystal_pandemonium
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:    b = bedevilled_crystal_pandemonium
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
 xxxxxxxxxxxx@@x
 @.lxlll.l.l...x
@@ -3734,8 +3734,8 @@ SUBST:  b = w
 SUBST: | = ||****%%%%
 SUBST: T = TU, W = w:20 W .:5
 SUBST: ' = W
-TILE:  b = bedeviled_crystal_cocytus
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:  b = bedevilled_crystal_cocytus
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
 T.WWW..........WWW.T
 .'WWW..........WWW'.
@@ -5275,19 +5275,29 @@ c...............c
 cccccccc+cccccccc
 ENDMAP
 
-NAME: lightli_airlock
+NAME:  lightli_airlock
 DEPTH: D:11-, Snake, Shoals
+: if not you.in_branch("D") then
+SUBST: = = +
+:   if you.in_branch("Shoals") then
+SUBST: n = c
+CLEAR: x
+:   end
+: end
+KMASK: W = no_monster_gen
 KPROP: W = no_tele_into
 MAP
- WccccWWWccccWW
- cc..ccWcc..ccWWWWW
- c....cGc....cccccW
- c.00.ccc.09.cc%*cc
-@=..9.+%+.0*.++%8|c
- c.00.ccc.09.cc%*cc
- c....cGc....cccccW
- cc..ccWcc..ccWWWWW
- WccccWWWccccWW
+     xxxxx  xxxx
+ WccccWWWccccWWxxxxx
+ cc..ncWcn..nnWWWWWx
+ c....cGc....cccncWx
+ c.00.cnc.09.cc%*ccx
+@=..9.+%+.0*.++%8|cx
+ c.00.cnc.09.cc%*ccx
+ c....cGc....cccncWx
+ cc..ncWcn..nnWWWWWx
+ WccccWWWccccWWxxxxx
+     xxxxx  xxxx
 ENDMAP
 
 NAME: lightli_fourway_metalbox
@@ -7883,7 +7893,7 @@ DEPTH:   D:5-, Depths, !Depths:$, Vaults, Orc, Elf
 WEIGHT:  3
 KMONS:   A = gnoll sergeant ; trident . scale mail | chain mail . kite shield
 KMONS:   B = wight ; falchion | long sword . ring mail | scale mail . kite shield | nothing
-KMONS:   C = Blork the orc / orc warrior ; great sword . chain mail | plate armour, \
+KMONS:   C = Blorkula the orcula / orc warrior ; great sword . chain mail | plate armour, \
                              orc warrior ; great sword . chain mail | plate armour / nothing
 KMONS:   D = Eustachio / orc warrior ; long sword | falchion . chain mail . kite shield, \
                          orc warrior ; long sword | falchion . chain mail . kite shield / nothing
@@ -7963,8 +7973,8 @@ KITEM:  - = obsidian_axe no_pickup
 MARKER: O = lua:fog_machine { cloud_type = "flame", pow_min = 10, \
                               pow_max = 10, delay = 10, size = 1, \
                               walk_dist = 0, excl_rad = 0}
-TILE:   b = bedeviled_crystal_gehenna / bedeviled_crystal_dis
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:   b = bedevilled_crystal_gehenna / bedevilled_crystal_dis
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
       ccccc
       cO1Oc
@@ -8535,8 +8545,8 @@ NSUBST: D = 2 / 1..
 SUBST:  a = c
 : end
 SUBST:  b = bc, c : cv
-TILE:   b = bedeviled_crystal_gehenna
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:   b = bedevilled_crystal_gehenna
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
            ccc    ccccccc
  ccc       cDcccccccc..Dcc

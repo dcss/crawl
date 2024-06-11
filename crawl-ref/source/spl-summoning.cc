@@ -698,7 +698,7 @@ bool summon_holy_warrior(int pow, bool punish)
  **/
 static bool _fail_tukimas()
 {
-    mprf("You can't see a target there!");
+    mpr("You can't see a target there!");
     return false; // Waste the turn - no anti-invis tech
 }
 
@@ -1557,6 +1557,7 @@ static spell_type servitor_spells[] =
     SPELL_IOOD,
     SPELL_BOMBARD,
     SPELL_PLASMA_BEAM, // maybe should be higher?
+    SPELL_PERMAFROST_ERUPTION,
     SPELL_FIREBALL,
     SPELL_ARCJOLT,
     SPELL_STONE_ARROW,
@@ -2149,7 +2150,7 @@ spret cast_fulminating_prism(actor* caster, int pow,
                  caster->conj_verb("conjure").c_str());
         }
         else if (you.can_see(*prism))
-            mprf("A prism of explosive energy appears from nowhere!");
+            mpr("A prism of explosive energy appears from nowhere!");
 
         // This looks silly, but prevents the even sillier-looking situation of
         // monster-cast prisms displaying as 'unaware of you'.
@@ -2793,14 +2794,14 @@ spret foxfire_swarm()
 bool summon_hell_out_of_bat(const actor &agent, coord_def pos)
 {
     // Since this isn't really used as for a spell: count how many creatures
-    // this has already summoned, and abort at our max defined here (three).
+    // this has already summoned, and abort at our max defined here (four).
     int count = 0;
     for (monster_iterator mi; mi; ++mi)
     {
        if (mi->summoner == agent.mid)
            ++count;
 
-        if (count > 2)
+        if (count > 3)
            return false;
     }
 
@@ -3022,20 +3023,26 @@ spret cast_hoarfrost_cannonade(const actor& agent, int pow, bool fail)
             monster_die(**mi, KILL_MISC, NON_MONSTER);
     }
 
-    mgen_data cannon = _pal_data(MONS_HOARFROST_CANNON, 0, GOD_NO_GOD,
-                                SPELL_HOARFROST_CANNONADE);
+    mgen_data cannon = _summon_data(agent, MONS_HOARFROST_CANNON, 0, GOD_NO_GOD,
+                                    SPELL_HOARFROST_CANNONADE);
     cannon.flags |= MG_FORCE_PLACE;
     cannon.hd = 4 + div_rand_round(pow, 20);
 
     // Make both cannons share the same duration
     const int dur = random_range(16, 22) * BASELINE_DELAY;
 
-    int num_created = 0;
+    int num_seen = 0;
+
+    // Monsters summon cannons around their foe instead of themselves (both to
+    // let them operate with other monsters in the way and because it's too easy
+    // for the player to back out of range otherwise)
+    const coord_def center = (agent.is_player() ? you.pos()
+                                                : agent.as_monster()->get_foe()->pos());
     for (int i = 0; i < 2; ++i)
     {
         // Find a spot for each cannon (at a somewhat larger distance than
         // normal summons)
-        find_habitable_spot_near(you.pos(), MONS_HOARFROST_CANNON, 3, false,
+        find_habitable_spot_near(center, MONS_HOARFROST_CANNON, 3, false,
                                  cannon.pos);
 
         monster* mons = create_monster(cannon);
@@ -3044,15 +3051,26 @@ spret cast_hoarfrost_cannonade(const actor& agent, int pow, bool fail)
             // Give a bit of instant energy so the slow cannons don't take
             // multiple turns to fire their first shot.
             mons->speed_increment = 70;
-            mons->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, 0, &you, dur));
-            ++num_created;
+            mons->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, 0, &agent, dur));
+            mons->mark_summoned(0, false, SPELL_HOARFROST_CANNONADE, false);
+
+            if (you.can_see(*mons))
+                ++num_seen;
         }
     }
 
-    if (num_created > 1)
-        mpr("You sculpt a pair of cannons out of ice!");
-    else if (num_created == 1)
-        mpr("You sculpt a cannon out of ice!");
+    if (num_seen > 1)
+    {
+        mprf("%s sculpt%s a pair of cannons out of ice!",
+             agent.name(DESC_THE).c_str(),
+             agent.is_player() ? ""  : "s");
+    }
+    else if (num_seen == 1)
+    {
+        mprf("%s sculpt%s a cannon out of ice!",
+             agent.name(DESC_THE).c_str(),
+             agent.is_player() ? ""  : "s");
+    }
     else
         canned_msg(MSG_NOTHING_HAPPENS);
 
@@ -3080,7 +3098,8 @@ static bool _hellfire_stops_here(bolt& beam, coord_def pos)
 spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
 {
     // Determine path by firing digging tracer
-    zappy(ZAP_HELLFIRE_MORTAR_DIG, pow, false, beam);
+    zappy(ZAP_HELLFIRE_MORTAR_DIG, pow, agent.is_monster(), beam);
+    beam.source = agent.pos();
     beam.source_id = agent.mid;
     beam.origin_spell = SPELL_HELLFIRE_MORTAR;
     beam.is_tracer = true;
@@ -3114,7 +3133,8 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
     // Likely because of an invisible monster standing in our first cannon spot
     if (actor_at(beam.path_taken[0]))
     {
-        mpr("Something prevents your mortar from forming!");
+        if (agent.is_player())
+            mpr("Something prevents your mortar from forming!");
         return spret::success;
     }
 
@@ -3124,9 +3144,15 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
     {
         const coord_def pos = beam.path_taken[i];
 
-        // Don't make lava under things that can't survive there.
-        if (monster_at(pos) && !beam.ignores_monster(monster_at(pos)))
+        if (!in_bounds(pos))
             break;
+
+        // Don't make lava under things that can't survive there.
+        if (monster_at(pos) && !beam.ignores_monster(monster_at(pos))
+            || pos == you.pos() && !you.airborne())
+        {
+            break;
+        }
 
         if (feat_is_solid(env.grid(pos)) && !feat_is_diggable(env.grid(pos))
             && !feat_is_tree(env.grid(pos)))
@@ -3142,6 +3168,8 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
         flash_tile(pos, RED, 5);
     }
 
+    noisy(spell_effect_noise(SPELL_HELLFIRE_MORTAR), agent.pos(), agent.mid);
+
     mgen_data mg = _summon_data(agent, MONS_HELLFIRE_MORTAR, 0,
                                 GOD_NO_GOD, SPELL_HELLFIRE_MORTAR);
     mg.flags |= MG_FORCE_PLACE;
@@ -3153,7 +3181,8 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
     // empty), but let's guard against it anyway.
     if (!cannon)
     {
-        mpr("Something prevents your mortar from forming!");
+        if (agent.is_player())
+            mpr("Something prevents your mortar from forming!");
         return spret::success;
     }
 
@@ -3165,8 +3194,10 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
         path.push_back(pos);
     }
 
-    mpr("With a deafening crack, the ground splits apart in the path of your "
-        "chthonic artillery!");
+    cannon->add_ench(mon_enchant(ENCH_SHORT_LIVED, 1, &agent, dur));
+
+    mprf("With a deafening crack, the ground splits apart in the path of %s "
+        "chthonic artillery!", agent.name(DESC_ITS).c_str());
 
     return spret::success;
 }

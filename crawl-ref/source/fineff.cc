@@ -575,7 +575,7 @@ void explosion_fineff::fire()
     if (you.see_cell(beam.target))
     {
         if (typ == EXPLOSION_FINEFF_CONCUSSION)
-            mprf("%s", boom_message.c_str());
+            mpr(boom_message);
         else
             mprf(MSGCH_MONSTER_DAMAGE, MDAM_DEAD, "%s", boom_message.c_str());
     }
@@ -990,4 +990,7 @@ void fire_final_effects()
         env.final_effects.pop_back();
         eff->fire();
     }
+
+    // Clear all cached monster copies
+    env.final_effect_monster_cache.clear();
 }

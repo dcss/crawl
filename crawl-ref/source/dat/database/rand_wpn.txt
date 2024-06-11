@@ -510,11 +510,15 @@ Cardinal
 
 Dove
 
+Flamingo
+
 Hawk
 
 Hummingbird
 
 Fulmar
+
+Hoatzin
 
 Owl
 
@@ -727,6 +731,8 @@ Distraction
 
 Extremism
 
+Goblin Mode
+
 Havoc
 
 Imbalance
@@ -747,8 +753,13 @@ Upheaval
 
 the Extremes
 
+the Farrago
+
 the Fray
 
+the Hodge-Podge
+
+the Mish-Mash
 %%%%
 _balance_or_order_
 

@@ -1375,7 +1375,7 @@ static void _xom_give_bad_mutations(int) { _xom_give_mutations(false); }
  */
 static void _xom_throw_divine_lightning(int /*sever*/)
 {
-    god_speaks(GOD_XOM, "The area is suffused with divine lightning!");
+    god_speaks(GOD_XOM, _get_xom_speech("divine lightning").c_str());
 
     bolt beam;
 
@@ -1772,64 +1772,62 @@ static void _xom_pseudo_miscast(int /*sever*/)
     ///////////////////////////////////
     // Dungeon feature dependent stuff.
 
-    FixedBitVector<NUM_FEATURES> in_view;
+    vector<dungeon_feature_type> in_view;
+    vector<string> in_view_name;
+
     for (radius_iterator ri(you.pos(), LOS_DEFAULT); ri; ++ri)
-        in_view.set(env.grid(*ri));
-
-    if (in_view[DNGN_LAVA])
-        messages.emplace_back("The lava spits out sparks!");
-
-    if (in_view[DNGN_SHALLOW_WATER] || in_view[DNGN_DEEP_WATER])
     {
-        messages.emplace_back("The water briefly bubbles.");
-        messages.emplace_back("The water briefly swirls.");
-        messages.emplace_back("The water briefly glows.");
+        const dungeon_feature_type feat = env.grid(*ri);
+        const string feat_name = feature_description_at(*ri, false,
+                                                        DESC_THE);
+        in_view.push_back(feat);
+        in_view_name.push_back(feat_name);
     }
 
-    if (in_view[DNGN_DEEP_WATER])
+    for (size_t iv = 0; iv < in_view.size(); ++iv)
     {
-        messages.emplace_back("From the corner of your eye you spot something "
-                           "lurking in the deep water.");
-    }
+        string str;
 
-    if (in_view[DNGN_ORCISH_IDOL])
-        priority.emplace_back("The idol of Beogh turns to glare at you.");
+        if (in_view[iv] == DNGN_LAVA)
+            str = _get_xom_speech("feature lava");
+        else if (in_view[iv] == DNGN_SHALLOW_WATER
+                 || in_view[iv] == DNGN_FOUNTAIN_BLUE
+                 || in_view[iv] == DNGN_FOUNTAIN_SPARKLING)
+        {
+            str = _get_xom_speech("feature shallow water");
+        }
+        else if (in_view[iv] == DNGN_DEEP_WATER)
+            str = _get_xom_speech("feature deep water");
+        else if (in_view[iv] == DNGN_FOUNTAIN_BLOOD)
+            str = _get_xom_speech("feature blood");
+        else if (in_view[iv] == DNGN_DRY_FOUNTAIN)
+            str = _get_xom_speech("feature dry");
+        else if (in_view[iv] == DNGN_ORCISH_IDOL
+                 || in_view[iv] == DNGN_GRANITE_STATUE
+                 || in_view[iv] == DNGN_METAL_STATUE)
+        {
+            str = _get_xom_speech("feature statue");
+        }
+        else if (in_view[iv] == DNGN_CLEAR_ROCK_WALL
+                 || in_view[iv] == DNGN_CLEAR_STONE_WALL
+                 || in_view[iv] == DNGN_CLEAR_PERMAROCK_WALL
+                 || in_view[iv] == DNGN_CRYSTAL_WALL)
+        {
+            str = _get_xom_speech("feature translucent wall");
+        }
+        else if (in_view[iv] == DNGN_METAL_WALL)
+            str = _get_xom_speech("feature metal wall");
+        else if (in_view[iv] == DNGN_STONE_ARCH)
+            str = _get_xom_speech("feature stone arch");
 
-    if (in_view[DNGN_GRANITE_STATUE])
-        priority.emplace_back("The granite statue turns to stare at you.");
+        if (!str.empty())
+        {
+            str = replace_all(str, "@the_feature@", in_view_name[iv]);
+            str = replace_all(str, "@The_feature@",
+                              uppercase_first(in_view_name[iv]));
 
-    if (in_view[DNGN_CLEAR_ROCK_WALL] || in_view[DNGN_CLEAR_STONE_WALL]
-        || in_view[DNGN_CLEAR_PERMAROCK_WALL])
-    {
-        messages.emplace_back("Dim shapes swim through the translucent wall.");
-    }
-
-    if (in_view[DNGN_CRYSTAL_WALL])
-        messages.emplace_back("Dim shapes swim through the crystal wall.");
-
-    if (in_view[DNGN_METAL_WALL])
-    {
-        messages.emplace_back("Tendrils of electricity crawl over the metal "
-                              "wall!");
-    }
-
-    if (in_view[DNGN_FOUNTAIN_BLUE] || in_view[DNGN_FOUNTAIN_SPARKLING])
-    {
-        priority.emplace_back("The water in the fountain briefly bubbles.");
-        priority.emplace_back("The water in the fountain briefly swirls.");
-        priority.emplace_back("The water in the fountain briefly glows.");
-    }
-
-    if (in_view[DNGN_DRY_FOUNTAIN])
-    {
-        priority.emplace_back("Water briefly sprays from the dry fountain.");
-        priority.emplace_back("Dust puffs up from the dry fountain.");
-    }
-
-    if (in_view[DNGN_STONE_ARCH])
-    {
-        priority.emplace_back("The stone arch briefly shows a sunny meadow on "
-                              "the other side.");
+            messages.push_back(str);
+        }
     }
 
     const dungeon_feature_type feat = env.grid(you.pos());
@@ -1840,50 +1838,53 @@ static void _xom_pseudo_miscast(int /*sever*/)
     {
         const string feat_name = feature_description_at(you.pos(), false,
                                                         DESC_THE);
+        string str;
 
         if (you.airborne())
         {
-            // Don't put airborne messages into the priority vector for
-            // anyone who can fly a lot.
-            vector<string>* vec;
-            if (you.racial_permanent_flight())
-                vec = &messages;
-            else
-                vec = &priority;
-
-            vec->push_back(feat_name
-                           + " seems to fall away from under you!");
-            vec->push_back(feat_name
-                           + " seems to rush up at you!");
-
-            if (feat_is_water(feat))
-            {
-                priority.emplace_back("Something invisible splashes into the "
-                                      "water beneath you!");
-            }
+            str = _get_xom_speech(
+                      feat_is_water(feat) ? "underfoot airborne water"
+                                          : "underfoot airborne general");
         }
-        else if (feat_is_water(feat))
-        {
-            priority.emplace_back("The water briefly recedes away from you.");
-            priority.emplace_back("Something invisible splashes into the water "
-                                  "beside you!");
-        }
-    }
-
-    if (feat_has_solid_floor(feat) && !inv_items.empty())
-    {
-        const item_def &item = **random_iterator(inv_items);
-
-        string name;
-        if (item.quantity == 1)
-            name = item.name(DESC_YOUR, false, false, false);
         else
         {
-            name  = "One of ";
-            name += item.name(DESC_YOUR, false, false, false);
+            str = _get_xom_speech(
+                      feat_is_water(feat) ? "underfoot water"
+                                          : "underfoot general");
         }
-        messages.push_back(name + " falls out of your pack, then "
-                           "immediately jumps back in!");
+
+        str = replace_all(str, "@the_feature@", feat_name);
+        str = replace_all(str, "@The_feature@", uppercase_first(feat_name));
+
+        // Don't put airborne messages into the priority vector for
+        // anyone who can fly a lot.
+        if (you.racial_permanent_flight())
+            messages.push_back(str);
+        else
+            priority.push_back(str);
+    }
+
+    if (!inv_items.empty())
+    {
+        const item_def &item = **random_iterator(inv_items);
+        string name = item.name(DESC_YOUR, false, false, false);
+        string str;
+
+        if (feat_has_solid_floor(feat))
+        {
+            str = _get_xom_speech(
+                      item.quantity == 1 ? "floor inventory singular"
+                                         : "floor inventory plural");
+        }
+        else
+            str = _get_xom_speech(
+                      item.quantity == 1 ? "inventory singular"
+                                         : "inventory plural");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
     }
 
     //////////////////////////////////////////////
@@ -1892,26 +1893,30 @@ static void _xom_pseudo_miscast(int /*sever*/)
     if (starts_with(species::skin_name(you.species), "bandage")
         && you_can_wear(EQ_BODY_ARMOUR, true) != false)
     {
-        messages.emplace_back("You briefly get tangled in your bandages.");
-        if (!you.airborne() && !you.swimming())
-            messages.emplace_back("You trip over your bandages.");
+        string str =_get_xom_speech(
+                        (!you.airborne() && !you.swimming()) ? "floor bandages"
+                                                             : "bandages");
+        messages.push_back(str);
     }
 
     {
-        string str = "A monocle briefly appears over your ";
-        str += random_choose("right", "left");
-        str += " eye.";
+        string str =_get_xom_speech(
+                you.get_mutation_level(MUT_MISSING_EYE) ? "one eye"
+                                                        : "two eyes");
         messages.push_back(str);
     }
 
     if (species::has_hair(you.species))
     {
-        messages.emplace_back("Your eyebrows briefly feel incredibly bushy.");
-        messages.emplace_back("Your eyebrows wriggle.");
+        string str = _get_xom_speech("hair");
+        messages.push_back(str);
     }
 
-    if (you.species != SP_NAGA && !you.fishtail && !you.airborne())
-        messages.emplace_back("You do an impromptu tapdance.");
+    if (player_has_feet() && !you.airborne() && !you.cannot_act())
+    {
+        string str = _get_xom_speech("impromptu dance");
+        messages.push_back(str);
+    }
 
     ///////////////////////////
     // Equipment related stuff.
@@ -1919,122 +1924,87 @@ static void _xom_pseudo_miscast(int /*sever*/)
     if (you_can_wear(EQ_WEAPON, true) != false
         && !you.slot_item(EQ_WEAPON))
     {
-        string str = "A fancy cane briefly appears in your ";
-        str += you.hand_name(false);
-        str += ".";
+        const bool one_handed = you.slot_item(EQ_OFFHAND)
+                                || you.get_mutation_level(MUT_MISSING_HAND);
+        string str =_get_xom_speech(one_handed ? "unarmed one hand"
+                                               : "unarmed two hands");
+
+        str = replace_all(str, "@hand@", you.hand_name(false));
+        str = replace_all(str, "@hands@", you.hand_name(true));
 
         messages.push_back(str);
     }
 
-    if (you.slot_item(EQ_CLOAK))
+    if (item_def* item = you.slot_item(EQ_CLOAK))
     {
-        item_def* item = you.slot_item(EQ_CLOAK);
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("cloak slot");
 
-        if (item->sub_type == ARM_CLOAK)
-            messages.emplace_back("Your cloak billows in an unfelt wind.");
-        else if (item->sub_type == ARM_SCARF)
-            messages.emplace_back("Your scarf briefly wraps itself around your head!");
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
+
+        messages.push_back(str);
     }
 
     if (item_def* item = you.slot_item(EQ_HELMET))
     {
-        string str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " leaps into the air, briefly spins, then lands back on "
-               "your head!";
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("helmet slot");
+
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
 
         messages.push_back(str);
-    }
-
-    if (item_def* item = you.slot_item(EQ_BOOTS))
-    {
-        if (item->sub_type == ARM_BOOTS && !you.cannot_act())
-        {
-            string name = item->name(DESC_BASENAME, false, false, false);
-            name = replace_all(name, "pair of ", "");
-
-            string str = "You compulsively click the heels of your ";
-            str += name;
-            str += " together three times.";
-            messages.push_back(str);
-        }
     }
 
     if (item_def* item = you.slot_item(EQ_OFFHAND))
     {
-        string str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " spins!";
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
+        string str = _get_xom_speech("offhand slot");
 
-        messages.push_back(str);
+        str = replace_all(str, "@your_item@", name);
+        str = replace_all(str, "@Your_item@", uppercase_first(name));
 
-        str = "Your ";
-        str += item->name(DESC_BASENAME, false, false, false);
-        str += " briefly flashes a lurid colour!";
         messages.push_back(str);
     }
 
     if (item_def* item = you.slot_item(EQ_BODY_ARMOUR))
     {
+        string name = "your " + item->name(DESC_BASENAME, false, false, false);
         string str;
-        string name = item->name(DESC_BASENAME, false, false, false);
 
         if (name.find("dragon") != string::npos)
-        {
-            str  = "The scales on your ";
-            str += name;
-            str += " wiggle briefly.";
-        }
+            str = _get_xom_speech("dragon armour");
         else if (item->sub_type == ARM_ANIMAL_SKIN)
-        {
-            str  = "The fur on your ";
-            str += name;
-            str += " grows longer at an alarming rate, then retracts back "
-                   "to normal.";
-        }
+            str = _get_xom_speech("animal skin");
         else if (item->sub_type == ARM_LEATHER_ARMOUR)
-        {
-            str  = "Your ";
-            str += name;
-            str += " briefly grows fur, then returns to normal.";
-        }
+            str = _get_xom_speech("leather armour");
         else if (item->sub_type == ARM_ROBE)
-        {
-            str  = "You briefly become tangled in your ";
-            str += pluralise(name);
-            str += ".";
-        }
+            str = _get_xom_speech("robe");
         else if (item->sub_type >= ARM_RING_MAIL
                  && item->sub_type <= ARM_PLATE_ARMOUR)
         {
-            str  = "Your ";
-            str += name;
-            str += " briefly appears rusty.";
+            str = _get_xom_speech("metal armour");
         }
 
         if (!str.empty())
+        {
+            str = replace_all(str, "@your_item@", name);
+            str = replace_all(str, "@Your_item@", uppercase_first(name));
+
             messages.push_back(str);
+        }
     }
 
-    ////////
-    // Misc.
-    if (!inv_items.empty())
-    {
-        item_def &item = **random_iterator(inv_items);
-
-        string name = item.name(DESC_YOUR, false, false, false);
-        string verb = random_choose("glow", "vibrate");
-
-        if (item.quantity == 1)
-            verb += "s";
-
-        messages.push_back(name + " briefly " + verb + ".");
-    }
+    string str;
 
     if (!priority.empty() && coinflip())
-        mpr(priority[random2(priority.size())]);
+        str = priority[random2(priority.size())];
     else
-        mpr(messages[random2(messages.size())]);
+        str = messages[random2(messages.size())];
+
+    str = maybe_pick_random_substring(str);
+    mpr(str);
 }
 
 static bool _miscast_is_nasty(int sever)
@@ -2305,20 +2275,18 @@ static void _xom_repel_stairs(bool unclimbable)
 
     // Don't mention staircases if there aren't any nearby.
     string stair_msg = _get_xom_speech("repel stairs");
-    if (stair_msg.find("@staircase@") != string::npos)
+    string feat_name;
+
+    if (!real_stairs)
     {
-        string feat_name;
-        if (!real_stairs)
-        {
-            if (feat_is_escape_hatch(env.grid(stairs_avail[0])))
-                feat_name = "escape hatch";
-            else
-                feat_name = "gate";
-        }
-        else
-            feat_name = "staircase";
-        stair_msg = replace_all(stair_msg, "@staircase@", feat_name);
+        feat_name =
+            feat_is_escape_hatch(env.grid(stairs_avail[0])) ? "escape hatch"
+                                                            : "gate";
     }
+    else
+        feat_name = "staircase";
+
+    stair_msg = replace_all(stair_msg, "@staircase@", feat_name);
 
     god_speaks(GOD_XOM, stair_msg.c_str());
 
@@ -2349,16 +2317,26 @@ static void _xom_unclimbable_stairs(int) { _xom_repel_stairs(true); }
 static void _xom_cloud_trail(int /*sever*/)
 {
     you.duration[DUR_CLOUD_TRAIL] = random_range(600, 1200);
-    you.props[XOM_CLOUD_TRAIL_TYPE_KEY] =
-        // 80% chance of a useful trail
-        random_choose_weighted(20, CLOUD_CHAOS,
-                               9,  CLOUD_MAGIC_TRAIL,
-                               5,  CLOUD_MIASMA,
-                               5,  CLOUD_PETRIFY,
-                               5,  CLOUD_MUTAGENIC,
-                               4,  CLOUD_MISERY,
-                               1,  CLOUD_SALT,
-                               1,  CLOUD_BLASTMOTES);
+    // 80% chance of a useful trail
+    cloud_type ctype = random_choose_weighted(20, CLOUD_CHAOS,
+                                              9,  CLOUD_MAGIC_TRAIL,
+                                              5,  CLOUD_MIASMA,
+                                              5,  CLOUD_PETRIFY,
+                                              5,  CLOUD_MUTAGENIC,
+                                              4,  CLOUD_MISERY,
+                                              1,  CLOUD_SALT,
+                                              1,  CLOUD_BLASTMOTES);
+
+    bool suppressed = false;
+    if (you_worship(GOD_ZIN) && (ctype == CLOUD_CHAOS || ctype == CLOUD_MUTAGENIC))
+        suppressed = true;
+    else if (is_good_god(you.religion) && (ctype == CLOUD_MIASMA || ctype == CLOUD_MISERY))
+        suppressed = true;
+
+    if (suppressed)
+        ctype = CLOUD_SALT;
+
+    you.props[XOM_CLOUD_TRAIL_TYPE_KEY] = ctype;
 
     // Need to explicitly set as non-zero. Use a clean half of the power cap.
     if (you.props[XOM_CLOUD_TRAIL_TYPE_KEY].get_int() == CLOUD_BLASTMOTES)
@@ -2368,6 +2346,9 @@ static void _xom_cloud_trail(int /*sever*/)
 
     const string speech = _get_xom_speech("cloud trail");
     god_speaks(GOD_XOM, speech.c_str());
+
+    if (suppressed)
+        simple_god_message(" purifies the foul vapours!");
 }
 
 static void _xom_statloss(int /*sever*/)

@@ -2097,7 +2097,7 @@ ENDMAP
 #
 NAME:    lemuel_reptile_caves
 TAGS:    transparent no_pool_fixup
-DEPTH:   D:10-12, Lair:1-, !Lair:$
+DEPTH:   D:9-11, Lair, !Lair:$
 ORIENT:  float
 MONS:    frilled lizard, iguana, komodo dragon
 MONS:    rime drake / swamp drake
@@ -2317,7 +2317,7 @@ NAME:   minmay_eyes
 DEPTH:  Depths
 ORIENT: float
 MONS:   eye of devastation / great orb of eyes w:2
-MONS:   golden eye
+MONS:   golden eye / glass eye w:5
 MONS:   glowing orange brain
 KFEAT:  m = iron_grate
 KFEAT:  G = metal_statue
@@ -2343,7 +2343,7 @@ MAP
 .c...c...c...c3.....3c...c.......n.
 .c...c...c...c..%.%..c...n.......n.
 .c...c...c.....%|*|%.m...n.......n.
-.c.1.c.1.c.1....*|*..m.1.n.1...1.n.
+.c.1.c.1.c.1.8..*|*..m.1.n.1.0.1.n.
 .c...c...c.....%|*|%.m...n.......n.
 .c...c...c...c..%.%..c...n.......n.
 .c...c...c...c3.....3c...c.......n.
@@ -2351,7 +2351,7 @@ MAP
 .c...c...c...............c...c...c.
 .c...c...cmm.....1.....1.c...c...c.
 .c...c...c2m............Gc...c...c.
-.c...c...cccccc.....cccccc...c...c.
+.c...c...cccccc..9..cccccc...c...c.
 .c...c.......................c...c.
 .c...c.1.........1.........mmc...c.
 .c...cG....................m2c...c.
@@ -2577,8 +2577,8 @@ SUBST:  1 = 1., * = *..
 KMONS:  1 = fire dragon / salamander tyrant / fire giant / balrug
 KMONS:  2 = hellephant
 SUBST:  * = *., b = bl
-TILE:   b = bedeviled_crystal_gehenna
-:   set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:   b = bedevilled_crystal_gehenna
+:   set_feature_name("crystal_wall", "bedevilled crystal wall")
 : end
 KFEAT:  2 = escape_hatch_down
 MARKER: D = lua:fog_machine { cloud_type = "flame", \
@@ -3101,9 +3101,9 @@ ORIENT:  float
 DEPTH:   Elf, !Elf:$, Crypt, !Crypt:$
 : if you.in_branch("Crypt") then
 TAGS:    patrolling
-MONS:    skeletal warrior / eidolon, necromancer
+MONS:    skeletal warrior / eidolon, laughing skull band
 MONS:    necromancer band / vampire mage band w:6
-MONS:    vampire knight w:25 / bone dragon / ghoul / lich
+MONS:    vampire knight w:25 / bone dragon / revenant / lich
 SUBST:   x = e
 : else
 KMONS:   12 = deep elf pyromancer / deep elf zephyrmancer / deep elf knight / \
@@ -3123,12 +3123,12 @@ MAP
      x...........a.........X...xx
      xx...Y.........A...........x
       x..YYY........AY.Y...Y.Y..x
-      x.YYY3D...C...BYYYYYYYYYY.x
+      x1YYY3D...C...BYYYYYYYYYY.x
       x..YYY...C....AY*Y%4%Y*Y..x
 xxxxxxx...Y.........A...........x
 x...........A.........Y...xxxxxxx
 x..Y*Y%4%Y*YA....C...YYY..x
-x.YYYYYYYYYYB...C...D3YYY.x
+x.YYYYYYYYYYB...C...D3YYY1x
 x..Y.Y...Y.YA........YYY..x
 x...........A.........Y...xx
 xx...X.........a...........x
@@ -3246,7 +3246,7 @@ MONS:    laughing skull band / efreet, skeletal warrior
 MONS:    centaur warrior zombie, deep troll, boulder beetle
 KITEM:   })] = demon whip / demon trident / demon blade / \
                hand cannon w:2 / book of the dragon / grand grimoire w:2
-TILE:    b = bedeviled_crystal_gehenna
+TILE:    b = bedevilled_crystal_gehenna
 :   else
 MONS:    hell knight, deep troll, spriggan berserker zombie
 MONS:    sphinx zombie, red ugly thing
@@ -3257,7 +3257,7 @@ KFEAT:   } = enter_depths
 : else
 :   if you.where() ~= dgn.level_name(dgn.br_entrance("Zot")) then
 MONS:    juggernaut, hell knight, rakshasa, fire giant, flayed ghost
-TILE:    b = bedeviled_crystal_gehenna
+TILE:    b = bedevilled_crystal_gehenna
 :   else
 MONS:    black draconian knight, yellow draconian
 MONS:    black draconian, juggernaut zombie, flayed ghost
@@ -3274,7 +3274,7 @@ NSUBST:  2 = 2:2 / 2:3 / 2:4 / * = 222334
 SHUFFLE: 345
 MARKER:  O = lua:fog_machine { cloud_type = 'flame', pow_min=10, pow_max=10, \
                                delay=10, size=1, excl_rad=0 }
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
              cccc
              c})c
@@ -3341,9 +3341,9 @@ MARKER: C = lua:fog_machine { cloud_type= "purple smoke", \
 FTILE:  'P1vbtmn = floor_pebble_red
 COLOUR:  G = mountain
 TILE:    G = dngn_scintillating_statue
-TILE:    b = bedeviled_crystal_abyss
+TILE:    b = bedevilled_crystal_abyss
 : set_feature_name("granite_statue", "scintillating statue")
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
     ---------
   --....-....--
@@ -4059,7 +4059,7 @@ KMONS: 2 = ice dragon / frost giant
 : elseif you.in_branch("Elf") then
 MONS:  deep elf blademaster simulacrum / freezing wraith / ice dragon \
        / deep elf knight
-KMONS: 2 = frost giant / shard shrike
+KMONS: 2 = frost giant / walking frostbound tome w:5
 : else -- Depths
 MONS:   simulacrum w:20 / ice dragon / frost giant
 KMONS:  2 = ice fiend / walking frostbound tome
@@ -4255,8 +4255,8 @@ MONS:   ice devil, ufetubus
 NSUBST: - = 4:2 / 4:3 / 4 = 23 / *:.
 :   end
 SUBST:  b = bmm
-TILE:   b = bedeviled_crystal_cocytus
-:   set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:   b = bedevilled_crystal_cocytus
+:   set_feature_name("crystal_wall", "bedevilled crystal wall")
 : end
 NSUBST: ' = 5=*$ / *:%
 KPROP:  '123$%* = no_tele_into
@@ -4419,9 +4419,9 @@ KFEAT:   yz = b
 SUBST:   y : yccc
 SHUFFLE: l2'y / w4Bz
 NSUBST:  ' = 3:1 / 3=1. / *:., B = 3:3 / 3=3. / *:., - = 2=|* / 4:* / 6=$%
-TILE:    y = bedeviled_crystal_gehenna
-TILE:    z = bedeviled_crystal_cocytus
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:    y = bedevilled_crystal_gehenna
+TILE:    z = bedevilled_crystal_cocytus
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
 ...................
 .ccccc.......ccccc.
@@ -4462,8 +4462,8 @@ NSUBST: " = 2 = w:2 d | / 5:* / 5 = %$"
 NSUBST: ' = 3:* / 6:% / *:., ` = 5:2 / 4 = 2.
 KPROP:  "1 = no_tele_into
 KFEAT:  - = iron_grate
-TILE:   b = bedeviled_crystal_tartarus
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+TILE:   b = bedevilled_crystal_tartarus
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
 @..xxxxxxxxxxxxxxx
 .................x
@@ -6811,12 +6811,12 @@ KFEAT:   m = iron_grate
 KPROP:   Cn" = bloody
 KPROP:   C = no_tele_into
 TILE:    G = dngn_gravestone
-TILE:    y = bedeviled_crystal_gehenna
-TILE:    Y = bedeviled_crystal_cocytus
-TILE:    z = bedeviled_crystal_tartarus
-TILE:    Z = bedeviled_crystal_dis
+TILE:    y = bedevilled_crystal_gehenna
+TILE:    Y = bedevilled_crystal_cocytus
+TILE:    z = bedevilled_crystal_tartarus
+TILE:    Z = bedevilled_crystal_dis
 : set_feature_name("granite_statue", "a gravestone")
-: set_feature_name("crystal_wall", "bedeviled crystal wall")
+: set_feature_name("crystal_wall", "bedevilled crystal wall")
 MAP
       xxxxxx        xxxxxx
       xvvvvx        xvvvvx
@@ -12036,9 +12036,9 @@ cG%%ccc             ccc%%Gc
 c%..v9ccc         ccc9v..%c
 c%.8..+9ccc @@@ ccc9+..8.%c
 ccv...v.+9ccc.ccc9+.v...vcc
- c9..9..x.+0c+c0+.x..9..9c
+ c9..0..x.+0c+c0+.x..0..9c
  cc+v...v.x.+.+.x.v...v+cc
-  c9...0..x.x.x.x..0...9c
+  c9......x.x.x.x......9c
   cc+xv...v0x.x0v...vx+cc
    c9.......x.x.......9c
    cc+xxv...v0v...vxx+cc
@@ -12050,9 +12050,9 @@ ccv...v.+9ccc.ccc9+.v...vcc
    cc+xxv...v0v...vxx+cc
    c9.......x.x.......9c
   cc+xv...v0x.x0v...vx+cc
-  c9...0..x.x.x.x..0...9c
+  c9......x.x.x.x......9c
  cc+v...v.x.+.+.x.v...v+cc
- c8..9..x.+.c+c.+.x..9..8c
+ c8..0..x.+.c+c.+.x..0..8c
 ccv...v.+9ccc.ccc9+.v...vcc
 c%.8..+9ccc @@@ ccc9+..8.%c
 c%..v8ccc         ccc8v..%c

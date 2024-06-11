@@ -858,7 +858,7 @@ enum monster_type                      // env.mons[].type
     MONS_JESSICA,
     MONS_SIGMUND,
     MONS_TERENCE,
-    MONS_BLORK_THE_ORC,
+    MONS_BLORKULA_THE_ORCULA,
     MONS_EDMUND,
     MONS_PSYCHE,
     MONS_EROLCHA,
@@ -876,9 +876,7 @@ enum monster_type                      // env.mons[].type
     MONS_LOUISE,
     MONS_FRANCES,
     MONS_RUPERT,
-#if TAG_MAJOR_VERSION == 34
     MONS_WIGLAF,
-#endif
     MONS_XTAHUA,
     MONS_NORRIS,
     MONS_FREDERICK,

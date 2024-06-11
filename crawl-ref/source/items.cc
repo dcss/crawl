@@ -1818,8 +1818,6 @@ static void _get_book(item_def& it)
             return;
         }
         mprf("You pick up %s and begin reading...", it.name(DESC_A).c_str());
-        if (is_artefact(it) && !item_ident(it, ISFLAG_KNOW_PROPERTIES))
-            mprf("It was %s.", it.name(DESC_A, false, true).c_str());
 
         if (!library_add_spells(spells_in_book(it)))
             mpr("Unfortunately, you learned nothing new.");
@@ -1905,7 +1903,7 @@ static void _get_rune(const item_def& it, bool quiet)
         else if (nrunes > 1)
         {
             if (player_in_branch(BRANCH_PANDEMONIUM) && _got_all_pan_runes())
-                mprf("You've emptied out Pandemonium! Nothing left here but demons.");
+                mpr("You've emptied out Pandemonium! Nothing left here but demons.");
             mprf("You now have %d runes.", nrunes);
         }
 
@@ -1914,6 +1912,31 @@ static void _get_rune(const item_def& it, bool quiet)
 
     if (it.sub_type == RUNE_ABYSSAL)
         mpr("You feel the abyssal rune guiding you out of this place.");
+}
+
+static bool _is_disabled_gem(gem_type gem)
+{
+    switch (gem)
+    {
+#if TAG_MAJOR_VERSION == 34
+    case GEM_ORC:
+        return true;
+#endif
+    default:
+        return false;
+    }
+}
+
+static bool _got_all_gems()
+{
+    for (int gem = GEM_DUNGEON; gem < NUM_GEM_TYPES; ++gem)
+    {
+        if (_is_disabled_gem(static_cast<gem_type>(gem)))
+            continue;
+        if (!you.gems_found[static_cast<gem_type>(gem)])
+            return false;
+    }
+    return true;
 }
 
 static void _get_gem(const item_def& it, bool quiet)
@@ -1926,6 +1949,11 @@ static void _get_gem(const item_def& it, bool quiet)
     // XXX: consider customizing this message per-gem
     mprf("You pick up %s and feel its impossibly delicate weight in your %s.",
          it.name(DESC_THE).c_str(), you.hand_name(true).c_str());
+    if (_got_all_gems())
+    {
+        mprf("You've found all the gems! Together, they sparkle an otherworldly %s!",
+             getSpeakString("misc_colour").c_str());
+    }
     mpr("Press } and ! to see all the gems you have collected.");
     print_gem_warnings(it.sub_type, 0);
 }

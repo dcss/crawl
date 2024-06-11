@@ -140,7 +140,7 @@ static const mon_spellbook mspell_list[] =
 
     {  MST_DEEP_ELF_ELEMENTALIST,
       {
-       { SPELL_FREEZING_CLOUD, 22, MON_SPELL_WIZARD },
+       { SPELL_HOARFROST_CANNONADE, 33, MON_SPELL_WIZARD },
        { SPELL_FIREBALL, 11, MON_SPELL_WIZARD },
        { SPELL_LRD, 33, MON_SPELL_WIZARD },
        { SPELL_REPEL_MISSILES, 11, MON_SPELL_WIZARD },
@@ -549,7 +549,7 @@ static const mon_spellbook mspell_list[] =
       {
         { SPELL_SMITING, 20, MON_SPELL_PRIEST },
         { SPELL_SUMMON_DRAKES, 20, MON_SPELL_PRIEST },
-        { SPELL_UPHEAVAL, 20, MON_SPELL_PRIEST },
+        { SPELL_UPHEAVAL, 30, MON_SPELL_PRIEST },
       }
     },
 
@@ -1774,6 +1774,13 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
+    {  MST_WIGLAF,
+      {
+       { SPELL_MIGHT, 34, MON_SPELL_WIZARD },
+       { SPELL_HELLFIRE_MORTAR, 34, MON_SPELL_WIZARD },
+      }
+    },
+
     // ('h') Carnivorous quadrupeds.
     {  MST_NATASHA,
       {
@@ -1807,13 +1814,14 @@ static const mon_spellbook mspell_list[] =
     },
 
     // ('o') Orcs.
-    {  MST_BLORK,
+    {  MST_BLORKULA,
       {
-       { SPELL_CANTRIP, 9, MON_SPELL_WIZARD },
-       { SPELL_MAGIC_DART, 9, MON_SPELL_WIZARD },
+       { SPELL_SANDBLAST, 9, MON_SPELL_WIZARD },
+       { SPELL_STING, 9, MON_SPELL_WIZARD },
+       { SPELL_SHOCK, 9, MON_SPELL_WIZARD },
        { SPELL_THROW_FROST, 9, MON_SPELL_WIZARD },
        { SPELL_THROW_FLAME, 9, MON_SPELL_WIZARD },
-       { SPELL_HASTE, 9, MON_SPELL_WIZARD },
+       { SPELL_HASTE, 12, MON_SPELL_WIZARD },
       }
     },
 
@@ -1936,9 +1944,9 @@ static const mon_spellbook mspell_list[] =
     // ('H') Hybrids.
     {  MST_ARACHNE,
       {
-       { SPELL_VENOM_BOLT, 11, MON_SPELL_WIZARD },
-       { SPELL_POISON_ARROW, 11, MON_SPELL_WIZARD },
-       { SPELL_ENSNARE, 34, MON_SPELL_WIZARD },
+       { SPELL_VENOM_BOLT, 16, MON_SPELL_WIZARD },
+       { SPELL_POISON_ARROW, 16, MON_SPELL_WIZARD },
+       { SPELL_GREATER_ENSNARE, 34, MON_SPELL_WIZARD },
        { SPELL_BLINK, 11, MON_SPELL_WIZARD },
       }
     },

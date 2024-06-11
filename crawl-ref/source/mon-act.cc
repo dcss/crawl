@@ -1025,8 +1025,11 @@ static coord_def _wobble_dir(coord_def dir)
 static void _handle_boulder_movement(monster& boulder)
 {
     // If we don't have a movement direction (probably from a vault-placed
-    // decorative boulder), don't crash by assuming we do
-    if (!boulder.props.exists(BOULDER_DIRECTION_KEY))
+    // decorative boulder), don't crash by assuming we do.
+    // Also, since we bypass a lot of normal action code, yet can get netted,
+    // prevent the boulder from moving away from the net's location and creating
+    // multiple item bugs due to how netting works.
+    if (!boulder.props.exists(BOULDER_DIRECTION_KEY) || boulder.caught())
     {
         // Have to use energy anyway, or we cause an infinite loop.
         _swim_or_move_energy(boulder);
@@ -1113,30 +1116,42 @@ static void _handle_hellfire_mortar(monster& mortar)
 {
     // First, fire a bolt of magma at some random target we have line of fire to
     vector<coord_def> targs;
-    for (monster_near_iterator mi(&mortar, LOS_NO_TRANS); mi; ++mi)
+    for (actor_near_iterator ai(&mortar, LOS_NO_TRANS); ai; ++ai)
     {
-        if (!mons_aligned(&mortar, *mi) && monster_los_is_valid(&mortar, *mi))
+        if (!mons_aligned(&mortar, *ai) && monster_los_is_valid(&mortar, *ai))
         {
             bolt tracer = mons_spell_beam(&mortar, SPELL_BOLT_OF_MAGMA, 100);
             tracer.source = mortar.pos();
-            tracer.target = mi->pos();
+            tracer.target = ai->pos();
 
             fire_tracer(&mortar, tracer);
             if (mons_should_fire(tracer))
-                targs.push_back(mi->pos());
+                targs.push_back(ai->pos());
         }
     }
 
     shuffle_array(targs);
 
-    const unsigned int count = min(2, (int)targs.size());
-    for (unsigned int i = 0; i < count; ++i)
+    int shots_fired = 0;
+    for (size_t i = 0; i < targs.size() && shots_fired < 2; ++i)
     {
+        actor* foe = actor_at(targs[i]);
+
+        // Skip dead targets, and move onto the next possible candidate, if one exists.
+        // (They might have been killed by a previous beam)
+        if (!foe)
+            continue;
+
+        // Set our foe to whatever we're shooting at for accurate cast messages
+        mortar.foe = actor_at(targs[i])->mindex();
+
         bolt beam;
         setup_mons_cast(&mortar, beam, SPELL_BOLT_OF_MAGMA);
         beam.target = targs[i];
         mons_cast(&mortar, beam, SPELL_BOLT_OF_MAGMA,
                     mortar.spell_slot_flags(SPELL_BOLT_OF_MAGMA));
+
+        ++shots_fired;
     }
 
     // Then try to advance one tile further along our movement path.
@@ -1174,12 +1189,15 @@ static void _handle_hellfire_mortar(monster& mortar)
                 return;
             }
 
-            if (!_do_move_monster(mortar, new_pos - mortar.pos()))
-                mortar.lose_energy(EUT_ATTACK);
-
-            break;
+            if (_do_move_monster(mortar, new_pos - mortar.pos()))
+                return;
         }
     }
+
+    // Generally we shouldn't reach this point, but if we're unable to move
+    // *and* don't look like we should die either, consume energy so we don't
+    // cause an infinite loop.
+    mortar.lose_energy(EUT_ATTACK);
 }
 
 static void _check_blazeheart_golem_link(monster& mons)
@@ -2319,6 +2337,9 @@ static void _post_monster_move(monster* mons)
                 mi->del_ench(ENCH_ABJ);
         }
     }
+
+    if (mons->type == MONS_VAMPIRE_BAT)
+        blorkula_bat_merge(*mons);
 
     update_mons_cloud_ring(mons);
 

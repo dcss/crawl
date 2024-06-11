@@ -132,7 +132,7 @@ Form::Form(const form_entry &fe)
       can_fly(fe.can_fly), can_swim(fe.can_swim),
       uc_brand(fe.uc_brand), uc_attack(fe.uc_attack),
       prayer_action(fe.prayer_action), equivalent_mons(fe.equivalent_mons),
-      hp_mod(fe.hp_mod), fakemuts(fe.fakemuts)
+      hp_mod(fe.hp_mod), fakemuts(fe.fakemuts), badmuts(fe.badmuts)
 { }
 
 Form::Form(transformation tran)
@@ -538,6 +538,14 @@ vector<string> Form::get_fakemuts(bool terse) const
 {
     vector<string> result;
     for (const auto &p : fakemuts)
+        result.push_back(terse ? p.first : p.second);
+    return result;
+}
+
+vector<string> Form::get_bad_fakemuts(bool terse) const
+{
+    vector<string> result;
+    for (const auto &p : badmuts)
         result.push_back(terse ? p.first : p.second);
     return result;
 }
@@ -1981,7 +1989,7 @@ void untransform(bool skip_move)
     // Removed barding check, no transformed creatures can wear barding
     // anyway.
     // *coughs* Ahem, blade hands... -- jpeg
-    if (you.wear_barding())
+    if (you.can_wear_barding())
     {
         const int arm = you.equip[EQ_BOOTS];
 
@@ -2099,27 +2107,30 @@ void merfolk_stop_swimming()
 
 void unset_default_form()
 {
-    if (is_artefact(you.active_talisman))
-        unequip_artefact_effect(you.active_talisman, nullptr, false, EQ_NONE, false);
+    item_def talisman = you.active_talisman;
 
     you.default_form = transformation::none;
     you.active_talisman.clear();
+
+    if (is_artefact(talisman))
+        unequip_artefact_effect(talisman, nullptr, false, EQ_NONE, false);
 }
 
 void set_default_form(transformation t, const item_def *source)
 {
-    if (is_artefact(you.active_talisman))
-        unequip_artefact_effect(you.active_talisman, nullptr, false, EQ_NONE, false);
-
+    item_def talisman = you.active_talisman;
+    you.active_talisman.clear();
     you.default_form = t;
+
+    if (is_artefact(talisman))
+        unequip_artefact_effect(talisman, nullptr, false, EQ_NONE, false);
+
     if (source)
     {
         you.active_talisman = *source; // iffy
         if (is_artefact(you.active_talisman))
             equip_artefact_effect(you.active_talisman, nullptr, false, EQ_NONE);
     }
-    else
-        you.active_talisman.clear();
 }
 
 void vampire_update_transformations()

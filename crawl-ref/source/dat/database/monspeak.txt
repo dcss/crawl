@@ -1987,169 +1987,29 @@ VISUAL:@The_monster@'s form shimmers in the rain.
 ## END Bai Suzhen ##
 %%%%
 
-############ BLORK ### In case Blork ends up polymorphed.
-Blork
-
-@Blork the orc@
+############ BLORKULA ###
 %%%%
-Blork triumphant
+Blorkula the orcula
 
-@Blork the orc triumphant@
-%%%%
-Blork killed
-
-@Blork the orc killed@
-%%%%
-Blork the orc
-
-@_Blork_common_@
+@_Blorkula_common_@
 
 w:5
-@_Blork_rare_@
+@_Blorkula_rare_@
 %%%%
-Blork the orc triumphant
+Blorkula the orcula triumphant
 
 # Rainbow Raider winning against Batman
 @The_monster@ shouts, "I believe in me!"
 %%%%
-_blork_colour_
+_blorkula_colour_
 
 w:20
-@_rainbow_colour_@
+@rainbow_colour@
 
-w:1
-@_misc_colour_@
+w:10
+@misc_colour@
 %%%%
-_rainbow_colour_
-
-red
-
-orange
-
-yellow
-
-green
-
-blue
-
-indigo
-
-violet
-%%%%
-# No black, white, or grey here.
-_misc_colour_
-
-alizarin crimson
-
-aubergine
-
-azure
-
-beige
-
-bronze
-
-brown
-
-burgundy
-
-cerise
-
-cerulean
-
-charcoal
-
-chartreuse
-
-cobalt blue
-
-copper
-
-cyan
-
-dun
-
-erin
-
-fuchsia
-
-fulvous
-
-gamboge
-
-glaucous
-
-goblin blue
-
-gold
-
-gridelin
-
-haint blue
-
-heliotrope
-
-indanthrone blue
-
-lavender
-
-leaf green
-
-lilac
-
-lime green
-
-magenta
-
-marigold
-
-mauve
-
-mulberry
-
-ochre
-
-periwinkle
-
-phlox
-
-pink
-
-purple
-
-rubric
-
-saffron
-
-sepia
-
-scarlet
-
-silver
-
-sinopia
-
-smaragdine
-
-sorcerer's violet
-
-taupe
-
-teal
-
-turquoise
-
-ultramarine
-
-umber
-
-vermilion
-
-viridian
-
-zaffre
-%%%%
-_Blork_common_
+_Blorkula_common_
 
 # some chance of generic orc speech
 w:20
@@ -2157,49 +2017,51 @@ w:20
 
 VISUAL:@The_monster@ grins serenely.
 
-VISUAL:@The_monster@ is briefly surrounded by a halo of @_blork_colour_@ light.
+VISUAL:@The_monster@ is briefly surrounded by a halo of @_blorkula_colour_@ light.
 
-VISUAL:@The_monster@'s eyes glow @_blork_colour_@.
+VISUAL:@The_monster@'s eyes glow @_blorkula_colour_@.
 
 @The_monster@ says @to_foe@, "You need a new perspective."
 
 @The_monster@ screams @at_foe@, "Let me show you how many colours things can be!"
 
-@The_monster@ screams @at_foe@, "It's all true! You just have to believe!"
+@The_monster@ says, "Beogh has given me so many different colours to drink."
 
-@The_monster@ says, "I was weak, but now I'm strong. And I'll get stronger."
+@The_monster@ says, "I was weak before I became an orc, but now I'm strong. And I'll get stronger."
 
-@The_monster@ says, "I had no talent until I found my suspenders."
-
-@The_monster@ says, "Everything's been so different since I wore my suspenders."
+@The_monster@ says, "Everything's been so different since that missionary gave me these suspenders."
 
 @The_monster@ mutters, "Such pretty colours everywhere..."
 
+@The_monster@ says, "My favourite colour of blood is @_blorkula_colour_@. Wait, no, @_blorkula_colour_@."
+
 @The_monster@ screams, "What are you staring at, @player_name@? I'm stylish!" @player_only@
 %%%%
-_Blork_rare_
+_Blorkula_rare_
 
 @The_monster@ screams @at_foe@, "What are you like inside? I'll break you open and find out!"
+
+@The_monster@ screams @at_foe@, "It's all true! You just have to believe!"
 
 @The_monster@ screams @at_foe@, "Look beyond the surface! Nothing is what it seems!"
 
 @The_monster@ screams @at_foe@, "I'll make you see things how they really are!"
 
-@The_monster@ screams @at_foe@, "I can see the energies behind everything! Can't you?"
-
 @The_monster@ says @to_foe@, "There's so much colour in the world. Let me show it to you."
+
+VISUAL:@The_monster@ contemplates whether Beogh's temples would look better painted @_blorkula_colour_@.
 
 # Calvin and Hobbes
 @The_monster@ says @to_foe@, "The problem is, you see everything in terms of black and white."
 
-@The_monster@ mutters, "Why is everything @_blork_colour_@ all of a sudden?"
+@The_monster@ mutters, "Why is everything @_blorkula_colour_@ all of a sudden?"
 
 @The_monster@ says, "Things are no longer grey! Not since my great insight!"
 %%%%
-Blork the orc killed
+Blorkula the orcula killed
 
-@The_monster@'s eyes stop glowing, and @subjective@ collapses.
-## END Blork the orc ##
+A faint prismatic mist rises from Blorkula's broken form and then dissipates.
+## END Blorkula the orcula ##
 %%%%
 ############ BORIS ### An ancient lich with the nasty habit of coming back
 Boris
@@ -3680,7 +3542,7 @@ w:50
 
 @The_monster@ says, "What kind of god gives you spells but not spellbooks?"
 
-@The_monster@ says, "Let it end in hellfire? When do you get a hellfire spell?"
+@The_monster@ says, "Let it end in hellfire? Why is there only one hellfire spell?"
 
 @The_monster@ says, "I hate Vehumet."
 
@@ -3760,6 +3622,8 @@ w:50
 @The_monster@ says, "I hate storms."
 
 @The_monster@ says, "I hate disasters."
+
+@The_monster@ says, "I hate elementals."
 
 @The_monster@ says, "What was that? Sorry, I couldn't hear you over all this noise."
 
@@ -7268,10 +7132,66 @@ Vashnia triumphant
 @The_monster@ says, "All clear. Let's check for more."
 ## END Vashnia ##
 %%%%
+######## Wiglaf ####### A dwarf with a big cannon and deep attachment to his hat
+Wiglaf
+
+@_Wiglaf_common_@
+
+w:5
+@_Wiglaf_rare_@
+
+@_Wiglaf_nondwarf_@
+%%%%
+related Wiglaf
+
+@_Wiglaf_common_@
+
+w:5
+@_Wiglaf_rare_@
+%%%%
+_Wiglaf_common_
+
+@The_monster@ says @to_foe@, "I'll gie ye a proper bath in magma."
+
+@The_monster@ shouts @at@ @foe@, "By thae beards o' ma forefathars, ye wilnae live tae see tha morn'!"
+
+@The_monster@ says, "I got whit I came for, but wha passes up a proper rammy?"
+
+@The_monster@ says, "Ye nae take from a dwarf whit's his!"
+
+@The_monster@ says, "Hit me lik' ye mean it, ye dafty glaikit!"
+
+@The_monster@ says, "Och, ye'r asking fur it now."
+
+VISUAL: @The_monster@ straightens out a crease in @possessive@ hat.
+%%%%
+_Wiglaf_rare_
+
+@The_monster@ mutters, "Wee kobolds think thay ken whit a cannon is."
+
+@The_monster@ growls, "I'll break a bone for every stich ye rip."
+
+@The_monster@ mumbles, "If ye must ken, mah gran stiched it fur me."
+
+@The_monster@ sings a few bars of a dwarven mine shanty. Very poorly.
+
+@The_monster@ says, "I havnae been down this way for yonks. They've redecorated."
+
+@The_monster@ says, "I hear the Orcs make a nippy scran these days."
+
+%%%%
+_Wiglaf_nondwarf_
+
+w:5
+@The_monster@ says @to_foe@, "Ye cannae match dwarven artillery."
+
+@The_monster@ says @to_foe@, "Have ye nae fought a dwarf before?"
+## END Wiglaf ##
+%%%%
 ############ Xak'krixis ### A formicid expeditionary alchemist
 Xak'krixis
 
-@The_monster@ ponders what role @player_genus_plural@ plays in the local ecosystem.
+@The_monster@ ponders what role @player_genus_plural@ play in the local ecosystem.
 
 @The_monster@ says, "I'll be sure to include this battle in my report!"
 
@@ -8375,11 +8295,11 @@ w:1
 w:1
 __NONE
 %%%%
-# special casing for Blork
-related beogh Blork the orc
+# special casing for Blorkula
+related beogh Blorkula the orcula
 
 # behave like normal Blork
-@Blork the orc@
+@Blorkula the orcula@
 
 # with some Beogh-hostile messages strewn in
 w:4
@@ -8810,9 +8730,9 @@ w:1
 
 VISUAL:@The_monster@ wriggles @possessive@ tentacles.
 
-VISUAL:A dozen eyes blink open in the @monster@'s chest.
+VISUAL:A dozen eyes blink open in @the_monster@'s chest.
 
-VISUAL:Strange appendages sprout from the @monster@'s back.
+VISUAL:Strange appendages sprout from @the_monster@'s back.
 
 VISUAL:@The_monster@ lashes @possessive@ tail.
 
@@ -8821,9 +8741,9 @@ VISUAL:@The_monster@ suddenly sprouts two large horns!
 w:3
 VISUAL:@The_monster@'s flesh secretes a thick mucus.
 
-VISUAL:Hollow, blind eyes appear on the @monster@'s head.
+VISUAL:Hollow, blind eyes appear on @the_monster@'s head.
 
-VISUAL:Suppurating sores blossom under the @monster@'s eyelids.
+VISUAL:Suppurating sores blossom under @the_monster@'s eyelids.
 
 @The_monster@ begs you to kill @objective@.
 
@@ -8900,17 +8820,23 @@ VISUAL:@The_monster@'s deck briefly glows with a rainbow of weird colours.
 
 @The_monster@ grins. "So many cards! Brought to you by @my_God@!"
 
-@The_monster@ fumbles a card and drops it. "Whoops!"
-
-@The_monster@ draws @_misplaced_card_@. "Wait, this doesn't belong here!"
-
+w:20
 @_deck_of_destruction_line_@
 
+w:20
 @_deck_of_escape_line_@
 
+w:20
 @_deck_of_summoning_line_@
 
+w:10
 @_deck_of_punishment_line_@
+
+w:5
+@The_monster@ draws @_misplaced_card_@. "Wait, this doesn't belong here!"
+
+w:5
+@The_monster@ fumbles a card and drops it. "Whoops!"
 %%%%
 _misplaced_card_
 
@@ -8978,6 +8904,7 @@ _deck_of_escape_line_
 # Kenny Rogers, "The Gambler"
 @The_monster@ draws Velocity. "Know when to walk away, know when to run."
 %%%%
+# Nemelex's deck of summoning
 _deck_of_summoning_line_
 
 @The_monster@ draws the Dance. "Hope the weapon's aim is true!"
@@ -8992,6 +8919,7 @@ _deck_of_summoning_line_
 
 @The_monster@ draws the Swarm. "Bees, bees everywhere!"
 %%%%
+# Nemelex's deck of punishment
 _deck_of_punishment_line_
 
 @The_monster@ draws the Swine. "I'm a pig now!"

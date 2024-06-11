@@ -78,6 +78,7 @@
 #include "player-stats.h"
 #include "potion.h"
 #include "prompt.h"
+#include "random.h"
 #include "religion.h"
 #include "shout.h"
 #include "skill-menu.h"
@@ -1690,7 +1691,7 @@ void yred_fathomless_shackles_effect(int delay)
 
 bool yred_can_bind_soul(monster* mon)
 {
-    return mons_can_be_spectralised(*mon, true)
+    return mons_can_be_spectralised(*mon, true, true)
            && !mon->has_ench(ENCH_SOUL_RIPE)
            && mon->attitude != ATT_FRIENDLY;
 }
@@ -1895,24 +1896,34 @@ void cheibriados_time_bend(int pow)
     }
 }
 
-static int _slouch_damage(monster *mon)
+// So that we can display a damage number for slouch to the player
+// TODO Add slouch damage to the targeter
+int slouch_damage_for_speed(int mon_speed, int mon_action_energy, int jerk_num,
+                            int jerk_denom)
 {
-    // Please change handle_monster_move in mon-act.cc to match.
-    const int jerk_num = mon->type == MONS_SIXFIRHY ? 8
-                       : mon->type == MONS_JIANGSHI ? 48
-                                                    : 1;
-
-    const int jerk_denom = mon->type == MONS_SIXFIRHY ? 24
-                         : mon->type == MONS_JIANGSHI ? 90
-                                                      : 1;
-
     const int player_number = BASELINE_DELAY * BASELINE_DELAY * BASELINE_DELAY;
-    return 4 * (mon->speed * BASELINE_DELAY * jerk_num
-                           / mon->action_energy(EUT_MOVE) / jerk_denom
+    return 4 * (mon_speed * BASELINE_DELAY * jerk_num
+                           / mon_action_energy / jerk_denom
                 - player_number / player_movement_speed() / player_speed());
 }
 
-static bool _slouchable(coord_def where)
+int slouch_damage(monster *victim)
+{
+    // Please change handle_monster_move in mon-act.cc to match.
+    const int jerk_num = victim->type == MONS_SIXFIRHY ? 8
+                       : victim->type == MONS_JIANGSHI ? 48
+                                                       : 1;
+
+    const int jerk_denom = victim->type == MONS_SIXFIRHY ? 24
+                         : victim->type == MONS_JIANGSHI ? 90
+                                                         : 1;
+
+    return slouch_damage_for_speed(victim->speed,
+                                   victim->action_energy(EUT_MOVE),
+                                   jerk_num, jerk_denom);
+}
+
+bool is_slouchable(coord_def where)
 {
     monster* mon = monster_at(where);
     if (mon == nullptr || mon->is_stationary() || mon->cannot_act()
@@ -1922,27 +1933,27 @@ static bool _slouchable(coord_def where)
         return false;
     }
 
-    return _slouch_damage(mon) > 0;
+    return slouch_damage(mon) > 0;
 }
 
 static bool _act_slouchable(const actor *act)
 {
     if (act->is_player())
         return false;  // too slow-witted
-    return _slouchable(act->pos());
+    return is_slouchable(act->pos());
 }
 
 static int _slouch_monsters(coord_def where)
 {
-    if (!_slouchable(where))
+    if (!is_slouchable(where))
         return 0;
 
     monster* mon = monster_at(where);
     ASSERT(mon);
 
-    // Between 1/2 and 3/2 of _slouch_damage(), but weighted strongly
+    // Between 1/2 and 3/2 of slouch_damage(), but weighted strongly
     // towards the middle.
-    const int dmg = roll_dice(_slouch_damage(mon), 3) / 2;
+    const int dmg = roll_dice(slouch_damage(mon), 3) / 2;
 
     mon->hurt(&you, dmg, BEAM_MMISSILE, KILLED_BY_BEAM, "", "", true);
     return 1;
@@ -1950,7 +1961,7 @@ static int _slouch_monsters(coord_def where)
 
 spret cheibriados_slouch(bool fail)
 {
-    int count = apply_area_visible(_slouchable, you.pos());
+    int count = apply_area_visible(is_slouchable, you.pos());
     if (!count)
         if (!yesno("There's no one hasty visible. Invoke Slouch anyway?",
                    true, 'n'))
@@ -3076,7 +3087,7 @@ bool gozag_setup_call_merchant(bool quiet)
     {
         if (!quiet)
         {
-            mprf("No merchants are willing to come to this location.");
+            mpr("No merchants are willing to come to this location.");
             return false;
         }
     }
@@ -3084,7 +3095,7 @@ bool gozag_setup_call_merchant(bool quiet)
     {
         if (!quiet)
         {
-            mprf("You need to be standing on open floor to call a merchant.");
+            mpr("You need to be standing on open floor to call a merchant.");
             return false;
         }
     }
@@ -3554,9 +3565,23 @@ static bool _qazlal_affected(coord_def pos)
     return true;
 }
 
+static int _qazlal_upheaval_power()
+{
+    return you.skill(SK_INVOCATIONS, 6);
+}
+
+dice_def qazlal_upheaval_damage(bool allow_random)
+{
+    const int pow = _qazlal_upheaval_power();
+    if (allow_random)
+        return calc_dice(3, 27 + div_rand_round(2 * pow, 5));
+    else // used for the ability description
+        return calc_dice(3, 27 + 2 * pow / 5, false);
+}
+
 spret qazlal_upheaval(coord_def target, bool quiet, bool fail, dist *player_target)
 {
-    const int pow = you.skill(SK_INVOCATIONS, 6);
+    const int pow = _qazlal_upheaval_power();
     const int max_radius = _upheaval_radius(pow);
 
     bolt beam;
@@ -3565,7 +3590,7 @@ spret qazlal_upheaval(coord_def target, bool quiet, bool fail, dist *player_targ
     beam.source_name = "you";
     beam.thrower     = KILL_YOU;
     beam.range       = LOS_RADIUS;
-    beam.damage      = calc_dice(3, 27 + div_rand_round(2 * pow, 5));
+    beam.damage      = qazlal_upheaval_damage();
     beam.hit         = AUTOMATIC_HIT;
     beam.glyph       = dchar_glyph(DCHAR_EXPLOSION);
     beam.loudness    = 10;
@@ -5126,6 +5151,18 @@ void ru_draw_out_power()
     drain_player(30, false, true);
 }
 
+// Damage scales with XL amd piety.
+dice_def ru_power_leap_damage(bool allow_random)
+{
+    if (allow_random)
+    {
+        return dice_def(1 + div_rand_round(you.piety *
+            (54 + you.experience_level), 777), 3);
+    }
+    else
+        return dice_def(1 + you.piety * (54 + you.experience_level) / 777, 3);
+}
+
 bool ru_power_leap()
 {
     ASSERT(!crawl_state.game_is_arena());
@@ -5270,9 +5307,9 @@ bool ru_power_leap()
             continue;
         ASSERT(mon);
 
-        //damage scales with XL amd piety
-        mon->hurt((actor*)&you, roll_dice(1 + div_rand_round(you.piety *
-            (54 + you.experience_level), 777), 3),
+        const dice_def dam = ru_power_leap_damage();
+
+        mon->hurt((actor*)&you, dam.roll(),
             BEAM_ENERGY, KILLED_BY_BEAM, "", "", true);
     }
 
@@ -5285,6 +5322,14 @@ int cell_has_valid_target(coord_def where)
     if (mon == nullptr || mons_is_projectile(mon->type) || mon->friendly())
         return 0;
     return 1;
+}
+
+int apocalypse_die_size(bool allow_random)
+{
+    if (allow_random)
+        return 1 + div_rand_round(you.piety * (54 + you.experience_level), 584);
+    else
+        return 1 + you.piety * (54 + you.experience_level) / 584;
 }
 
 static int _apply_apocalypse(coord_def where)
@@ -5335,8 +5380,7 @@ static int _apply_apocalypse(coord_def where)
     }
 
     //damage scales with XL and piety
-    const int pow = you.piety;
-    int die_size = 1 + div_rand_round(pow * (54 + you.experience_level), 584);
+    int die_size = apocalypse_die_size();
     int dmg = 10 + roll_dice(num_dice, die_size);
 
     mons->hurt(&you, dmg, BEAM_ENERGY, KILLED_BY_BEAM, "", "", true);
@@ -5374,6 +5418,14 @@ static bool _mons_stompable(const monster &mons)
     return !testbits(mons.flags, MF_DEMONIC_GUARDIAN) || !mons.friendly();
 }
 
+dice_def uskayaw_stomp_extra_damage(bool allow_random)
+{
+    if (allow_random)
+        return dice_def(2, 2 + div_rand_round(you.skill(SK_INVOCATIONS), 2));
+    else
+        return dice_def(2, 2 + you.skill(SK_INVOCATIONS) / 2);
+}
+
 static bool _get_stomped(monster& mons)
 {
     if (!_mons_stompable(mons))
@@ -5384,8 +5436,8 @@ static bool _get_stomped(monster& mons)
     // Damage starts at 1/6th of monster current HP, then gets some damage
     // scaling off Invo power.
     int damage = div_rand_round(mons.hit_points, 6);
-    int die_size = 2 + div_rand_round(you.skill(SK_INVOCATIONS), 2);
-    damage += roll_dice(2, die_size);
+    dice_def extra = uskayaw_stomp_extra_damage();
+    damage += extra.roll();
 
     mons.hurt(&you, damage, BEAM_ENERGY, KILLED_BY_BEAM, "", "", true);
 

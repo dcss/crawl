@@ -665,8 +665,16 @@ class targeter_mortar : public targeter_beam
 {
 public:
     targeter_mortar(const actor* act, int max_range);
+    bool valid_aim(coord_def a) override;
     aff_type is_affected(coord_def loc) override;
     bool can_affect_unseen() override;
     bool can_affect_walls() override;
     bool affects_monster(const monster_info& mon) override;
+};
+
+class targeter_slouch : public targeter_radius
+{
+public:
+    targeter_slouch();
+    virtual aff_type is_affected(coord_def loc) override;
 };

@@ -875,7 +875,7 @@ maybe_bool you_can_wear(equipment_type eq, bool temp)
 
     case EQ_BOOTS: // And bardings
         dummy.sub_type = ARM_BOOTS;
-        if (you.wear_barding())
+        if (you.can_wear_barding())
             alternate.sub_type = ARM_BARDING;
         break;
 
@@ -1333,12 +1333,6 @@ int player_mp_regen()
     if (you.duration[DUR_RAMPAGE_HEAL])
         regen_amount += you.props[RAMPAGE_HEAL_KEY].get_int() * 33;
 
-    if (you.wearing_ego(EQ_GIZMO, SPGIZMO_MANAREV))
-    {
-        const static int rev_bonus[] = {0, 20, 40, 80};
-        regen_amount += rev_bonus[you.rev_tier()];
-    }
-
     if (have_passive(passive_t::jelly_regen))
     {
         // We use piety rank to avoid leaking piety info to the player.
@@ -1634,10 +1628,10 @@ bool player_kiku_res_torment()
 }
 
 // If temp is set to false, temporary sources or resistance won't be counted.
-int player_res_poison(bool allow_random, bool temp, bool items)
+int player_res_poison(bool allow_random, bool temp, bool items, bool forms)
 {
-    const int form_rp = cur_form(temp)->res_pois();
-    if (you.is_nonliving(temp)
+    const int form_rp = forms ? cur_form(temp)->res_pois() : 0;
+    if (you.is_nonliving(temp, forms)
         || you.is_lifeless_undead(temp)
         || form_rp == 3
         || items && player_equip_unrand(UNRAND_OLGREB)
@@ -2257,10 +2251,11 @@ int player_armour_shield_spell_penalty()
 int player_wizardry()
 {
     return you.wearing(EQ_RINGS, RING_WIZARDRY)
-           + (you.get_mutation_level(MUT_BIG_BRAIN) == 3 ? 1 : 0);
+           + (you.get_mutation_level(MUT_BIG_BRAIN) == 3 ? 1 : 0)
+           + you.scan_artefacts(ARTP_WIZARDRY);
 }
 
-int player_channeling()
+int player_channelling()
 {
     // Here and elsewhere, let's consider making this work for Dj.
     if (you.has_mutation(MUT_HP_CASTING))
@@ -3502,7 +3497,7 @@ static void _display_damage_rating(const item_def *weapon)
         weapon_name = "unarmed combat";
 
     if (weapon && is_unrandom_artefact(*weapon, UNRAND_WOE))
-        mprf("%s", uppercase_first(damage_rating(weapon)).c_str());
+        mpr(uppercase_first(damage_rating(weapon)));
     else
     {
         mprf("Your damage rating with %s is about %s",
@@ -4784,10 +4779,12 @@ void dec_sticky_flame_player(int delay)
         return;
     }
 
-    mprf(MSGCH_WARN, "The liquid fire burns you!");
+    int base_damage = roll_dice(2, you.props[STICKY_FLAME_POWER_KEY].get_int());
+    int damage = resist_adjust_damage(&you, BEAM_FIRE, base_damage);
 
-    int damage = roll_dice(2, you.props[STICKY_FLAME_POWER_KEY].get_int());
-    damage = resist_adjust_damage(&you, BEAM_FIRE, damage);
+    mprf(MSGCH_WARN, "The liquid fire burns you%s!",
+         damage > base_damage ? " terribly" : "");
+
     damage = div_rand_round(damage * delay, BASELINE_DELAY);
 
     you.expose_to_element(BEAM_STICKY_FLAME, 2);
@@ -6801,7 +6798,7 @@ int player::res_elec() const
 bool player::res_water_drowning() const
 {
     return is_unbreathing()
-           || species::can_swim(species) && !form_changed_physiology()
+           || cur_form(true)->player_can_swim()
            || you.species == SP_GREY_DRACONIAN && draconian_dragon_exception();
 }
 
@@ -7213,8 +7210,8 @@ bool player::corrode_equipment(const char* corrosion_source, int degree)
     for (int i = 0; i < degree; i++)
         if (!x_chance_in_y(prev_corr, prev_corr + 28))
         {
-            props[CORROSION_KEY].get_int() += res_corr() ? 2 : 4;
-            prev_corr++;
+            prev_corr += res_corr() ? 2 : 4;
+            props[CORROSION_KEY] = prev_corr;
             did_corrode = true;
         }
 
@@ -7965,6 +7962,13 @@ bool player::do_shaft()
 
 bool player::can_do_shaft_ability(bool quiet) const
 {
+    if (!form_keeps_mutations())
+    {
+        if (!quiet)
+            mpr("You can't shaft yourself in your current form.");
+        return false;
+    }
+
     if (attribute[ATTR_HELD])
     {
         if (!quiet)
@@ -8366,8 +8370,11 @@ bool player::form_uses_xl() const
     return !get_form()->get_unarmed_uses_skill();
 }
 
-bool player::wear_barding() const
+bool player::can_wear_barding(bool temp) const
 {
+    if (temp && !get_form()->slot_available(EQ_BOOTS))
+        return false;
+
     return species::wears_barding(species);
 }
 

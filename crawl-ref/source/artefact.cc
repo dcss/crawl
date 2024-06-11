@@ -394,6 +394,7 @@ static map<jewellery_type, vector<jewellery_fake_artp>> jewellery_artps = {
     { AMU_REFLECTION, { { ARTP_SHIELDING, AMU_REFLECT_SH / 2} } },
 
     { RING_MAGICAL_POWER, { { ARTP_MAGICAL_POWER, 9 } } },
+    { RING_WIZARDRY, { { ARTP_WIZARDRY, 1} } },
     { RING_FLIGHT, { { ARTP_FLY, 1 } } },
     { RING_SEE_INVISIBLE, { { ARTP_SEE_INVISIBLE, 1 } } },
     { RING_STEALTH, { { ARTP_STEALTH, 1 } } },
@@ -724,7 +725,9 @@ static int _gen_good_res_artp() { return 1; }
 static int _gen_bad_res_artp() { return -1; }
 
 /// Generate 'good' values for ARTP_HP/ARTP_MAGICAL_POWER
-static int _gen_good_hpmp_artp() { return 9; }
+static int _gen_good_hpmp_artp() { return random_range(4, 9) +
+                                          (one_chance_in(3) ? random_range(1, 3)
+                                                            : 0); }
 
 /// Generate 'bad' values for ARTP_HP/ARTP_MAGICAL_POWER
 static int _gen_bad_hpmp_artp() { return -_gen_good_hpmp_artp(); }
@@ -861,6 +864,8 @@ static const artefact_prop_data artp_data[] =
     { "Acrobat", ARTP_VAL_BOOL, 0, // ARTP_ACROBAT,
         []() {return 1;}, nullptr, 0, 0},
     { "RegenMP", ARTP_VAL_BOOL, 0,   // ARTP_MANA_REGENERATION,
+        []() { return 1; }, nullptr, 0, 0 },
+    { "Wiz", ARTP_VAL_BOOL, 0,   // ARTP_WIZARDRY,
         []() { return 1; }, nullptr, 0, 0 },
 };
 COMPILE_CHECK(ARRAYSZ(artp_data) == ARTP_NUM_PROPERTIES);
@@ -1975,7 +1980,7 @@ enum gizmo_prop_type
     GIZMO_RELEC,
     GIZMO_RPOIS,
     GIZMO_SLAY,
-    GIZMO_WILL,
+    GIZMO_WIZ,
 
     NUM_GIZMO_PROPS,
 };
@@ -2006,8 +2011,9 @@ static void _apply_gizmo_prop(item_def& gizmo, gizmo_prop_type prop)
             artefact_set_property(gizmo, ARTP_SLAYING, 3);
             break;
 
-        case GIZMO_WILL:
-            artefact_set_property(gizmo, ARTP_WILLPOWER, 1);
+        case GIZMO_WIZ:
+            artefact_set_property(gizmo, ARTP_WIZARDRY, 1);
+            artefact_set_property(gizmo, ARTP_MAGICAL_POWER, 4);
             break;
 
         // Rare props

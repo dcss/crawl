@@ -170,6 +170,8 @@ static ai_action::goodness _mons_will_abjure(const monster& mons);
 static ai_action::goodness _should_irradiate(const monster& mons);
 static void _whack(const actor &caster, actor &victim);
 static bool _mons_cast_prisms(monster& caster, actor& foe, int pow, bool check_only);
+static bool _mons_cast_hellfire_mortar(monster& caster, actor& foe, int pow, bool check_only);
+static ai_action::goodness _hoarfrost_cannonade_goodness(const monster &caster);
 
 enum spell_logic_flag
 {
@@ -317,6 +319,13 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
         _zap_setup(SPELL_OZOCUBUS_REFRIGERATION),
         MSPELL_LOGIC_NONE,
         5,
+    } },
+    { SPELL_HOARFROST_CANNONADE, {
+        _hoarfrost_cannonade_goodness,
+        [](monster &caster, mon_spell_slot slot, bolt&) {
+            const int pow = mons_spellpower(caster, slot.spell);
+            cast_hoarfrost_cannonade(caster, pow, false);
+        },
     } },
     { SPELL_HOARFROST_BULLET, {
         _always_worthwhile,
@@ -600,6 +609,16 @@ static const map<spell_type, mons_spell_logic> spell_to_logic = {
         [](monster &caster, mon_spell_slot, bolt&) {
             const int pow = mons_spellpower(caster, SPELL_PLASMA_BEAM);
             cast_plasma_beam(pow, caster, false);
+        }
+    } },
+    { SPELL_PERMAFROST_ERUPTION, {
+        [](const monster &caster) {
+            const int pow = mons_spellpower(caster, SPELL_PLASMA_BEAM);
+            return ai_action::good_or_bad(mons_should_fire_permafrost(pow, caster));
+        },
+        [](monster &caster, mon_spell_slot, bolt&) {
+            const int pow = mons_spellpower(caster, SPELL_PERMAFROST_ERUPTION);
+            cast_permafrost_eruption(caster, pow, false);
         }
     } },
     { SPELL_BLINK, {
@@ -942,11 +961,11 @@ static void _cast_brain_bite(monster &caster, mon_spell_slot slot, bolt&)
         if (you.magic_points <= you.max_magic_points / 5)
         {
             dam_multiplier = 2;
-            mprf("Something gnaws heavily on your mind!");
+            mpr("Something gnaws heavily on your mind!");
             xom_is_stimulated(30);
         }
         else
-            mprf("Something gnaws on your mind!");
+            mpr("Something gnaws on your mind!");
 
     }
     else
@@ -1325,6 +1344,7 @@ static int _mons_power_hd_factor(spell_type spell)
         case SPELL_FREEZE:
         case SPELL_FULMINANT_PRISM:
         case SPELL_IGNITE_POISON:
+        case SPELL_HELLFIRE_MORTAR:
             return 8;
 
         case SPELL_MONSTROUS_MENAGERIE:
@@ -1598,6 +1618,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
     case SPELL_BOLT_OF_DEVASTATION:
     case SPELL_BORGNJORS_VILE_CLUTCH:
     case SPELL_CRYSTALLIZING_SHOT:
+    case SPELL_HELLFIRE_MORTAR:
         zappy(spell_to_zap(real_spell), power, true, beam);
         break;
 
@@ -1666,7 +1687,7 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
 
     case SPELL_COLD_BREATH:
         if (mons && mons_is_draconian(mons->type))
-            power = power * 2 / 3;
+            power = power * 5 / 6;
         zappy(spell_to_zap(real_spell), power, true, beam);
         beam.aux_source = "blast of icy breath";
         beam.short_name = "frost";
@@ -1696,6 +1717,15 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
         beam.glyph    = dchar_glyph(DCHAR_FIRED_MISSILE);
         beam.flavour  = BEAM_ENSNARE;
         beam.hit      = 22 + power / 20;
+        break;
+
+    case SPELL_GREATER_ENSNARE:
+        beam.name     = "stream of webbing";
+        beam.colour   = WHITE;
+        beam.glyph    = dchar_glyph(DCHAR_FIRED_MISSILE);
+        beam.flavour  = BEAM_ENSNARE;
+        beam.hit      = 22 + power / 12;
+        beam.aimed_at_spot = true;
         break;
 
     case SPELL_SPECTRAL_CLOUD:
@@ -1780,6 +1810,9 @@ bolt mons_spell_beam(const monster* mons, spell_type spell_cast, int power,
         beam.hit         = AUTOMATIC_HIT;
         beam.glyph       = dchar_glyph(DCHAR_EXPLOSION);
         beam.ex_size     = 1;
+        // A little lower than normal, so a stormcaller is willing to blast at
+        // least a single summoned drake alongside the player.
+        beam.foe_ratio   = 70;
         break;
 
     case SPELL_ERUPTION:
@@ -1977,6 +2010,7 @@ bool setup_mons_cast(const monster* mons, bolt &pbolt, spell_type spell_cast,
     case SPELL_REGENERATE_OTHER:
     case SPELL_BESTOW_ARMS:
     case SPELL_FULMINANT_PRISM:
+    case SPELL_HELLFIRE_MORTAR:
         pbolt.range = 0;
         pbolt.glyph = 0;
         return true;
@@ -2952,6 +2986,25 @@ static ai_action::goodness _still_winds_goodness(const monster &caster)
     return ai_action::bad();
 }
 
+static ai_action::goodness _hoarfrost_cannonade_goodness(const monster &caster)
+{
+    const actor* foe = caster.get_foe();
+    if (!foe)
+        return ai_action::bad();
+
+    // Check if we already have at least one living cannon in LoS of our foe.
+    // This should prevent recasting the spell before the cannon has a chance
+    // to fire its final shots without making the monster refuse to resummon
+    // if the player ducks around a corner.
+    for (monster_near_iterator mi(foe->pos()); mi; ++mi)
+    {
+        if (mi->type == MONS_HOARFROST_CANNON && mi->summoner == caster.mid)
+            return ai_action::bad();
+    }
+
+    return ai_action::good();
+}
+
 /// Cast the spell Still Winds, disabling clouds across the level temporarily.
 static void _cast_still_winds(monster &caster, mon_spell_slot, bolt&)
 {
@@ -3192,7 +3245,7 @@ static bool _awaken_vines(monster* mon, bool test_only = false)
 {
     if (_is_wiz_cast())
     {
-        mprf("Sorry, this spell isn't supported for dummies!"); //mons dummy
+        mpr("Sorry, this spell isn't supported for dummies!"); //mons dummy
         return false;
     }
 
@@ -5737,8 +5790,14 @@ static void _mons_upheaval(monster& mons, actor& /*foe*/, bool randomize)
     affected.push_back(beam.target);
 
     for (adjacent_iterator ai(beam.target); ai; ++ai)
-        if (in_bounds(*ai) && !cell_is_solid(*ai))
+    {
+        if (in_bounds(*ai) && !cell_is_solid(*ai)
+            // Proper Upheaval can't hit the caster
+            && (*ai != mons.pos() || !randomize))
+        {
             affected.push_back(*ai);
+        }
+    }
 
     shuffle_array(affected);
 
@@ -6025,6 +6084,106 @@ static bool _mons_cast_prisms(monster& caster, actor& foe, int pow, bool check_o
 
     if (!pos2.empty())
         cast_fulminating_prism(&caster, pow, pos2[random2(pos2.size())], false);
+
+    return true;
+}
+
+static bool _mons_cast_hellfire_mortar(monster& caster, actor& foe, int pow, bool check_only)
+{
+    // The general heuristic used here is:
+    // Try aiming at all spaces in a 5x5 square around our foe's location, picking
+    // the first one that creates a mortar path at least 3 tiles long before running
+    // into any actor, and that at least 3 tiles along that path have a viable shot
+    // at something with bolt of magma.
+    //
+    // (Iteration among those spaces is random, but prefering ones adjacent to the
+    // foe first.)
+
+    vector<coord_def> possible_targets;
+    for (distance_iterator di(foe.pos(), true, true, 2); di; ++di)
+    {
+        if (in_bounds(*di) && cell_see_cell(foe.pos(), *di, LOS_NO_TRANS))
+            possible_targets.push_back(*di);
+    }
+
+    coord_def found_target;
+    for (size_t i = 0; i < possible_targets.size(); ++i)
+    {
+        bolt tracer;
+        zappy(ZAP_HELLFIRE_MORTAR_DIG, pow, true, tracer);
+        tracer.range = LOS_RADIUS;
+        tracer.source = caster.pos();
+        tracer.target = possible_targets[i];
+        tracer.source_id = caster.mid;
+        tracer.origin_spell = SPELL_HELLFIRE_MORTAR;
+        tracer.is_tracer = true;
+        tracer.fire();
+
+        // Skip paths that are less than 3 tiles long (which generally requires
+        // them to be 4 tiles long, since the last tile will be some obstruction)
+        if (tracer.path_taken.size() < 4)
+            continue;
+
+        size_t len;
+        for (len = 0; len < tracer.path_taken.size(); ++len)
+        {
+            if (actor_at(tracer.path_taken[len]))
+                break;
+        }
+
+        // Skip paths that run into an obstruction before 3 tiles
+        if (len < 3)
+            continue;
+
+        // Now that we've determined the path is long enough, let's see if we
+        // can shoot at something useful on at least 3 spaces of this path
+        int useful_count = 0;
+        for (size_t j = 0; j < len; ++j)
+        {
+            if (!in_bounds(tracer.path_taken[j]))
+                break;
+
+            // These tracers are from the perspective a possible morter at these spots,
+            // but since that doesn't exist yet, we assume that the caster is firing
+            // them. Possibly this doesn't result in exact results, but mostly should
+            // be close enough, I think.
+            bolt magma_tracer = mons_spell_beam(&caster, SPELL_BOLT_OF_MAGMA, 100);
+            magma_tracer.source = tracer.path_taken[j];
+            magma_tracer.target = foe.pos();
+            magma_tracer.source_id = caster.mid;
+            magma_tracer.attitude = mons_attitude(caster);
+            magma_tracer.is_tracer = true;
+            magma_tracer.foe_ratio = 100;
+            magma_tracer.fire();
+
+            if (mons_should_fire(magma_tracer))
+                useful_count++;
+
+            // This path has enough useful shots to take!
+            if (useful_count == 3)
+            {
+                found_target = possible_targets[i];
+                break;
+            }
+        }
+
+        // If this target was found to be valid, stop looking at other ones.
+        if (!found_target.origin())
+            break;
+    }
+
+    // If we didn't find anything, stop.
+    if (found_target.origin())
+        return false;
+
+    // If this is just a tracer, we know we've found a valid target.
+    if (check_only)
+        return true;
+
+    // Actually cast it!
+    bolt beam = mons_spell_beam(&caster, SPELL_HELLFIRE_MORTAR, pow);
+    beam.target = found_target;
+    cast_hellfire_mortar(caster, beam, pow, false);
 
     return true;
 }
@@ -6975,7 +7134,7 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
 
     case SPELL_REPEL_MISSILES:
         simple_monster_message(*mons, " begins repelling missiles!");
-        mons->add_ench(mon_enchant(ENCH_REPEL_MISSILES));
+        mons->add_ench(mon_enchant(ENCH_REPEL_MISSILES, 1, mons, INFINITE_DURATION));
         return;
 
     case SPELL_SUMMON_SCARABS:
@@ -7113,6 +7272,11 @@ void mons_cast(monster* mons, bolt pbolt, spell_type spell_cast,
     case SPELL_FULMINANT_PRISM:
         _mons_cast_prisms(*mons, *mons->get_foe(),
                           mons_spellpower(*mons, SPELL_FULMINANT_PRISM), false);
+        return;
+
+    case SPELL_HELLFIRE_MORTAR:
+        _mons_cast_hellfire_mortar(*mons, *mons->get_foe(),
+                                   mons_spellpower(*mons, SPELL_HELLFIRE_MORTAR), false);
         return;
     }
 
@@ -8419,6 +8583,15 @@ ai_action::goodness monster_spell_goodness(monster* mon, spell_type spell)
 
         return ai_action::good_or_impossible(
             _mons_cast_prisms(*mon, *mon->get_foe(), 100, true));
+    }
+
+    case SPELL_HELLFIRE_MORTAR:
+    {
+        if (hellfire_mortar_active(*mon))
+            return ai_action::impossible();
+
+        return ai_action::good_or_impossible(
+            _mons_cast_hellfire_mortar(*mon, *mon->get_foe(), 100, true));
     }
 
 #if TAG_MAJOR_VERSION == 34

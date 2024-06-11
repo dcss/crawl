@@ -256,7 +256,7 @@ void change_monster_type(monster* mons, monster_type targetc, bool do_seen)
     {
         name = mons->name(DESC_PLAIN, true);
 
-        // "Blork the orc" and similar.
+        // "Blorkula the orcula" and similar.
         const size_t the_pos = name.find(" the ");
         if (the_pos != string::npos)
             name = name.substr(0, the_pos);
@@ -758,7 +758,7 @@ void seen_monster(monster* mons)
     {
         const item_def *wyrmbane = you.weapon();
         if (wyrmbane && mons->dragon_level() > wyrmbane->plus)
-            mprf("<green>Wyrmbane glows as a worthy foe approaches.</green>");
+            mpr("<green>Wyrmbane glows as a worthy foe approaches.</green>");
     }
 
     // attempt any god conversions on first sight

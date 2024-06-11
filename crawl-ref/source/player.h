@@ -691,7 +691,7 @@ public:
                           bool ignore_transform = false,
                           bool quiet = true) const override;
 
-    bool wear_barding() const;
+    bool can_wear_barding(bool temp = false) const;
 
     string name(description_level_type type, bool force_visible = false,
                 bool force_article = false) const override;
@@ -1032,7 +1032,7 @@ int player_condensation_shield_class();
 int sanguine_armour_bonus();
 
 int player_wizardry();
-int player_channeling();
+int player_channelling();
 
 int player_prot_life(bool allow_random = true, bool temp = true,
                      bool items = true);
@@ -1056,7 +1056,7 @@ int player_res_sticky_flame();
 int player_res_steam(bool allow_random = true, bool temp = true,
                      bool items = true);
 int player_res_poison(bool allow_random = true, bool temp = true,
-                      bool items = true);
+                      bool items = true, bool forms = true);
 int player_willpower(bool temp = true);
 
 int player_shield_class(int scale = 1, bool random = true,

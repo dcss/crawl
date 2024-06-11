@@ -665,6 +665,14 @@ static beam_type _chaos_beam_flavour(bolt* beam)
     return flavour;
 }
 
+dice_def combustion_breath_damage(int pow, bool allow_random)
+{
+    if (allow_random)
+        return dice_def(3, 3 + div_rand_round(pow * 2, 3));
+    else
+        return dice_def(3, 3 + pow * 2 / 3);
+}
+
 static void _combustion_breath_explode(bolt *parent, coord_def pos)
 {
     bolt beam;
@@ -672,7 +680,7 @@ static void _combustion_breath_explode(bolt *parent, coord_def pos)
     bolt_parent_init(*parent, beam);
     beam.name         = "fiery explosion";
     beam.aux_source   = "combustion breath";
-    beam.damage       = dice_def(3, 3 + div_rand_round(parent->ench_power * 2, 3));
+    beam.damage       = combustion_breath_damage(parent->ench_power);
     beam.colour       = RED;
     beam.flavour      = BEAM_FIRE;
     beam.is_explosion = true;
@@ -2360,6 +2368,7 @@ bool bolt::is_bouncy(dungeon_feature_type feat) const
 
     if (flavour == BEAM_ELECTRICITY
         && origin_spell != SPELL_BLINKBOLT
+        && origin_spell != SPELL_MAGNAVOLT
         && !feat_is_metal(feat)
         && !feat_is_tree(feat))
     {
@@ -2635,6 +2644,11 @@ void bolt::affect_endpoint()
 
     case SPELL_FLASHING_BALESTRA:
     {
+        // If the initial bolt is reflected or redirected back at the summoner,
+        // we can crash on trying to create the summon.
+        if (!agent(true) || !agent(true)->alive())
+            break;
+
         coord_def spot;
         int num_found = 0;
         for (adjacent_iterator ai(pos()); ai; ++ai)
@@ -2657,6 +2671,30 @@ void bolt::affect_endpoint()
         }
     }
     break;
+
+    case SPELL_GREATER_ENSNARE:
+    {
+        int count = random_range(3, 6);
+        for (distance_iterator di(pos(), true, true, 1); di && count > 0; ++di)
+        {
+            trap_def *trap = trap_at(*di);
+            if (trap && trap->type != TRAP_WEB
+                || !trap && env.grid(*di) != DNGN_FLOOR)
+            {
+                continue;
+            }
+
+            if (actor_at(*di))
+                ensnare(actor_at(*di));
+            else
+            {
+                temp_change_terrain(*di, DNGN_TRAP_WEB, random_range(60, 110),
+                                    TERRAIN_CHANGE_WEBS);
+            }
+            count--;
+        }
+        break;
+    }
 
     default:
         break;
@@ -4309,6 +4347,7 @@ void bolt::affect_player()
     if (origin_spell == SPELL_FLASH_FREEZE
         || origin_spell == SPELL_CREEPING_FROST
         || name == "blast of ice"
+        || origin_spell == SPELL_HOARFROST_BULLET
         || origin_spell == SPELL_GLACIATE && !is_explosion)
     {
         if (!you.duration[DUR_FROZEN])
@@ -5540,7 +5579,7 @@ bool bolt::ignores_monster(const monster* mon) const
     // This is the lava digging tracer. It will stop at anything which cannot
     // survive having lava put beneath it (ie: ignore everything else)
     if (origin_spell == SPELL_HELLFIRE_MORTAR)
-        return mon->airborne() || monster_habitable_grid(mon, DNGN_LAVA);
+        return mon && (mon->airborne() || monster_habitable_grid(mon, DNGN_LAVA));
 
     // Digging doesn't affect monsters (should it harm earth elementals?).
     if (flavour == BEAM_DIGGING)
@@ -5584,6 +5623,9 @@ bool bolt::ignores_monster(const monster* mon) const
     int summon_type = 0;
     mon->is_summoned(nullptr, &summon_type);
     if (flavour == BEAM_QAZLAL && summon_type == MON_SUMM_AID)
+        return true;
+
+    if (origin_spell == SPELL_UPHEAVAL && agent() && agent() == mon)
         return true;
 
     return false;
@@ -5756,8 +5798,7 @@ bool ench_flavour_affects_monster(actor *agent, beam_type flavour,
         break;
 
     case BEAM_RIMEBLIGHT:
-        rc = !mon->has_ench(ENCH_RIMEBLIGHT)
-             && mon->holiness() & (MH_NATURAL | MH_DEMONIC | MH_HOLY);
+        rc = !mon->has_ench(ENCH_RIMEBLIGHT);
         break;
 
     default:

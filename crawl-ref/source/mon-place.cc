@@ -759,6 +759,9 @@ monster* place_monster(mgen_data mg, bool force_pos, bool dont_place)
     if (mon->mindex() >= MAX_MONSTERS - 30)
         return mon;
 
+    if (band_size > 1)
+        mon->flags |= MF_BAND_LEADER;
+
     const bool priest = mon->is_priest();
 
     mgen_data band_template = mg;
@@ -884,7 +887,9 @@ static void _place_monster_set_god(monster *mon, monster_type cls,
         // Draconian stormcallers worship Qazlal.
         else if (cls == MONS_DRACONIAN_STORMCALLER)
             mon->god = GOD_QAZLAL;
+        // Demonspawn blood saints, hell knights, and Asterion worship Makhleb.
         else if (cls == MONS_DEMONSPAWN_BLOOD_SAINT
+                 || cls == MONS_HELL_KNIGHT
                  || cls == MONS_ASTERION)
         {
             mon->god = GOD_MAKHLEB;
@@ -932,10 +937,8 @@ static void _place_monster_set_god(monster *mon, monster_type cls,
     else if (cls == MONS_CRAZY_YIUF)
         mon->god = GOD_XOM;
     // Grinder and Ignacio belong to Makhleb.
-    // Hell Knights need some reason to be evil.
     else if (cls == MONS_GRINDER
-             || cls == MONS_IGNACIO
-             || cls == MONS_HELL_KNIGHT)
+             || cls == MONS_IGNACIO)
     {
         mon->god = GOD_MAKHLEB;
     }
@@ -1249,7 +1252,7 @@ static monster* _place_monster_aux(const mgen_data &mg, const monster *leader,
 
 
     if (mon->has_spell(SPELL_REPEL_MISSILES))
-        mon->add_ench(ENCH_REPEL_MISSILES);
+        mon->add_ench(mon_enchant(ENCH_REPEL_MISSILES, 1, mon, INFINITE_DURATION));
 
     if (mons_class_flag(mon->type, M_FIRE_RING))
         mon->add_ench(ENCH_RING_OF_FLAMES);
@@ -2011,7 +2014,7 @@ static const map<monster_type, band_set> bands_by_leader = {
     { MONS_NORRIS,           { {}, {{ BAND_SKYSHARKS, {2, 5}, true }}}},
     { MONS_UFETUBUS,         { {}, {{ BAND_UFETUBI, {1, 2} }}}},
     { MONS_KOBOLD_BLASTMINER, { {}, {{ BAND_BLASTMINER, {0, 2} }}}},
-    { MONS_ARACHNE,          { {}, {{ BAND_ORB_SPIDERS, {2, 4}}}}},
+    { MONS_ARACHNE,          { {}, {{ BAND_ORB_SPIDERS, {3, 5}}}}},
 
     // special-cased band-sizes
     { MONS_SPRIGGAN_DRUID,  { {3}, {{ BAND_SPRIGGAN_DRUID, {0, 1}, true }}}},

@@ -194,10 +194,6 @@ Call Lost Souls cast
 
 @The_monster@ beckons forth restless souls!
 %%%%
-Haste Plants cast
-
-@The_monster@ empowers the plants around @reflexive@!
-%%%%
 Major Destruction cast
 
 @The_monster@ conjures a destructive force in the name of @possessive_God@!
@@ -589,6 +585,14 @@ Paralyse Xtahua cast
 @The_monster@ roars overwhelmingly @at@ @target@!
 
 @The_monster@ thunders ferociously @at@ @target@!
+%%%%
+Hellfire Mortar Wiglaf cast
+
+VISUAL:@The_monster@ slams @possessive@ weapon against the ground.
+
+@The_monster@ shouts @at@ @foe@, "Taste the blood o the mountain!"
+
+@The_monster@ roars @at@ @foe@, "Let me show ye whit a REAL cannon looks like!"
 %%%%
 ########################################################################
 # Individual monsters

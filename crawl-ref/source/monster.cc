@@ -858,7 +858,7 @@ void monster::equip_weapon_message(item_def &item)
         mpr("It is briefly surrounded by shifting shadows.");
         break;
     case SPWPN_ACID:
-        mprf("It begins to drip corrosive slime!");
+        mpr("It begins to drip corrosive slime!");
         break;
 
     default:
@@ -1611,6 +1611,11 @@ bool monster::wants_jewellery(const item_def &item) const
         return false;
     }
 
+    // XXX: Because Wiglaf's hat is stored in the jewelry slot (there wasn't
+    //      room elsewhere!), don't pick up anything that would push it out.
+    if (type == MONS_WIGLAF)
+        return false;
+
     // TODO: figure out what monsters actually want rings or amulets
     return true;
 }
@@ -1688,6 +1693,9 @@ bool monster::pickup_armour(item_def &item, bool msg, bool force)
     case ARM_HAT:
         if (base_type == MONS_GASTRONOK || genus == MONS_OCTOPODE)
             eq = EQ_BODY_ARMOUR;
+        // The worst one
+        else if (base_type == MONS_WIGLAF)
+            eq = EQ_RINGS;
         break;
     case ARM_CLOAK:
         if (base_type == MONS_MAURICE
@@ -2765,8 +2773,6 @@ void monster::banish(const actor *agent, const string &, const int, bool force)
                            MSGCH_BANISHMENT);
     if (agent && mons_gives_xp(*this, *agent) && damage_contributes_xp(*agent))
     {
-        // Count all remaining HP as damage done by you.
-        // (monster_die won't double-dip as KILL_BANISHED has an anonymous source)
         damage_friendly += hit_points;
         // Note: we do not set MF_PACIFIED, the monster is usually not
         // distinguishable from others of the same kind in the Abyss.
@@ -2777,7 +2783,7 @@ void monster::banish(const actor *agent, const string &, const int, bool force)
                             true /*possibly wrong*/, this);
         }
     }
-    monster_die(*this, KILL_BANISHED, NON_MONSTER);
+    monster_die(*this, KILL_BANISHED, agent->mindex());
 
     if (!cell_is_solid(old_pos))
         place_cloud(CLOUD_TLOC_ENERGY, old_pos, 5 + random2(8), 0);
@@ -4063,6 +4069,7 @@ int monster::skill(skill_type sk, int scale, bool /*real*/, bool /*temp*/) const
     case SK_NECROMANCY:
         return (has_spell_of_type(spschool::necromancy)) ? hd : hd/2;
 
+    case SK_CONJURATIONS:
     case SK_ALCHEMY:
     case SK_FIRE_MAGIC:
     case SK_ICE_MAGIC:
@@ -6432,9 +6439,15 @@ void monster::remove_summons(bool check_attitude)
         if ((!check_attitude || attitude != mi->attitude)
             && mi->summoner == mid
             && (mi->is_summoned(nullptr, &sumtype)
-                || sumtype == MON_SUMM_CLONE))
+                || sumtype == MON_SUMM_CLONE)
+                || sumtype == SPELL_HOARFROST_CANNONADE)
         {
             mi->del_ench(ENCH_ABJ);
+
+            // TODO: Make non-abjurable things that should still be removed on
+            //       caster death not be special-cased in 4 different ways.
+            if (sumtype == SPELL_HOARFROST_CANNONADE)
+                mi->del_ench(ENCH_FAKE_ABJURATION);
         }
     }
 }
@@ -6482,6 +6495,10 @@ bool monster::is_band_follower_of(const monster& leader) const
 
 bool monster::is_band_leader_of(const monster& follower) const
 {
+    // Check if we're a leader of anyone at all
+    if (!testbits(flags, MF_BAND_LEADER))
+        return false;
+
     return follower.is_band_follower_of(*this);
 }
 

@@ -182,6 +182,7 @@ public:
     string melding_description() const;
 
     virtual vector<string> get_fakemuts(bool terse) const;
+    virtual vector<string> get_bad_fakemuts(bool terse) const;
 
 public:
     /// Status light ("Foo"); "" for none
@@ -292,6 +293,7 @@ private:
     const int hp_mod;
 
     vector<pair<string,string>> fakemuts;
+    vector<pair<string,string>> badmuts;
 };
 const Form* get_form(transformation form = you.form);
 const Form* cur_form(bool temp);
@@ -310,7 +312,6 @@ bool form_can_wield(transformation form = you.form);
 bool form_can_wear(transformation form = you.form);
 bool form_can_fly(transformation form = you.form);
 bool form_can_swim(transformation form = you.form);
-bool form_likes_water(transformation form = you.form);
 bool form_changed_physiology(transformation form = you.form);
 bool form_can_bleed(transformation form = you.form);
 // Does the form keep the benefits of resistance, scale, and aux mutations?
