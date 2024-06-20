@@ -710,6 +710,7 @@ void beogh_recruit_apostle()
     else
     {
         real = apostles[0].restore();
+        real->behaviour = BEH_STICK;
         msg += "Beogh breathes life back into " + real->name(DESC_THE, true) + " and ";
     }
 
@@ -730,7 +731,7 @@ void beogh_recruit_apostle()
 
     // Make the apostle stop wandering around and head back to you.
     real->foe = MHITYOU;
-    real->behaviour = BEH_SEEK;
+    real->behaviour = BEH_STICK;
     real->patrol_point.reset();
 
     add_companion(real);
