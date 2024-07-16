@@ -606,21 +606,21 @@ bool fill_status_info(int status, status_info& inf)
             inf.short_text   = "extremely drained";
             inf.long_text    = "Your life force is extremely drained.";
         }
-        else if (drain_perc >= 25)
+        else if (drain_perc >= 30)
         {
             inf.light_colour = RED;
             inf.light_text   = "Drain";
             inf.short_text   = "very heavily drained";
             inf.long_text    = "Your life force is very heavily drained.";
         }
-        else if (drain_perc >= 10)
+        else if (drain_perc >= 20)
         {
             inf.light_colour = LIGHTRED;
             inf.light_text   = "Drain";
             inf.short_text   = "heavily drained";
             inf.long_text    = "Your life force is heavily drained.";
         }
-        else if (drain_perc >= 5)
+        else if (drain_perc >= 10)
         {
             inf.light_colour = YELLOW;
             inf.light_text   = "Drain";
@@ -1147,16 +1147,10 @@ static void _describe_terrain(status_info& inf)
 
 static void _describe_invisible(status_info& inf)
 {
-    if (!you.duration[DUR_INVIS] && you.form != transformation::shadow)
+    if (!you.duration[DUR_INVIS])
         return;
 
-    if (you.form == transformation::shadow)
-    {
-        inf.light_colour = _dur_colour(WHITE,
-                                        dur_expiring(DUR_TRANSFORMATION));
-    }
-    else
-        inf.light_colour = _dur_colour(BLUE, dur_expiring(DUR_INVIS));
+    inf.light_colour = _dur_colour(BLUE, dur_expiring(DUR_INVIS));
     inf.light_text   = "Invis";
     inf.short_text   = "invisible";
     if (you.backlit())
@@ -1165,9 +1159,7 @@ static void _describe_invisible(status_info& inf)
         inf.short_text += " (but backlit and visible)";
     }
     inf.long_text = "You are " + inf.short_text + ".";
-    _mark_expiring(inf, dur_expiring(you.form == transformation::shadow
-                                     ? DUR_TRANSFORMATION
-                                     : DUR_INVIS));
+    _mark_expiring(inf, dur_expiring(DUR_INVIS));
 }
 
 /**

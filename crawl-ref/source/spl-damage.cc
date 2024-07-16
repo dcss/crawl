@@ -600,7 +600,7 @@ static bool _drain_lifeable(const actor* agent, const actor* act)
 
     return !(agent->is_player() && act->wont_attack()
              || mons && act->is_player() && mons->wont_attack()
-             || mons && m && mons_atts_aligned(mons->attitude, m->attitude));
+             || mons && m && mons_aligned(mons, m));
 }
 
 static int _los_spell_damage_actor(const actor* agent, actor &target,
@@ -635,7 +635,11 @@ static int _los_spell_damage_actor(const actor* agent, actor &target,
     if (mon_targ)
         hurted = mons_adjust_flavoured(mon_targ, beam, hurted, doFlavour);
     else
+    {
         hurted = check_your_resists(hurted, beam.flavour, beam.name, 0, doFlavour);
+        if (agent->real_attitude() == ATT_MARIONETTE)
+            hurted = 0;
+    }
     dprf("damage done: %d", hurted);
 
     if (actual)
@@ -2918,16 +2922,8 @@ static bool _plasma_targetable(const actor &agent, monster &m, bool actual)
     if (!_act_worth_targeting(agent, m))
         return false;
 
-    if (agent.is_monster())
-    {
-        if (mons_atts_aligned(agent.as_monster()->attitude, m.attitude))
-            return false;
-    }
-    else
-    {
-        if (m.wont_attack())
-            return false;
-    }
+    if (mons_aligned(&agent, &m))
+        return false;
 
     return actual || agent.can_see(m);
 }

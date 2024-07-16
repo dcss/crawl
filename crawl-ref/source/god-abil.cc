@@ -59,6 +59,7 @@
 #include "message.h"
 #include "mon-act.h"
 #include "mon-behv.h"
+#include "mon-cast.h"
 #include "mon-death.h"
 #include "mon-gear.h" // H: give_weapon()/give_armour()
 #include "mon-pathfind.h"
@@ -96,7 +97,9 @@
 #include "teleport.h" // monster_teleport
 #include "terrain.h"
 #ifdef USE_TILE
+ #include "tilepick.h"
  #include "rltiles/tiledef-main.h"
+ #include "rltiles/tiledef-player.h"
 #endif
 #include "timed-effects.h"
 #include "transform.h" // untransform
@@ -2537,17 +2540,20 @@ void beogh_blood_for_blood()
     }
 }
 
+bool mons_is_blood_for_blood_orc(const monster& mon)
+{
+    return mon.has_ench(ENCH_SUMMON)
+            && mon.get_ench(ENCH_SUMMON).degree == MON_SUMM_AID
+            && mons_genus(mon.type) == MONS_ORC;
+}
+
 static int _count_orcish_reinforcements()
 {
     int count = 0;
     for (monster_iterator mi; mi; ++mi)
     {
-        if (mi->has_ench(ENCH_SUMMON)
-            && mi->get_ench(ENCH_SUMMON).degree == MON_SUMM_AID
-            && mons_genus(mi->type) == MONS_ORC)
-        {
+        if (mons_is_blood_for_blood_orc(**mi))
             count += 1;
-        }
     }
 
     return count;
@@ -2644,7 +2650,8 @@ void beogh_end_blood_for_blood()
 void beogh_ally_healing()
 {
     if (!you.props.exists(BEOGH_DAMAGE_DONE_KEY)
-        || x_chance_in_y(2, 5))
+        || x_chance_in_y(2, 5)
+        || you.piety < piety_breakpoint(3))
     {
         you.props.erase(BEOGH_DAMAGE_DONE_KEY);
         return;
@@ -2653,7 +2660,7 @@ void beogh_ally_healing()
     int value = you.props[BEOGH_DAMAGE_DONE_KEY].get_int();
     you.props.erase(BEOGH_DAMAGE_DONE_KEY);
 
-    value = value * 4 / 10;
+    value = value * 6 / 10;
 
     // Skip small heals
     if (value < 5)
@@ -2766,103 +2773,335 @@ void beogh_increase_orcification()
     you.props[ORCIFICATION_LEVEL_KEY] = 1;
 }
 
-spret dithmenos_shadow_step(bool fail)
+void dithmenos_change_shadow_appearance(monster& shadow, int dur)
 {
-    // You can shadow-step anywhere within your umbra.
-    ASSERT(you.umbra_radius() > -1);
-    const int range = you.umbra_radius();
+#ifdef USE_TILE
+    // Change tile to show our shadow is in decoy mode
+    shadow.props[MONSTER_TILE_KEY].get_int() = tileidx_player_shadow();
+    shadow.add_ench(mon_enchant(ENCH_CHANGED_APPEARANCE, 0, &you, dur));
+#endif
+}
 
-    targeter_shadow_step tgt(&you, you.umbra_radius());
-    direction_chooser_args args;
-    args.hitfunc = &tgt;
-    args.restricts = DIR_SHADOW_STEP;
-    args.mode = TARG_HOSTILE;
-    args.range = range;
-    args.just_looking = false;
-    args.needs_path = false;
-    args.top_prompt = "Aiming: <white>Shadow Step</white>";
-    dist sdirect;
-    direction(sdirect, args);
-    if (!sdirect.isValid || tgt.landing_site.origin())
+string dithmenos_cannot_shadowslip_reason()
+{
+    const monster* shadow = dithmenos_get_player_shadow();
+    if (!shadow)
+        return "Your shadow is still firmly attached to your body.";
+    else if (!you.can_see(*shadow))
+        return "Your shadow isn't in sight!";
+    else if (is_feat_dangerous(env.grid(shadow->pos())))
     {
-        canned_msg(MSG_OK);
-        return spret::abort;
+        return make_stringf("It would be unwise to slip onto %s.",
+                             env.grid(shadow->pos()) == DNGN_DEEP_WATER
+                                ? "deep water" : "lava");
     }
 
-    // Check for hazards.
-    bool zot_trap_prompted = false,
-         trap_prompted = false,
-         exclusion_prompted = false,
-         cloud_prompted = false,
-         terrain_prompted = false;
+    return "";
+}
 
-    for (auto site : tgt.additional_sites)
+spret dithmenos_shadowslip(bool fail)
+{
+    fail_check();
+
+    monster* shadow = dithmenos_get_player_shadow();
+    ASSERT(shadow && shadow->alive());
+
+    you.stop_being_constricted(false, "slip");
+
+    const coord_def shadow_pos = shadow->pos();
+    const coord_def you_pos = you.pos();
+
+    mpr("You swap places with your shadow and weave the vestiges of your form into it.");
+
+    shadow->move_to_pos(you.pos(), true, true);
+    you.move_to_pos(shadow_pos, true, true);
+
+    you.apply_location_effects(you_pos);
+    shadow->apply_location_effects(shadow_pos);
+
+    // Paranoia, in case swapping somehow killed our shadow entirely
+    // (But clouds don't trigger without time passing? Maybe there's some way...)
+    if (!shadow || !shadow->alive())
+        return spret::success;
+
+    // Mislead all hostiles around the shadow's new location
+    int dur = random_range(40, 60 + you.skill(SK_INVOCATIONS, 2));
+    for (monster_near_iterator mi(shadow->pos(), LOS_NO_TRANS); mi; ++mi)
     {
-        if (!cloud_prompted
-            && !check_moveto_cloud(site, "shadow step", &cloud_prompted))
+        // For every monster in sight of both the player *and* their shadow, and
+        // which is currently aware of and targeting the player, direct their
+        // attention towards the shadow instead.
+        if (*mi != shadow && !mons_aligned(*mi, shadow)
+            && you.see_cell_no_trans(mi->pos()))
         {
-            canned_msg(MSG_OK);
-            return spret::abort;
-        }
-
-        if (!zot_trap_prompted)
-        {
-            trap_def* trap = trap_at(site);
-            if (trap && trap->type == TRAP_ZOT)
+            // Enemies that are already misdirected will have their status
+            // updated to the new shadow.
+            if (mi->has_ench(ENCH_MISDIRECTED))
             {
-                if (!check_moveto_trap(site, "shadow step",
-                                       &trap_prompted))
+                mon_enchant en = mi->get_ench(ENCH_MISDIRECTED);
+                en.source = shadow->mid;
+                en.duration = dur;
+                mi->update_ench(en);
+                continue;
+            }
+            // Otherwise don't distract things that aren't already focused on the player
+            else if (mi->foe == MHITYOU && mi->behaviour == BEH_SEEK)
+            {
+                // Add enchantment and immediately update the monster's target
+                mi->add_ench(mon_enchant(ENCH_MISDIRECTED, 0, shadow, dur));
+                mi->foe = shadow->mindex();
+                mi->behaviour = BEH_SEEK;
+
+                mprf("%s turns %s attention towards your shadow.",
+                        mi->name(DESC_THE).c_str(),
+                        mi->pronoun(PRONOUN_POSSESSIVE).c_str());
+            }
+        }
+    }
+
+    // Extend our shadow's life to last at least as long as the misdirection
+    shadow->add_ench(mon_enchant(ENCH_FAKE_ABJURATION, 0, &you, dur));
+
+    dithmenos_change_shadow_appearance(*shadow, dur);
+
+    return spret::success;
+}
+
+spret dithmenos_nightfall(bool fail)
+{
+    fail_check();
+
+    mpr("The world around you is engulfed in lightless night!");
+
+    const int dur = (random_range(16, 24) + you.skill_rdiv(SK_INVOCATIONS, 2, 3))
+                        * BASELINE_DELAY;
+    you.duration[DUR_PRIMORDIAL_NIGHTFALL] = dur;
+    you.props[NIGHTFALL_INITIAL_DUR_KEY] = dur;
+
+    return spret::success;
+}
+
+bool valid_marionette_spell(spell_type spell)
+{
+    switch (spell)
+    {
+        // Generally bad for the player (or cannot be stolen by them)
+        case SPELL_REPEL_MISSILES:
+        case SPELL_SPRINT:
+        case SPELL_ROLL:
+        case SPELL_WOODWEAL:
+        case SPELL_MINOR_HEALING:
+        case SPELL_MAJOR_HEALING:
+        case SPELL_INJURY_MIRROR:
+        case SPELL_WARNING_CRY:
+        case SPELL_SENTINEL_MARK:
+        case SPELL_WORD_OF_RECALL:
+        case SPELL_SEAL_DOORS:
+        case SPELL_STILL_WINDS:
+        case SPELL_DIG:
+        case SPELL_SILENCE:
+        case SPELL_WALL_OF_BRAMBLES:
+        case SPELL_CALL_TIDE:
+        case SPELL_DRUIDS_CALL:
+
+        // Doesn't do anything to monsters
+        case SPELL_MESMERISE:
+        case SPELL_SIREN_SONG:
+        case SPELL_AVATAR_SONG:
+
+        // Would be buggy to try
+        case SPELL_CREATE_TENTACLES:
+        case SPELL_FAKE_MARA_SUMMON:
+
+        // Generally likely to be useless
+        case SPELL_CANTRIP:
+        case SPELL_BLINK:
+        case SPELL_BLINK_ALLIES_AWAY:
+        case SPELL_BLINK_ALLIES_ENCIRCLE:
+        case SPELL_BLINK_AWAY:
+        case SPELL_BLINK_CLOSE:
+        case SPELL_BLINK_RANGE:
+        case SPELL_WIND_BLAST:
+        case SPELL_DIMENSION_ANCHOR:
+        case SPELL_INK_CLOUD:
+
+        // Could possibly be adapted to function, but currently doesn't
+        case SPELL_MALIGN_GATEWAY:
+        case SPELL_SPECTRAL_CLOUD:
+        case SPELL_CORRUPTING_PULSE:
+        case SPELL_OLGREBS_TOXIC_RADIANCE:
+        case SPELL_POLAR_VORTEX:
+        case SPELL_SUMMON_ILLUSION:
+        case SPELL_BATTLESPHERE:
+            return false;
+
+        default:
+            return true;
+    }
+}
+
+static bool _marionette_spell_attempt(monster& caster, spell_type spell, vector<monster*>& targs)
+{
+    shuffle_array(targs);
+
+    for (monster* targ : targs)
+    {
+        if (targ == &caster || !targ->alive())
+            continue;
+
+        caster.foe = targ->mindex();
+        caster.target = targ->pos();
+        if (try_mons_cast(caster, spell))
+            return true;
+    }
+
+    return false;
+}
+
+// Checks whether there is at least one valid target to use marionette on, and
+// one valid remaining monster for them to use as a foe, if you did so.
+string dithmenos_cannot_marionette_reason()
+{
+    bool found_marionette = false;
+    int audience_size = 0;
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (!you.can_see(**mi) || mi->wont_attack() || mons_is_firewood(**mi))
+            continue;
+
+        if (!found_marionette && !mi->has_ench(ENCH_SHADOWLESS))
+        {
+            for (mon_spell_slot spell : mi->spells)
+            {
+                if (valid_marionette_spell(spell.spell))
                 {
-                    canned_msg(MSG_OK);
-                    return spret::abort;
+                    found_marionette = true;
+                    break;
                 }
-                zot_trap_prompted = true;
-            }
-            else if (!trap_prompted
-                     && !check_moveto_trap(site, "shadow step",
-                                           &trap_prompted))
-            {
-                canned_msg(MSG_OK);
-                return spret::abort;
             }
         }
 
-        if (!exclusion_prompted
-            && !check_moveto_exclusion(site, "shadow step",
-                                       &exclusion_prompted))
-        {
-            canned_msg(MSG_OK);
-            return spret::abort;
-        }
-
-        if (!terrain_prompted
-            && !check_moveto_terrain(site, "shadow step", "",
-                                     &terrain_prompted))
-        {
-            canned_msg(MSG_OK);
-            return spret::abort;
-        }
+        ++audience_size;
+        if (audience_size >= 2 && found_marionette)
+            return "";
     }
+
+    if (!found_marionette)
+        return "There isn't a suitable marionette in sight.";
+
+    if (audience_size < 2)
+        return "A shadow play requires a proper audience as well as an actor.";
+
+    // Should be unreachable
+    return "A shadow play requires a strange bug not to happen!";
+}
+
+spret dithmenos_marionette(monster& target, bool fail)
+{
+    vector<spell_type> mon_spells;
+    for (const mon_spell_slot slot : target.spells)
+    {
+        if (valid_marionette_spell(slot.spell))
+            mon_spells.push_back(slot.spell);
+    }
+
+    // Should be impossible, I think.
+    if (mon_spells.empty())
+        return spret::abort;
 
     fail_check();
 
-    you.stop_being_constricted(false, "step");
+    mprf("You grasp %s shadow with your own and put on a performance!",
+          target.name(DESC_ITS).c_str());
 
-    const coord_def old_pos = you.pos();
-    // XXX: This only ever fails if something's on the landing site;
-    // perhaps this should be handled more gracefully.
-    if (!you.move_to_pos(tgt.landing_site))
+    behaviour_event(&target, ME_WHACK, &you);
+
+    vector<monster*> valid_targs;
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
     {
-        mpr("Something blocks your shadow step.");
+        if (you.can_see(**mi) && !mi->wont_attack() && !mons_is_firewood(**mi)
+            && *mi != &target)
+        {
+            valid_targs.push_back(*mi);
+        }
+    }
+
+    int num_casts = 3 + max(0, you.skill_rdiv(SK_INVOCATIONS, 1, 6) - 2);
+    int num_successful_casts = 0;
+
+    const int old_foe = target.foe;
+    const coord_def old_target = target.target;
+    const int old_energy = target.speed_increment;
+    target.attitude = ATT_MARIONETTE;
+    env.final_effect_monster_cache.push_back(target);
+
+    // Attempt to cast all valid spells the monster has, in randomized order,
+    // (but using all spells at least once before repeating). End early if the
+    // monster dies or we fail to be able to validly cast any spell.
+    while (num_successful_casts < num_casts)
+    {
+        shuffle_array(mon_spells);
+        bool success = false;
+
+        for (size_t j = 0; j < mon_spells.size(); ++j)
+        {
+            if (_marionette_spell_attempt(target, mon_spells[j], valid_targs))
+            {
+                ++num_successful_casts;
+                success = true;
+            }
+
+            if (!target.alive())
+                break;
+
+            if (num_successful_casts >= num_casts)
+                break;
+        }
+
+        // Skip trying for more spells if we just tried every spell we have and
+        // it didn't work.
+        if (!target.alive() || !success)
+            break;
+    }
+
+    // Return monster to its prior state (after a fashion)
+    if (target.alive())
+    {
+        target.foe = old_foe;
+        target.target = old_target;
+        target.speed_increment = old_energy;
+        target.attitude = ATT_HOSTILE;
+    }
+
+    // Charge piety based on how many spells were actually performed.
+    // No additional cost if nothing happened, reduced cost for 1, standard
+    // cost for anything greater than 1.
+    if (!num_successful_casts)
+    {
+        mpr("...but nothing seems to happen.");
         return spret::success;
     }
 
-    const actor *victim = actor_at(sdirect.target);
-    mprf("You step into %s shadow.",
-         apostrophise(victim->name(DESC_THE)).c_str());
-    // Using 'stepped = true' here because it's Shadow *Step*.
-    // This helps to evade splash upon landing on water.
-    moveto_location_effects(env.grid(old_pos), true, old_pos);
+    // 1 piety was paid up front, so imitates a standard 3 piety ability.
+    int piety_cost = random_range(2, 5);
+    if (num_successful_casts == 1)
+        piety_cost = div_rand_round(piety_cost, 2);
+    lose_piety(piety_cost);
+
+    if (!target.alive())
+    {
+        mpr("Your performance comes to an abrupt end.");
+        return spret::success;
+    }
+
+    target.add_ench(ENCH_SHADOWLESS);
+    mprf("%s shadow slips away and your performance ends.",
+            target.name(DESC_ITS).c_str());
+
+    // Let the monster complain about what you did to them, in their own way.
+    string msg = getSpeakString(target.name(DESC_PLAIN) + " marionette");
+    if (!msg.empty() && (mons_is_unique(target.type) || one_chance_in(4)))
+        mons_speaks_msg(&target, msg, MSGCH_TALK);
 
     return spret::success;
 }

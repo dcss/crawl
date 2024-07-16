@@ -6,6 +6,8 @@
 #include "mgen-enum.h"
 #include "mon-enum.h"
 #include "mon-flags.h"
+#include "mon-util.h"
+#include "player.h"
 #include "xp-tracking-type.h"
 
 // Hash key for passing a weapon to be given to
@@ -163,7 +165,18 @@ struct mgen_data
     mgen_data &set_summoned(const actor* _summoner, int abjuration_dur,
                             int _summon_type, god_type _god = GOD_NO_GOD)
     {
-        summoner = _summoner;
+        // Hijack any summons created by player shadows or marionettes to belong
+        // to the player (your shadow is too emphemeral to keep them from
+        // poofing and marionette is a one-shot effect)
+        if (_summoner && _summoner->is_monster()
+            && (mons_is_player_shadow(*_summoner->as_monster())
+                || _summoner->real_attitude() == ATT_MARIONETTE))
+        {
+            summoner = &you;
+            behaviour = BEH_FRIENDLY;
+        }
+        else
+            summoner = _summoner;
         abjuration_duration = abjuration_dur;
         summon_type = _summon_type;
         if (_god != GOD_NO_GOD)
@@ -183,6 +196,7 @@ struct mgen_data
                || summon_type == SPELL_SIMULACRUM
                || summon_type == SPELL_AWAKEN_VINES
                || summon_type == SPELL_FULMINANT_PRISM
+               || summon_type == SPELL_SHADOW_PRISM
                || summon_type == SPELL_INFESTATION
                || summon_type == SPELL_FOXFIRE
                || summon_type == SPELL_MARSHLIGHT

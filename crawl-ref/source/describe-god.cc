@@ -80,7 +80,7 @@ int god_favour_rank(god_type which_god)
 {
     if (which_god == GOD_GOZAG)
         return _gold_level();
-    else if (which_god == GOD_USKAYAW || which_god == GOD_YREDELEMNUL)
+    else if (which_god == GOD_USKAYAW)
         return _invocations_level();
     else
         return _piety_level(you.piety);
@@ -208,8 +208,8 @@ static const char *divine_title[][8] =
         "Oracle",            "Illuminatus",            "Prince of Secrets",        "Omniscient"},
 
     // Dithmenos -- darkness theme
-    {"Ember",              "Gloomy",                "Darkened",                 "Extinguished",
-        "Caliginous",         "Umbral",                "Hand of Shadow",           "Eternal Night"},
+    {"Conspicuous",         "Nocturnal",            "Bump in the Night",        "Thespian",
+        "Tenebrous",          "Puppetmaster",          "@Walking@ Midnight",       "Who Hides the Stars"},
 
     // Gozag -- entrepreneur theme
     {"Profligate",         "Pauper",                "Entrepreneur",             "Capitalist",
@@ -834,7 +834,7 @@ static formatted_string _describe_god_powers(god_type which_god)
     case GOD_JIYVA:
         have_any = true;
         desc.cprintf("Jellies are peaceful and will consume items off the floor.\n");
-        desc.cprintf("Jiyva prevents you from injuring jellies.\n");
+        desc.cprintf("Jiyva prevents you from harming jellies.\n");
 
         if (have_passive(passive_t::jelly_regen))
             desc.textcolour(god_colour(which_god));
@@ -885,20 +885,7 @@ static formatted_string _describe_god_powers(god_type which_god)
         break;
 
     case GOD_DITHMENOS:
-    {
-        have_any = true;
-        const int umbra_size = you_worship(which_god) ? you.umbra_radius() : -1;
-        if (umbra_size < 0)
-            desc.textcolour(DARKGREY);
-        else
-            desc.textcolour(god_colour(which_god));
-        desc.cprintf("You radiate a%s aura of darkness, enhancing your stealth "
-                "and reducing the accuracy of your foes.\n",
-                umbra_size > 5 ? " large" :
-                umbra_size > 3 ? "n" :
-                                 " small");
         break;
-    }
 
     case GOD_HEPLIAKLQANA:
         // Frailty occurs even under penance post-abandonment, so we can't put

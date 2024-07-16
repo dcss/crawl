@@ -55,6 +55,7 @@
 #include "prompt.h"
 #include "religion.h"
 #include "shout.h"
+#include "spl-book.h"
 #include "spl-util.h"
 #include "spl-zap.h"
 #include "state.h"
@@ -1041,7 +1042,7 @@ static bool _summon_common_demon(int pow, god_type god, int spell)
 
     return _summon_demon_wrapper(pow, god, spell, type,
                                  min(2 + (random2(pow) / 4), 6),
-                                 random2(pow) > 3, false);
+                                 true, false);
 }
 
 bool summon_demon_type(monster_type mon, int pow, god_type god,
@@ -1578,9 +1579,20 @@ static spell_type servitor_spells[] =
  */
 spell_type player_servitor_spell()
 {
+    if (you.props.exists(SERVITOR_SPELL_KEY))
+    {
+        spell_type spell = (spell_type)you.props[SERVITOR_SPELL_KEY].get_int();
+        // Double-check that we know the spell and can cast it well enough, since
+        // both things may have changed since it was saved.
+        if (you.has_spell(spell) && failure_rate_to_int(raw_spell_fail(spell)) <= 20)
+            return spell;
+    }
+
+    // Fallback using default list if none was specified.
     for (const spell_type spell : servitor_spells)
         if (you.has_spell(spell) && failure_rate_to_int(raw_spell_fail(spell)) <= 20)
             return spell;
+
     return SPELL_NO_SPELL;
 }
 
@@ -1609,17 +1621,21 @@ static void _init_servitor_monster(monster &mon, const actor& caster, int pow)
                                             // mhp doesn't vary with HD
     int spell_levels = 0;
 
-    for (const spell_type spell : servitor_spells)
+    if (caster.is_player())
     {
-        if (caster.has_spell(spell)
-            && (caster_mon || failure_rate_to_int(raw_spell_fail(spell)) <= 20))
+        const spell_type spell = player_servitor_spell();
+        mon.spells.emplace_back(spell, 0, MON_SPELL_WIZARD);
+        spell_levels += spell_difficulty(spell);
+    }
+    else
+    {
+        for (const spell_type spell : servitor_spells)
         {
-            mon.spells.emplace_back(spell, 0, MON_SPELL_WIZARD);
-            spell_levels += spell_difficulty(spell);
-
-            // Player servitors take a single spell
-            if (!caster_mon)
-                break;
+            if (caster.has_spell(spell))
+            {
+                mon.spells.emplace_back(spell, 0, MON_SPELL_WIZARD);
+                spell_levels += spell_difficulty(spell);
+            }
         }
     }
 
@@ -1679,6 +1695,18 @@ spret cast_spellforged_servitor(int pow, god_type god, bool fail)
         canned_msg(MSG_NOTHING_HAPPENS);
 
     return spret::success;
+}
+
+void remove_player_servitor()
+{
+    for (monster_iterator mi; mi; ++mi)
+    {
+        if (mi->type == MONS_SPELLFORGED_SERVITOR && mi->summoner == MID_PLAYER)
+        {
+            monster_die(**mi, KILL_RESET, NON_MONSTER);
+            return;
+        }
+    }
 }
 
 monster* find_battlesphere(const actor* agent)
@@ -2083,8 +2111,8 @@ int prism_hd(int pow, bool random)
     return pow / 10;
 }
 
-spret cast_fulminating_prism(actor* caster, int pow,
-                                  const coord_def& where, bool fail)
+spret cast_fulminating_prism(actor* caster, int pow, const coord_def& where,
+                             bool fail, bool is_shadow)
 {
     if (grid_distance(where, caster->pos())
         > spell_range(SPELL_FULMINANT_PRISM, pow))
@@ -2132,12 +2160,15 @@ spret cast_fulminating_prism(actor* caster, int pow,
 
     const int hd = prism_hd(pow);
 
-    mgen_data prism_data = mgen_data(MONS_FULMINANT_PRISM,
+    mgen_data prism_data = mgen_data(is_shadow
+                                        ? MONS_SHADOW_PRISM
+                                        : MONS_FULMINANT_PRISM,
                                      caster->is_player()
-                                     ? BEH_FRIENDLY
-                                     : SAME_ATTITUDE(caster->as_monster()),
+                                        ? BEH_FRIENDLY
+                                        : SAME_ATTITUDE(caster->as_monster()),
                                      where, MHITNOT, MG_FORCE_PLACE);
-    prism_data.set_summoned(caster, 0, SPELL_FULMINANT_PRISM);
+    prism_data.set_summoned(caster, 0, is_shadow ? SPELL_SHADOW_PRISM
+                                                 : SPELL_FULMINANT_PRISM);
     prism_data.hd = hd;
     monster *prism = create_monster(prism_data);
 
@@ -2145,12 +2176,16 @@ spret cast_fulminating_prism(actor* caster, int pow,
     {
         if (caster->observable())
         {
-            mprf("%s %s a prism of explosive energy!",
+            mprf("%s %s a prism of %s energy!",
                  caster->name(DESC_THE).c_str(),
-                 caster->conj_verb("conjure").c_str());
+                 caster->conj_verb("conjure").c_str(),
+                 is_shadow ? "shadowy" : "explosive");
         }
         else if (you.can_see(*prism))
-            mpr("A prism of explosive energy appears from nowhere!");
+        {
+            mprf("A prism of %s energy appears from nowhere!",
+                 is_shadow ? "shadowy" : "explosive");
+        }
 
         // This looks silly, but prevents the even sillier-looking situation of
         // monster-cast prisms displaying as 'unaware of you'.
@@ -2158,6 +2193,7 @@ spret cast_fulminating_prism(actor* caster, int pow,
         {
             prism->foe = caster->as_monster()->foe;
             prism->behaviour = BEH_SEEK;
+            prism->flags |= MF_WAS_IN_VIEW;
         }
     }
     else if (you.can_see(*caster))
@@ -3161,7 +3197,6 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
         }
 
         temp_change_terrain(beam.path_taken[i], DNGN_LAVA,
-                            //random_range(11, 17) * BASELINE_DELAY,
                             dur - (i * BASELINE_DELAY),
                             TERRAIN_CHANGE_HELLFIRE_MORTAR);
 
@@ -3204,9 +3239,18 @@ spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail)
 
 bool hellfire_mortar_active(const actor& agent)
 {
+    // XXX: Really hate to put marionette-specific code in individual spells,
+    //      but this one doesn't have an obvious way to avoid it yet.
+    //
+    //      I'd really like to generalize 'count_summons' to count all things
+    //      with a given summoner, rather than just abjurable things with a
+    //      given summoner.
+    const mid_t agent_mid = (agent.real_attitude() == ATT_MARIONETTE
+                                ? MID_PLAYER : agent.mid);
+
     for (monster_iterator mi; mi; ++mi)
     {
-        if (mi->type == MONS_HELLFIRE_MORTAR && mi->summoner == agent.mid)
+        if (mi->type == MONS_HELLFIRE_MORTAR && mi->summoner == agent_mid)
             return true;
     }
 

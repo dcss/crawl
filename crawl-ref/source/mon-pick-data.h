@@ -119,7 +119,7 @@ static const vector<pop_entry> population[] =
   {  8, 12,  800, PEAK, MONS_YAK },
   {  8, 14,  350, PEAK, MONS_ACID_DRAGON },
   {  8, 14,  600, PEAK, MONS_TWO_HEADED_OGRE },
-  {  9, 13,  350, PEAK, MONS_SHADOW },
+  {  9, 13,  350, PEAK, MONS_SHADOWGHAST },
   {  9, 14,  200, PEAK, MONS_KOBOLD_DEMONOLOGIST },
   {  9, 14,  500, PEAK, MONS_WRAITH },
   {  9, 14,  800, PEAK, MONS_TROLL },
@@ -558,12 +558,12 @@ static const vector<pop_entry> population[] =
   {  5,  5,   60, FLAT, MONS_GREAT_ORB_OF_EYES },
 
   // Out-of-depth enemies.
-  // These total 845 weight, to avoid being too common
+  // These total 860 weight, to avoid being too common
   // relative to the 'normal' enemies.
   {  5, 12,  190, RISE, MONS_TITAN },
-  {  5, 12,  170, RISE, MONS_SHADOW_DRAGON },
-  {  5, 12,  120, RISE, MONS_UNDYING_ARMOURY },
-  {  5, 12,  110, RISE, MONS_STORM_DRAGON },
+  {  5, 12,  155, RISE, MONS_SHADOW_DRAGON },
+  {  5, 12,  150, RISE, MONS_UNDYING_ARMOURY },
+  {  5, 12,  100, RISE, MONS_STORM_DRAGON },
   {  5, 12,   70, RISE, MONS_GOLDEN_DRAGON },
   {  5, 12,   50, RISE, MONS_QUICKSILVER_DRAGON },
   {  5, 12,   45, RISE, MONS_IRON_DRAGON },
@@ -830,7 +830,7 @@ POP_DEPTHS,
   {  1,  5,  124, FALL, MONS_ZOMBIE },
   {  1,  4,   35, FALL, MONS_WIGHT },
   {  1,  8,   70, FALL, MONS_WRAITH },
-  {  1,  8,   10, FALL, MONS_SHADOW },
+  {  1,  8,   10, FALL, MONS_SHADOWGHAST },
   {  1,  8,   25, FALL, MONS_VAMPIRE },
 
   {  1,  5,    4, FALL, MONS_BASILISK },

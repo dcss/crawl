@@ -187,8 +187,7 @@ bool check_moveto_cloud(const coord_def& p, const string &move_verb,
 bool check_moveto_trap(const coord_def& p, const string &move_verb,
                        bool *prompted)
 {
-    // Boldly go into the unknown (for shadow step and other ranged move
-    // prompts)
+    // Boldly go into the unknown (for ranged move prompts)
     if (env.map_knowledge(p).trap() == TRAP_UNASSIGNED)
         return true;
 
@@ -253,8 +252,7 @@ static bool _check_moveto_dangerous(const coord_def& p, const string& msg)
 bool check_moveto_terrain(const coord_def& p, const string &move_verb,
                           const string &msg, bool *prompted)
 {
-    // Boldly go into the unknown (for shadow step and other ranged move
-    // prompts)
+    // Boldly go into the unknown (for ranged move prompts)
     if (!env.map_knowledge(p).known())
         return true;
 
@@ -638,7 +636,6 @@ void move_player_to_grid(const coord_def& p, bool stepped)
 
     ASSERT(!monster_at(p)
            || fedhas_passthrough(monster_at(p))
-           || mons_is_player_shadow(*monster_at(p))
            || mons_is_wrath_avatar(*monster_at(p)));
 
     // Move the player to new location.
@@ -775,7 +772,27 @@ void update_vision_range()
     if (player_equip_unrand(UNRAND_NIGHT))
         you.current_vision = you.current_vision * 3 / 4;
 
-    ASSERT(you.current_vision > 0);
+    if (you.duration[DUR_PRIMORDIAL_NIGHTFALL])
+    {
+        // Determine the percentage of Nightfall's max duration that has passed,
+        // then use a hermite curve to map this to the actual sight radius value.
+        const int max_dur = you.props[NIGHTFALL_INITIAL_DUR_KEY].get_int();
+        const int dur = (max_dur - you.duration[DUR_PRIMORDIAL_NIGHTFALL]) * 100 / max_dur;
+        const int intensity = (3 * dur * dur / 100) - (2 * dur * dur * dur / 10000);
+        int vision = intensity * you.normal_vision / 100;
+        // Cap radius 0 sight at no more than 5 turns (otherwise kobolds and/or
+        // high invo characters can hold all monsters out of sight for too long)
+        if (max_dur - you.duration[DUR_PRIMORDIAL_NIGHTFALL] > 50)
+            vision = max(1, vision);
+
+        // Immediately end the effect when it reaches our normal vision level
+        if (vision >= you.current_vision)
+            you.duration[DUR_PRIMORDIAL_NIGHTFALL] = 1;
+        else
+            you.current_vision = vision;
+    }
+
+    ASSERT(you.current_vision >= 0);
     set_los_radius(you.current_vision);
 }
 
@@ -2007,8 +2024,7 @@ bool player_is_shapechanged()
 {
     // TODO: move into data
     return form_changed_physiology(you.form)
-        && you.form != transformation::death
-        && you.form != transformation::shadow;
+        && you.form != transformation::death;
 }
 
 bool player_acrobatic()
@@ -3290,32 +3306,8 @@ int player_stealth()
 
     // On the other hand, shrouding has the reverse effect, if you know
     // how to make use of it:
-    if (you.umbra())
-    {
-        int umbra_mul = 1, umbra_div = 1;
-        if (you.umbra_radius() >= 0)
-        {
-            if (have_passive(passive_t::umbra))
-            {
-                umbra_mul = you.piety + MAX_PIETY;
-                umbra_div = MAX_PIETY;
-            }
-            if ((you.has_mutation(MUT_FOUL_SHADOW)
-                 || player_equip_unrand(UNRAND_BRILLIANCE)
-                 || player_equip_unrand(UNRAND_SHADOWS))
-                && 2 * umbra_mul < 3 * umbra_div)
-            {
-                umbra_mul = 3;
-                umbra_div = 2;
-            }
-        }
-
-        stealth *= umbra_mul;
-        stealth /= umbra_div;
-    }
-
-    if (you.form == transformation::shadow)
-        stealth *= 2;
+    if (you.umbra() && you.umbra_radius() >= 0)
+        stealth = stealth * 3 / 2;
 
     // If you're surrounded by a storm, you're inherently pretty conspicuous.
     if (have_passive(passive_t::storm_shield))
@@ -3329,7 +3321,8 @@ int player_stealth()
     if (player_has_orb() || player_equip_unrand(UNRAND_CHARLATANS_ORB))
         stealth /= 3;
 
-    stealth = max(0, stealth);
+    // Cap minimum stealth during Nightfall at 100. (0, otherwise.)
+    stealth = max(you.duration[DUR_PRIMORDIAL_NIGHTFALL] ? 100 : 0, stealth);
 
     return stealth;
 }
@@ -6903,9 +6896,6 @@ int player::willpower() const
 
 int player_willpower(bool temp)
 {
-    if (temp && you.form == transformation::shadow)
-        return WILL_INVULN;
-
     if (player_equip_unrand(UNRAND_FOLLY))
         return 0;
 
@@ -7598,8 +7588,7 @@ bool player::innate_sinv() const
 
 bool player::invisible() const
 {
-    return (duration[DUR_INVIS] || form == transformation::shadow)
-           && !backlit();
+    return duration[DUR_INVIS] && !backlit();
 }
 
 bool player::visible_to(const actor *looker) const
@@ -7626,9 +7615,6 @@ bool player::visible_to(const actor *looker) const
 */
 bool player::backlit(bool self_halo, bool temp) const
 {
-    if (temp && form == transformation::shadow)
-        return false;
-
     return temp && (player_severe_contamination()
                     || duration[DUR_CORONA]
                     || duration[DUR_STICKY_FLAME]
@@ -7649,12 +7635,6 @@ bool player::umbra() const
 // This is the imperative version.
 void player::backlight()
 {
-    if (form == transformation::shadow)
-    {
-        mpr("Shadows surge around you.");
-        return;
-    }
-
     if (!duration[DUR_INVIS])
     {
         if (duration[DUR_CORONA])

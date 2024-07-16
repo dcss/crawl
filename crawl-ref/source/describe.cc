@@ -4480,6 +4480,16 @@ static string _player_spell_desc(spell_type spell)
             description << " casts " << spell_title(player_servitor_spell());
         description << ".\n";
     }
+    else if (you.has_spell(SPELL_SPELLFORGED_SERVITOR) && spell_servitorable(spell))
+    {
+        if (failure_rate_to_int(raw_spell_fail(spell)) <= 20)
+            description << "Your servitor can be imbued with this spell.\n";
+        else
+        {
+            description << "Your servitor could be imbued with this spell if "
+                           "your spell success rate were higher.\n";
+        }
+    }
 
     // Report summon cap
     const int limit = summons_limit(spell, true);
@@ -4606,6 +4616,21 @@ static void _get_spell_description(const spell_type spell,
             description += stringize_glyph(mons_char(mon_owner->type)) + "..-->";
         else
             description += range_string(range, range, mons_char(mon_owner->type));
+
+        if (crawl_state.need_save && you_worship(GOD_DITHMENOS))
+        {
+            if (!valid_marionette_spell(spell))
+            {
+                description += "\n\n<magenta>This spell cannot be performed via "
+                               "Aphotic Marionette.</magenta>\n";
+            }
+            else if (spell_has_marionette_override(spell))
+            {
+                description += "\n\n<magenta>When cast via Aphotic Marionette, "
+                               "this spell will affect the player instead.";
+            }
+        }
+
         description += "\n";
 
         // Report summon cap
@@ -6166,7 +6191,7 @@ static string _monster_stat_description(const monster_info& mi, bool mark_spells
     // Might be better to have some place where players can see holiness &
     // information about holiness.......?
 
-    if (mi.type == MONS_SHADOW)
+    if (mi.type == MONS_SHADOWGHAST)
     {
         // Cf. monster::action_energy() in monster.cc.
         result << uppercase_first(pronoun) << " "

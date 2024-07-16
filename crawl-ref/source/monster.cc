@@ -37,6 +37,7 @@
 #include "god-abil.h"
 #include "god-conduct.h"
 #include "god-item.h"
+#include "god-passive.h"
 #include "item-name.h"
 #include "item-prop.h"
 #include "item-status-flag-type.h"
@@ -234,6 +235,10 @@ void monster::ensure_has_client_id()
 
 mon_attitude_type monster::temp_attitude() const
 {
+    // This takes priority over everything.
+    if (attitude == ATT_MARIONETTE)
+        return ATT_MARIONETTE;
+
     if (has_ench(ENCH_FRENZIED))
         return ATT_NEUTRAL;
 
@@ -4247,8 +4252,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
                    string /*aux*/, bool cleanup_dead, bool attacker_effects)
 {
     if (mons_is_projectile(type)
-        || mid == MID_ANON_FRIEND
-        || type == MONS_PLAYER_SHADOW)
+        || mid == MID_ANON_FRIEND)
     {
         return 0;
     }
@@ -5220,7 +5224,8 @@ static bool _mons_is_icy(int mc)
            || mc == MONS_SIMULACRUM
            || mc == MONS_ICE_STATUE
            || mc == MONS_BLOCK_OF_ICE
-           || mc == MONS_NARGUN;
+           || mc == MONS_NARGUN
+           || mc == MONS_HOARFROST_CANNON;
 }
 
 bool monster::is_icy() const
@@ -5329,6 +5334,7 @@ void monster::apply_location_effects(const coord_def &oldpos,
     if (alive()
         && (mons_habitat(*this) == HT_WATER || mons_habitat(*this) == HT_LAVA)
         && !monster_habitable_grid(this, env.grid(pos()))
+        && type != MONS_HELLFIRE_MORTAR
         && !has_ench(ENCH_AQUATIC_LAND))
     {
         add_ench(ENCH_AQUATIC_LAND);
@@ -5666,9 +5672,9 @@ int monster::action_energy(energy_use_type et) const
     if (wearing_ego(EQ_ALL_ARMOUR, SPARM_PONDEROUSNESS))
         move_cost += 1;
 
-    // Shadows move more quickly when blended with the darkness.
+    // Shadowghasts move more quickly when blended with the darkness.
     // Change _monster_stat_description in describe.cc if you change this.
-    if (type == MONS_SHADOW && invisible())
+    if (type == MONS_SHADOWGHAST && invisible())
         move_cost -= 3;
 
     // Floundering monsters get the same penalty as the player, except that
@@ -6409,6 +6415,13 @@ int monster::spell_hd(spell_type spell) const
         hd = max(1, hd * 2 / 3);
     if (has_ench(ENCH_IDEALISED))
         hd *= 2;
+
+    if (type == MONS_PLAYER_SHADOW)
+    {
+        if (props.exists(DITH_SHADOW_SPELLPOWER_KEY))
+            hd = props[DITH_SHADOW_SPELLPOWER_KEY].get_int();
+    }
+
     if (has_ench(ENCH_EMPOWERED_SPELLS))
         hd += 5;
     return hd;

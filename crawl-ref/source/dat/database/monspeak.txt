@@ -3848,6 +3848,10 @@ VISUAL:@The_monster@ tugs at @possessive@ hair.
 
 VISUAL:@The_monster@ twirls gently on the spot.
 %%%%
+Donald marionette
+
+@The_monster@ says, "Don't use me like a cheap sock puppet. I hate that."
+%%%%
 Donald killed
 
 w:100
@@ -4832,7 +4836,7 @@ VISUAL:@The_monster@ pats at a spot of missing fur and sighs.
 
 @The_monster@ shouts, "Faster, @_Grum_dog_name_@! Kill! Kill!"
 
-@The_monster@ lets out out a long, sad whine.
+@The_monster@ lets out a long, sad whine.
 
 @The_monster@ says, "Selling your soul isn't that bad. What the hell, right?"
 
@@ -8631,35 +8635,11 @@ the alliance of Zin and the Shining One.
 
 the alliance of Zin and Elyvilon.
 
-the lawlessness of @_chaotic_god_@.
+the lawlessness of @random_god_chaotic@.
 
-the evilness of @_evil_god_@.
-%%%%
-_chaotic_god_
+the evilness of @random_god_evil@.
 
-Xom
-
-Makhleb
-
-Nemelex Xobeh
-
-Lugonu
-
-Jiyva
-%%%%
-_evil_god_
-
-Kikubaaqudgha
-
-Makhleb
-
-Yredelemnul
-
-Beogh
-
-Lugonu
-
-Dithmenos
+the goodness of @random_god_good@.
 %%%%
 confused zin angel
 
@@ -8833,15 +8813,16 @@ w:10
 @_deck_of_punishment_line_@
 
 w:5
-@The_monster@ draws @_misplaced_card_@. "Wait, this doesn't belong here!"
+@The_monster@ draws @_deck_of_oddities_card_@. "Wait, this doesn't belong here!"
+
+w:5
+@The_monster@ draws @_misplaced_card_@. "Wait, where'd this come from?"
 
 w:5
 @The_monster@ fumbles a card and drops it. "Whoops!"
 %%%%
+# Cards not from any Nemelex deck
 _misplaced_card_
-
-w:20
-@_deck_of_oddities_card_@
 
 the Ace of Spades
 

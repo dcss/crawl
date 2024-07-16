@@ -315,6 +315,7 @@ static const form_entry formdata[] =
     }
 },
 
+#if TAG_MAJOR_VERSION == 34
 {
     transformation::shadow, MONS_PLAYER_SHADOW, "Shadow", "shadow-form", "shadow",
     "a swirling mass of dark shadows.",
@@ -336,6 +337,7 @@ static const form_entry formdata[] =
       { "weak spells", "Your spells are much less powerful." }, // two de-enhancers
     }
 },
+#endif
 
 #if TAG_MAJOR_VERSION == 34
 {
@@ -414,7 +416,7 @@ static const form_entry formdata[] =
     FC_DEFAULT, FC_DEFAULT, FC_DEFAULT, true, false,
     "", 0, "", "", "", "",
     { { "contaminating", "Foes you strike become dangerously contaminated with magical radiation." }, },
-    { { "glow", "You glow with magical radiation, making you easy to see and hit." } }
+    { { "glow", "You glow with magical radiation, making you easy to see." } }
 },
 
 };

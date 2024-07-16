@@ -1122,8 +1122,7 @@ void bolt::affect_cell()
             const bool ignored = ignores_monster(m);
             affect_monster(m);
             if (hit == AUTOMATIC_HIT && !pierce && !ignored
-                // Assumes tracers will always have an agent!
-                && (!is_tracer || m->visible_to(agent())))
+                && (!is_tracer || (agent() && m->visible_to(agent()))))
             {
                 finish_beam();
             }
@@ -2662,12 +2661,14 @@ void bolt::affect_endpoint()
 
         if (!spot.origin())
         {
-            create_monster(mgen_data(MONS_DANCING_WEAPON,
-                                SAME_ATTITUDE(agent(true)->as_monster()),
-                                spot,
-                                agent(true)->as_monster()->foe,
-                                MG_FORCE_PLACE)
-                        .set_summoned(agent(true), 1, SPELL_FLASHING_BALESTRA, GOD_NO_GOD));
+            monster* blade = create_monster(mgen_data(MONS_DANCING_WEAPON,
+                                            SAME_ATTITUDE(agent(true)->as_monster()),
+                                            spot, agent(true)->as_monster()->foe,
+                                            MG_FORCE_PLACE)
+                            .set_summoned(agent(true), 1, SPELL_FLASHING_BALESTRA, GOD_NO_GOD));
+
+            if (blade)
+                blade->add_ench(ENCH_MIGHT);
         }
     }
     break;
@@ -2740,7 +2741,9 @@ bool bolt::found_player() const
             && !YOU_KILL(thrower)
             && !can_see_invis && you.invisible()
             && (!agent()
-                || agent()->is_monster() && !agent()->as_monster()->friendly())
+                || (agent()->is_monster()
+                    && !agent()->as_monster()->friendly()
+                    && agent()->as_monster()->attitude != ATT_MARIONETTE))
             // No point in fuzzing to a position that could never be hit.
             && you.see_cell_no_trans(pos());
     const int dist = needs_fuzz? 2 : 0;
@@ -3163,6 +3166,10 @@ bool bolt::harmless_to_player() const
 {
     dprf(DIAG_BEAM, "beam flavour: %d", flavour);
 
+    // Marionettes can't hurt the player with anything, so don't worry about it.
+    if (agent() && agent()->real_attitude() == ATT_MARIONETTE)
+        return true;
+
     if (you.cloud_immune() && is_big_cloud())
         return true;
 
@@ -3574,6 +3581,7 @@ void bolt::affect_player_enchantment(bool resistible)
         break;
 
     case BEAM_SLOW:
+    case BEAM_SHADOW_TORPOR:
         slow_player(10 + random2(ench_power));
         obvious_effect = true;
         break;
@@ -4366,7 +4374,8 @@ bool bolt::ignores_player() const
 
     if (origin_spell == SPELL_COMBUSTION_BREATH
         || origin_spell == SPELL_NULLIFYING_BREATH
-        || origin_spell == SPELL_RIMEBLIGHT)
+        || origin_spell == SPELL_RIMEBLIGHT
+        || origin_spell == SPELL_SHADOW_PRISM)
     {
         return true;
     }
@@ -4378,11 +4387,16 @@ bool bolt::ignores_player() const
     }
 
     if (agent() && agent()->is_monster()
-        && mons_is_hepliaklqana_ancestor(agent()->as_monster()->type))
+        && (mons_is_hepliaklqana_ancestor(agent()->as_monster()->type)
+            || mons_is_player_shadow(*agent()->as_monster())
+            || agent()->real_attitude() == ATT_MARIONETTE))
     {
         // friends!
         return true;
     }
+
+    if (source_id == MID_PLAYER_SHADOW_DUMMY)
+        return true;
 
     if (flavour == BEAM_ROOTS || flavour == BEAM_VILE_CLUTCH)
     {
@@ -4625,7 +4639,8 @@ bool bolt::has_relevant_side_effect(monster* mon)
     else if (flavour == BEAM_ENSNARE || flavour == BEAM_LIGHT)
         return true;
 
-    if ((origin_spell == SPELL_NOXIOUS_CLOUD || origin_spell == SPELL_POISONOUS_CLOUD)
+    if ((origin_spell == SPELL_NOXIOUS_CLOUD || origin_spell == SPELL_POISONOUS_CLOUD
+         || origin_spell == SPELL_NOXIOUS_BREATH)
         && mon->res_poison() < 1)
     {
         return true;
@@ -4677,10 +4692,12 @@ void bolt::tracer_nonenchantment_affect_monster(monster* mon)
         else
         {
             // Discourage summoned monsters firing on their summoner.
-            const monster* mon_source = agent()->as_monster();
+            const monster* mon_source = agent() ? agent()->as_monster() : nullptr;
             if (mon_source && mon_source->summoner == mon->mid)
                 friend_info.power = 100;
-            else
+            // Marionettes will avoid harming other 'allies', but are
+            // deliberately reckless about themselves.
+            else if (mon_source != mon || mon_source->attitude == ATT_MARIONETTE)
             {
                 friend_info.power
                     += 2 * final * mon->get_experience_level() / preac;
@@ -4704,8 +4721,11 @@ void bolt::tracer_nonenchantment_affect_monster(monster* mon)
 void bolt::tracer_affect_monster(monster* mon)
 {
     // Ignore unseen monsters.
-    if (!agent() || !agent()->can_see(*mon))
+    if ((agent() && !agent()->can_see(*mon))
+        || !cell_see_cell(source, mon->pos(), LOS_NO_TRANS))
+    {
         return;
+    }
 
     if (flavour == BEAM_UNRAVELLING && monster_can_be_unravelled(*mon))
         is_explosion = true;
@@ -4756,7 +4776,10 @@ void bolt::enchantment_affect_monster(monster* mon)
             if (flavour != BEAM_HIBERNATION)
                 you.pet_target = mon->mindex();
         }
-        behaviour_event(mon, ME_ANNOY, agent());
+
+        // Don't wake a target that just got slept by Hibernation
+        if (flavour != BEAM_SHADOW_TORPOR || !mon->asleep())
+            behaviour_event(mon, ME_ANNOY, agent());
     }
     else if (flavour != BEAM_HIBERNATION || !mon->asleep())
         behaviour_event(mon, ME_ALERT, agent());
@@ -4997,7 +5020,13 @@ void bolt::monster_post_hit(monster* mon, int dmg)
     // did no damage. Hostiles will still take umbrage.
     if (dmg > 0 || !mon->wont_attack() || !YOU_KILL(thrower))
     {
-        behaviour_event(mon, ME_ANNOY, agent());
+        // XXX: Unfortunate hack to not immediately wake victims of Ensorcelled
+        // Hibernation by shadow mimic casting Creeping Shadow on them.
+        if (origin_spell != SPELL_CREEPING_SHADOW || mon->behaviour != BEH_SLEEP
+            || !mon->has_ench(ENCH_SLEEP_WARY))
+        {
+            behaviour_event(mon, ME_ANNOY, agent());
+        }
         // behaviour_event can make a monster leave the level or vanish.
         if (!mon->alive())
             return;
@@ -5292,7 +5321,7 @@ bool bolt::at_blocking_monster() const
 void bolt::affect_monster(monster* mon)
 {
     // Don't hit dead or fake monsters.
-    if (!mon->alive() || mon->type == MONS_PLAYER_SHADOW)
+    if (!mon->alive() || mon->type == MONS_GOD_WRATH_AVATAR)
         return;
 
     hit_count[mon->mid]++;
@@ -5590,6 +5619,26 @@ bool bolt::ignores_monster(const monster* mon) const
     if (!mon)
         return false;
 
+    // Player shadows (or a dummy for a shadow spell tracer) can shoot through
+    // other shadows (ie: where they are currently standing while contemplating
+    // being somewhere else).
+    if (mon->type == MONS_PLAYER_SHADOW
+        && ((agent() && agent()->type == MONS_PLAYER_SHADOW)
+            || source_id == MID_PLAYER_SHADOW_DUMMY))
+    {
+        return true;
+    }
+
+    // Shadow spells have no friendly fire, even against monsters.
+    // (These should be the only ones that don't avoid that in other ways.)
+    if ((origin_spell == SPELL_SHADOW_PRISM || origin_spell == SPELL_SHADOW_BEAM
+         || origin_spell == SPELL_SHADOW_TORPOR
+         || (origin_spell == SPELL_SHADOW_BALL && in_explosion_phase))
+        && mons_atts_aligned(attitude, mons_attitude(*mon)))
+    {
+        return true;
+    }
+
     // All kinds of beams go past orbs of destruction and friendly
     // battlespheres.
     if (always_shoot_through_monster(agent(), *mon))
@@ -5675,6 +5724,7 @@ bool bolt::has_saving_throw() const
     case BEAM_ENFEEBLE:
     case BEAM_VITRIFYING_GAZE:
     case BEAM_RIMEBLIGHT:
+    case BEAM_SHADOW_TORPOR:
         return false;
     case BEAM_VULNERABILITY:
         return !one_chance_in(3);  // Ignores will 1/3 of the time
@@ -5697,6 +5747,7 @@ bool ench_flavour_affects_monster(actor *agent, beam_type flavour,
     case BEAM_SLOW:
     case BEAM_HASTE:
     case BEAM_PARALYSIS:
+    case BEAM_SHADOW_TORPOR:
         rc = !mon->stasis();
         break;
 
@@ -6498,6 +6549,14 @@ mon_resist_type bolt::apply_enchantment_to_monster(monster* mon)
         }
         return MON_AFFECTED;
 
+    case BEAM_SHADOW_TORPOR:
+    {
+        int dur = max(2, random_range(2, 5) - div_rand_round(
+                            random2(mon->get_hit_dice() * 30), ench_power));
+        obvious_effect = do_slow_monster(*mon, agent(), dur * BASELINE_DELAY);
+        return MON_AFFECTED;
+    }
+
     default:
         break;
     }
@@ -6518,7 +6577,8 @@ int bolt::range_used_on_hit() const
     if (flavour == BEAM_DAMNATION
         || flavour == BEAM_DIGGING
         || flavour == BEAM_VILE_CLUTCH
-        || flavour == BEAM_ROOTS)
+        || flavour == BEAM_ROOTS
+        || flavour == BEAM_SHADOW_TORPOR)
     {
         return 0;
     }
@@ -6623,6 +6683,10 @@ const map<spell_type, explosion_sfx> spell_explosions = {
     { SPELL_HOARFROST_BULLET, {
         "The shards fragment into shrapnel!",
         "an explosion",
+    } },
+    { SPELL_SHADOW_BALL, {
+        "The flickering shadows explode!",
+        "a quiet whistle",
     } },
 };
 
@@ -6798,6 +6862,12 @@ bool bolt::explode(bool show_more, bool hole_in_the_middle)
         // gas leak).
         if (name == "blast of putrescent gases")
             loudness = loudness * 2 / 3;
+        // Shadow spells are silent
+        else if (origin_spell == SPELL_SHADOW_BALL
+                 || origin_spell == SPELL_SHADOW_PRISM)
+        {
+            loudness = 0;
+        }
 
         // Lee's Rapid Deconstruction can target the tiles on the map
         // boundary.
@@ -7197,20 +7267,6 @@ actor* bolt::agent(bool ignore_reflection) const
         nominal_source = reflector;
     }
 
-    // Check for whether this is actually a dith player shadow, not you.
-    // Dith player shadows also have MID_PLAYER and ranged attacks will get
-    // confused and look at the player's launcher if we don't short-circuit here.
-    //
-    // Todo: Not this.
-    if (monster* shadow = monster_at(you.pos()))
-    {
-        if (shadow->type == MONS_PLAYER_SHADOW
-            && nominal_source == MID_PLAYER && shadow->mid == MID_PLAYER)
-        {
-            return shadow;
-        }
-    }
-
     if (YOU_KILL(nominal_ktype))
         return &you;
     else
@@ -7360,6 +7416,7 @@ static string _beam_type_name(beam_type type)
     case BEAM_WARPING:               return "spatial disruption";
     case BEAM_QAZLAL:                return "upheaval targetter";
     case BEAM_RIMEBLIGHT:            return "rimeblight";
+    case BEAM_SHADOW_TORPOR:         return "shadow torpor";
 
     case NUM_BEAMS:                  die("invalid beam type");
     }

@@ -31,6 +31,7 @@
 #include "items.h"
 #include "level-state-type.h"
 #include "libutil.h"
+#include "losglobal.h"
 #include "map-knowledge.h" // set_terrain_visible
 #include "mapmark.h"
 #include "message.h"
@@ -924,6 +925,20 @@ int count_adjacent_icy_walls(const coord_def &pos)
             count++;
 
     return count;
+}
+
+// Could an actor standing at a given position see a wall next to a given cell?
+bool near_visible_wall(coord_def observer_pos, coord_def cell)
+{
+    if (!cell_see_cell(observer_pos, cell, LOS_NO_TRANS))
+        return false;
+    for (adjacent_iterator ai(cell); ai; ++ai)
+        if (feat_is_wall(env.grid(*ai))
+            && cell_see_cell(observer_pos, *ai, LOS_NO_TRANS))
+        {
+            return true;
+        }
+    return false;
 }
 
 void feat_splash_noise(dungeon_feature_type feat)

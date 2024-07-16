@@ -567,7 +567,9 @@ static const vector<random_pick_entry<spell_type>> wizard_primary_spells =
   { 35, 90, 155, RISE, SPELL_BOLT_OF_COLD },
   { 35, 90, 280, RISE, SPELL_BOLT_OF_FIRE },
   { 50, 100, 180, RISE, SPELL_BOMBARD },
+  { 60, 100,  50, RISE, SPELL_PERMAFROST_ERUPTION },
   { 65, 100,  80, RISE, SPELL_PLASMA_BEAM },
+  { 70, 100,  70, RISE, SPELL_HELLFIRE_MORTAR },
   { 70, 100,  90, RISE, SPELL_LEHUDIBS_CRYSTAL_SPEAR },
 };
 
@@ -603,7 +605,8 @@ static const vector<random_pick_entry<spell_type>> priest_spells =
   { 10, 130, 100, PEAK, SPELL_MIGHT_OTHER },
   { 10, 130, 100, PEAK, SPELL_HASTE_OTHER },
   { 0, 100, 100, FLAT, SPELL_REGENERATE_OTHER },
-  { 0, 100, 100, RISE, SPELL_REGENERATE_OTHER },
+  { 0, 100,  50, SEMI, SPELL_REGENERATE_OTHER },
+  { 65, 100, 70, RISE, SPELL_MASS_REGENERATION },
   { 40, 80, 200, SEMI, SPELL_AGONY},
   { 40, 100, 60, SEMI, SPELL_STUNNING_BURST},
   { 45, 100, 65,  FLAT, SPELL_PRAYER_OF_BRILLIANCE },
@@ -734,8 +737,9 @@ void ghost_demon::pick_apostle_spells(apostle_type type, int pow)
 
             if (spells.size() == 3 && one_chance_in(4))
             {
-                const spell_type secondary2 =
-                    picker.pick(wizard_secondary_spells, pow, SPELL_NO_SPELL);
+                spell_type secondary2 = SPELL_NO_SPELL;
+                while (secondary2 == secondary || secondary2 == SPELL_NO_SPELL)
+                    secondary2 = picker.pick(wizard_secondary_spells, pow, SPELL_NO_SPELL);
                 _add_apostle_spell(spells, secondary2, 30, MON_SPELL_WIZARD);
             }
         }

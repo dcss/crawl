@@ -171,17 +171,6 @@ static bool _okawaru_random_servant()
     return create_monster(temp, false);
 }
 
-static bool _dithmenos_random_shadow(const int count, const int tier)
-{
-    monster_type mon_type = MONS_SHADOW;
-    if (tier >= 2 && count == 0 && coinflip())
-        mon_type = MONS_TZITZIMITL;
-    else if (tier >= 1 && count < 3 && coinflip())
-        mon_type = MONS_SHADOW_DEMON;
-
-    return create_monster(_wrath_mon_data(mon_type, GOD_DITHMENOS), false);
-}
-
 /**
  * Summon divine warriors of the Shining One to punish the player.
  */
@@ -494,22 +483,24 @@ static spell_type _makhleb_destruction_type()
  * @param god           The god doing the wrath-hurling.
  * @return              An avatar monster, or nullptr if none could be set up.
  */
-static monster* get_avatar(god_type god)
+static monster* _get_wrath_avatar(god_type god)
 {
-    // TODO: it would be better to abstract the fake monster code from both
-    // this and shadow monster and possibly use different monster types --
-    // doing it this way makes it easier for bugs where the two are conflated
-    // to creep in
-    monster* avatar = shadow_monster(false);
+    if (monster_at(you.pos()))
+        return nullptr;
+
+    monster* avatar = get_free_monster();
     if (!avatar)
         return nullptr;
 
-    // shadow_monster() has the player's mid, which is no good here.
+    avatar->type       = MONS_GOD_WRATH_AVATAR;
+    avatar->behaviour  = BEH_SEEK;
+    avatar->attitude   = ATT_HOSTILE;
+    avatar->flags      = MF_NO_REWARD | MF_JUST_SUMMONED | MF_SEEN
+                         | MF_WAS_IN_VIEW | MF_HARD_RESET | MF_NAME_REPLACE;
+    avatar->set_position(you.pos());
     avatar->set_new_monster_id();
-
+    env.mgrid(you.pos()) = avatar->mindex();
     avatar->mname = _god_wrath_name(god);
-    avatar->flags |= MF_NAME_REPLACE;
-    avatar->attitude = ATT_HOSTILE;
     avatar->set_hit_dice(you.experience_level);
 
     return avatar;
@@ -519,7 +510,7 @@ static monster* get_avatar(god_type god)
 static void _reset_avatar(monster &avatar)
 {
     env.mid_cache.erase(avatar.mid);
-    shadow_monster_reset(&avatar);
+    avatar.reset();
 }
 
 /**
@@ -531,7 +522,7 @@ static bool _makhleb_call_down_destruction()
 {
     const god_type god = GOD_MAKHLEB;
 
-    monster* avatar = get_avatar(god);
+    monster* avatar = _get_wrath_avatar(god);
     // can't be const because mons_cast() doesn't accept const monster*
 
     if (avatar == nullptr)
@@ -794,7 +785,7 @@ static bool _trog_retribution()
         // A fireball is magic when used by a mortal but just a manifestation
         // of pure rage when used by a god. --ebering
 
-        monster* avatar = get_avatar(god);
+        monster* avatar = _get_wrath_avatar(god);
         // can't be const because mons_cast() doesn't accept const monster*
 
         if (avatar == nullptr)
@@ -1130,7 +1121,7 @@ static bool _vehumet_retribution()
 {
     const god_type god = GOD_VEHUMET;
 
-    monster* avatar = get_avatar(god);
+    monster* avatar = _get_wrath_avatar(god);
     if (!avatar)
     {
         simple_god_message(" has no time to deal with you just now.", god);
@@ -1289,7 +1280,7 @@ static void _fedhas_nature_retribution()
 {
     const god_type god = GOD_FEDHAS;
 
-    monster* avatar = get_avatar(god);
+    monster* avatar = _get_wrath_avatar(god);
     // can't be const because mons_cast() doesn't accept const monster*
 
     if (avatar == nullptr)
@@ -1747,6 +1738,36 @@ static bool _fedhas_retribution()
     }
 }
 
+static spell_type _get_hostile_shadow_spell()
+{
+    vector<spell_type> spells;
+
+    for (spell_type player_spell : you.spells)
+    {
+        const spschools_type schools = get_spell_disciplines(player_spell);
+
+        // Including only the spells that would work fine for an independent
+        // player shadow for now.
+        if (schools & spschool::fire)
+            spells.push_back(SPELL_SHADOW_BALL);
+        if (schools & spschool::ice)
+            spells.push_back(SPELL_CREEPING_SHADOW);
+        if (schools & spschool::earth)
+            spells.push_back(SPELL_SHADOW_SHARD);
+        if (schools & spschool::conjuration)
+            spells.push_back(SPELL_SHADOW_BEAM);
+        if (schools & spschool::hexes)
+            spells.push_back(SPELL_SHADOW_TORPOR);
+        if (schools & spschool::summoning)
+            spells.push_back(SPELL_SHADOW_PUPPET);
+    }
+
+    if (spells.empty())
+        return SPELL_NO_SPELL;
+    else
+        return spells[random2(spells.size())];
+}
+
 static bool _dithmenos_retribution()
 {
     // shadow theme
@@ -1757,42 +1778,38 @@ static bool _dithmenos_retribution()
     case 0:
     {
         int count = 0;
-        int how_many = 3 + random2avg(div_rand_round(you.experience_level, 3),
-                                      2);
-        const int tier = div_rand_round(you.experience_level, 9);
+        int how_many = random_range(3, 5);
+        mgen_data mg = _wrath_mon_data(MONS_SHADOW_PUPPET, GOD_DITHMENOS);
+        mg.hd = 3 + div_rand_round(you.experience_level * 2, 3);
         while (how_many-- > 0)
         {
-            if (_dithmenos_random_shadow(count, tier))
+            if (create_monster(mg, false))
                 count++;
         }
-        simple_god_message(count ? " calls forth shadows to punish you."
+        simple_god_message(count ? " weaves the shadows around you into monsters."
                                  : " fails to incite the shadows against you.",
                            god);
+
+        if (coinflip())
+        {
+            mpr("You feel lethargic.");
+            you.increase_duration(DUR_SLOW, random_range(10, 20), 100);
+        }
+
         break;
     }
     case 1:
     {
-        int count = 0;
-        int how_many = 2 + random2avg(div_rand_round(you.experience_level, 4),
-                                      4);
-        for (int i = 0; i < how_many; ++i)
+        spell_type spell = _get_hostile_shadow_spell();
+        coord_def pos = find_newmons_square(MONS_PLAYER_SHADOW, you.pos());
+        if (!pos.origin())
         {
-            if (create_monster(
-                    mgen_data(
-                        RANDOM_MOBILE_MONSTER, BEH_HOSTILE, you.pos(), MHITYOU,
-                              MG_NONE, god)
-                            .set_place(level_id(BRANCH_DUNGEON,
-                                                min(27,
-                                                    you.experience_level + 5)))
-                            .set_summoned(nullptr, 4, MON_SUMM_WRATH)
-                            .set_non_actor_summoner(_god_wrath_name(god))))
-            {
-                count++;
-            }
+            monster* shadow = create_player_shadow(pos, false, spell);
+            simple_god_message(shadow ? " turns your shadow against you."
+                                      : " fails to turn your shadows against you.",
+                               god);
         }
-        simple_god_message(count ? " weaves monsters from the shadows."
-                                 : " fails to weave monsters from the shadows.",
-                           god);
+
         break;
     }
     case 2:
@@ -1803,7 +1820,7 @@ static bool _dithmenos_retribution()
         break;
     }
     case 3:
-        simple_god_message(" tears the shadows away from you.", god);
+        simple_god_message(" tears the darkness away from you.", god);
         you.sentinel_mark();
         break;
     }

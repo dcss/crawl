@@ -32,6 +32,7 @@
 #include "files.h"
 #include "fprop.h"
 #include "ghost.h"
+#include "god-abil.h"
 #include "god-companions.h"
 #include "god-item.h"
 #include "god-passive.h"
@@ -214,8 +215,7 @@ void init_mon_name_cache()
         // Deal sensibly with duplicate entries; refuse or allow the
         // insert, depending on which should take precedence. Some
         // uniques of multiple forms can get away with this, though.
-        if (mon == MONS_PLAYER_SHADOW
-            || mon == MONS_BAI_SUZHEN_DRAGON
+        if (mon == MONS_BAI_SUZHEN_DRAGON
             || mon != MONS_SERPENT_OF_HELL
                && mons_species(mon) == MONS_SERPENT_OF_HELL)
         {
@@ -1768,7 +1768,7 @@ bool mons_class_can_be_spectralised(monster_type mzc, bool divine)
     return mons_class_holiness(mzc) & (MH_NATURAL | MH_DEMONIC | MH_HOLY)
         && mc != MONS_PANDEMONIUM_LORD
         && mzc != MONS_ORC_APOSTLE
-        && (!divine || smc->attack[0].type != AT_NONE); // i.e. has_attack
+        && (divine || smc->attack[0].type != AT_NONE); // i.e. has_attack
 }
 
 // Does this monster have a soul that can be used for necromancy (Death
@@ -2057,10 +2057,10 @@ mon_attack_def mons_attack_spec(const monster& m, int attk_number,
         if (m.has_ench(ENCH_FIRE_CHAMPION))
             attk.flavour = AF_FIRE;
 
-        if (mons_is_player_shadow(mon))
+        if (mon.type == MONS_PLAYER_SHADOW)
         {
-            if (!you.weapon())
-                attk.damage = max(1, you.skill_rdiv(SK_UNARMED_COMBAT, 10, 20));
+            if (mon.props.exists(DITH_SHADOW_ATTACK_KEY))
+                attk.damage = mon.props[DITH_SHADOW_ATTACK_KEY].get_int();
         }
 
         // summoning miscast monster; hd scaled with miscast severity
@@ -2099,6 +2099,13 @@ mon_attack_def mons_attack_spec(const monster& m, int attk_number,
             const int ac = armour_prop(typ, PARM_AC);
             attk.damage = ac + ac * ac / 2;
         }
+    }
+    else if (mon.type == MONS_SHADOW_PUPPET)
+    {
+        if (attk_number == 2)
+            attk.damage = m.get_hit_dice() * 2 / 3;
+        else
+            attk.damage = 4 + (m.get_hit_dice() * 3 / 2);
     }
 
     if (!base_flavour)
@@ -3505,7 +3512,7 @@ bool should_attract_mons(const monster &m)
 
 bool mons_att_wont_attack(mon_attitude_type fr)
 {
-    return fr == ATT_FRIENDLY || fr == ATT_GOOD_NEUTRAL;
+    return fr == ATT_FRIENDLY || fr == ATT_GOOD_NEUTRAL || fr == ATT_MARIONETTE;
 }
 
 mon_attitude_type mons_attitude(const monster& m)
@@ -4093,8 +4100,15 @@ bool mons_can_open_door(const monster& mon, const coord_def& pos)
 
     // Creatures allied with the player can't open doors.
     // (to prevent sabotaging the player accidentally.)
-    if (mon.friendly())
+    //
+    // Blood for Blood gets an exception since they filter in continuously over
+    // time and otherwise get stuck behind doors in places like Vaults regularly.
+    if (mon.friendly()
+        && (!mons_is_blood_for_blood_orc(mon)
+            || env.grid(pos) == DNGN_SEALED_DOOR ))
+    {
         return false;
+    }
 
     if (env.markers.property_at(pos, MAT_ANY, "door_restrict") == "veto")
         return false;
@@ -4233,6 +4247,23 @@ static string _replace_god_name(god_type god, bool need_verb = false,
         result += ' ';
         result += conjugate_verb("be", god == GOD_NO_GOD);
     }
+
+    return result;
+}
+
+static string _random_class_of_god_name(bool (*class_of_god)(god_type god))
+{
+    string result;
+    god_type some_god;
+
+    do
+    {
+        some_god = random_god();
+    }
+    while (!class_of_god(some_god));
+
+    const string godname = god_name(some_god, false);
+    result = godname;
 
     return result;
 }
@@ -4587,6 +4618,16 @@ string do_mon_str_replacements(const string &in_msg, const monster& mons,
 
         msg = replace_all(msg, "@my_God@", godname);
         msg = replace_all(msg, "@My_God@", godcap);
+    }
+
+    if (msg.find("@random_god_") != string::npos)
+    {
+        msg = replace_all(msg, "@random_god_chaotic@",
+                          _random_class_of_god_name(is_chaotic_god));
+        msg = replace_all(msg, "@random_god_evil@",
+                          _random_class_of_god_name(is_evil_god));
+        msg = replace_all(msg, "@random_god_good@",
+                          _random_class_of_god_name(is_good_god));
     }
 
     // Replace with species specific insults.
@@ -5200,8 +5241,7 @@ bool mons_is_avatar(monster_type mc)
 
 bool mons_is_wrath_avatar(const monster &mon)
 {
-    return mon.type == MONS_PLAYER_SHADOW // ugh
-        && mon.attitude != ATT_FRIENDLY;
+    return mon.type == MONS_GOD_WRATH_AVATAR;
 }
 
 bool mons_is_player_shadow(const monster& mon)

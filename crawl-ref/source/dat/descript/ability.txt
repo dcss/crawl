@@ -146,6 +146,16 @@ Begin Untransformation ability
 Begins to transform you back into your native form. A short period of
 concentration is required.
 %%%%
+Imbue Servitor ability
+
+Chooses one of the caster's destructive spells to grant to Spellforged Servitors
+they summon in the future, replacing any spell granted to them previously. The
+caster must be capable of casting this spell themselves with a failure rate of
+no more than 20%.
+
+Note: imbuing a spell in this manner will take several turns and also dismiss
+your servitor if it is active.
+%%%%
 # Zin
 Recite ability
 
@@ -581,20 +591,42 @@ Shatter The Chains ability
 Destroys a chosen cursed equipped item, relieving the wearer of the curse.
 %%%%
 # Dithmenos
-Shadow Step ability
+Shadowslip ability
 
-Allows you to step into the shadow of any hostile creature within your umbra,
-landing on a random spot adjacent to the target.
+Instantly swaps places with your shadow (so long as it is active) and misleads
+all enemies in sight about which of the two is which. Enemies which were
+previously focused on you will instead focus their attention exclusively upon
+your shadow for several turns before they realize their mistake - though if they
+succeed in destroying your shadow, the illusion will end prematurely.
 %%%%
-Shadow Form ability
+Aphotic Marionette ability
 
-Transforms you into a swirling mass of dark shadows. While in this form, you
-are permanently invisible and are immune to poison, draining, and torment.
-All incoming damage is halved, you bleed smoke on any incoming attack, and
-you have infinite willpower. However, your ability to deal damage in melee
-and with ranged attacks is halved, your spellcasting power is greatly
-hampered, and your maximum health is further drained when taking damage.
-Invocations skill increases the duration of the transformation.
+Grabs hold of another creature's shadow and rapidly unleashes their spells and
+abilities as if they were your own, aimed at random enemies. Creatures they
+summon this way will belong to you, and many beneficial effects that they would
+apply to themselves will be applied to you instead. You are also fully protected
+from any damage they would cause.
+
+Can only be used on creatures with eligible spells and only while another enemy
+is present for them to target. The process also leaves the victim's shadow too
+dim to grasp a second time - once used successfully on a target, it may never be
+used on them again.
+
+(Not all spells can be cast via this method; those which cannot will be marked
+with an exclamation mark when examined.)
+%%%%
+Primordial Nightfall ability
+
+Invokes a night from before the stars first burned in the sky, engulfing your
+surroundings in impenetrable darkness. The user's sight radius will be reduced
+to nothing, preventing enemies from tracking or aiming abilities at you, and
+slowly expand back to normal over the duration of the effect. Your stealth will
+also be increased.
+
+It cannot be invoked again until its effect has fully ended, as even the very
+first night of creation must eventually give way to day.
+
+Invocations skill increases the duration of the effect.
 %%%%
 # Gozag
 Potion Petition ability

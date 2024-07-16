@@ -2972,7 +2972,7 @@ void melee_attack::mons_apply_attack_flavour()
                 attacker->heal(healed);
                 if (needs_message)
                 {
-                    mprf("%s %s strength from %s injuries!",
+                    mprf("%s %s vitality from %s injuries!",
                          atk_name(DESC_THE).c_str(),
                          attacker->conj_verb("draw").c_str(),
                          def_name(DESC_ITS).c_str());
@@ -3593,8 +3593,6 @@ void melee_attack::do_spines()
         // Thorn hunters can attack their own brambles without injury
         if (defender->type == MONS_BRIAR_PATCH
             && attacker->type == MONS_THORN_HUNTER
-            // Dithmenos' shadow can't take damage, don't spam.
-            || attacker->type == MONS_PLAYER_SHADOW
             // Don't let spines kill things out of LOS.
             || !monster_los_is_valid(defender->as_monster(), attacker))
         {

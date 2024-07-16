@@ -1401,7 +1401,7 @@ static void _give_weapon(monster *mon, int level, bool second_weapon = false)
 
     if (mon->type == MONS_ERICA && i.is_type(OBJ_WEAPONS, WPN_SCIMITAR))
     {
-        make_item_for_monster(mon, OBJ_JEWELLERY, OBJ_RANDOM,
+        make_item_for_monster(mon, OBJ_JEWELLERY, NUM_RINGS,
                               0, 1, ISFLAG_KNOW_TYPE);
     }
 
@@ -1416,6 +1416,10 @@ static void _give_weapon(monster *mon, int level, bool second_weapon = false)
         // Always good, and sometimes especially good
         item_def* hat = make_item_for_monster(mon, OBJ_ARMOUR, ARM_HAT, ISPEC_RANDART);
         hat->plus = random_range(2, 4);
+
+        hat->props[ITEM_TILE_NAME_KEY] = "THELM_HAT_WIGLAF";
+        hat->props[WORN_TILE_NAME_KEY] = "hat_wiglaf";
+        bind_item_tile(*hat);
     }
 
     if (mon->type == MONS_JOSEPHINA)
@@ -2292,6 +2296,10 @@ void give_item(monster *mons, int level_number, bool mons_summoned)
 
 void view_monster_equipment(monster* mon)
 {
+    // Don't fully identify player shadow equipment, since it makes messaging worse.
+    if (mon->type == MONS_PLAYER_SHADOW)
+        return;
+
     for (unsigned int i = 0; i <= MSLOT_LAST_VISIBLE_SLOT; ++i)
     {
         if (mon->inv[i] == NON_ITEM)

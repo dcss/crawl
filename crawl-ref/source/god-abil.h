@@ -78,6 +78,8 @@ const char * const GOZAG_SHOP_COST_KEY       = "gozag_shop_cost_%d";
 #define YRED_BLASPHEMY_CENTER_KEY "blasphemy_center"
 #define YRED_SHACKLES_KEY "shackles_bound"
 
+#define NIGHTFALL_INITIAL_DUR_KEY "nightfall_initial_dur"
+
 struct bolt;
 class stack_iterator;
 
@@ -153,6 +155,7 @@ const vector<skill_type>& curse_skills(const CrawlStoreValue& curse);
 bool can_convert_to_beogh();
 void announce_beogh_conversion_offer();
 void spare_beogh_convert();
+bool mons_is_blood_for_blood_orc(const monster& mon);
 void beogh_blood_for_blood();
 void beogh_blood_for_blood_tick(int delay);
 void beogh_end_blood_for_blood();
@@ -161,7 +164,13 @@ bool beogh_cancel_leaving_floor();
 
 void beogh_increase_orcification();
 
-spret dithmenos_shadow_step(bool fail);
+void dithmenos_change_shadow_appearance(monster& shadow, int dur);
+string dithmenos_cannot_shadowslip_reason();
+spret dithmenos_shadowslip(bool fail);
+spret dithmenos_nightfall(bool fail);
+bool valid_marionette_spell(spell_type spell);
+string dithmenos_cannot_marionette_reason();
+spret dithmenos_marionette(monster& target, bool fail);
 
 bool gozag_setup_potion_petition(bool quiet = false);
 bool gozag_potion_petition();

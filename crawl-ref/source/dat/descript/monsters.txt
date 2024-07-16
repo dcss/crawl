@@ -2460,9 +2460,17 @@ in great need, to break the stillness with divine thunder.
 %%%%
 shadow
 
-A wisp of unliving shadow, slipping in and out of the darkness of the dungeon.
-It moves swiftly and silently from one pool of shade to another, striking
-unerringly from the blind spots of those who cannot see it.
+A featureless silhouette of your own body, moving independently through the
+divine power of Dithmenos. No matter how many times it is struck down, it will
+reform itself, for a shadow is inextinguishable so long as whatever cast it
+remains.
+%%%%
+shadowghast
+
+A skulking apparition that disguises itself as a harmless shadow. Attuned to the
+dim light of the dungeon, it can slip in and out of sight at will, moving
+swiftly from one pool of shade to the next before striking unerringly at the
+blind spots of those who cannot see it.
 %%%%
 shadow demon
 
@@ -2476,6 +2484,20 @@ A great umbral dragon, radiating evil and death. Its breath reeks of the grave.
 shadow imp
 
 A shadowy minor demon, with an affinity for the necromantic arts.
+%%%%
+shadow prism
+
+A prism-like silhouette which wavers with barely-contained destructive energy.
+Any blow which disrupts its form will result in a violent blast of shadow.
+%%%%
+shadow puppet
+
+A minor servant of living shadow whose form wavers perpetually on the edge of
+recognition - as if an unseen light were flickering behind something almost
+familiar.
+
+The strength of its attacks increases in proportion with the power of the spell
+which summoned it.
 %%%%
 shadow wraith
 

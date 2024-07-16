@@ -602,7 +602,8 @@ static bool _is_pet_kill(killer_type killer, int i)
         return false;
 
     const monster* m = &env.mons[i];
-    if (m->friendly()) // This includes charmed monsters.
+    // This includes charmed monsters.
+    if (m->friendly() || m->attitude == ATT_MARIONETTE)
         return true;
 
     // Check if the monster was confused by you or a friendly, which
@@ -2214,7 +2215,8 @@ item_def* monster_die(monster& mons, killer_type killer,
         did_death_message =
             explode_monster(&mons, killer, pet_kill, wizard);
     }
-    else if (mons.type == MONS_FULMINANT_PRISM && mons.prism_charge == 0)
+    else if ((mons.type == MONS_FULMINANT_PRISM || mons.type == MONS_SHADOW_PRISM)
+             && mons.prism_charge == 0)
     {
         if (!silent && !hard_reset && !was_banished)
         {
@@ -2419,7 +2421,10 @@ item_def* monster_die(monster& mons, killer_type killer,
                             TERRAIN_CHANGE_FLOOD);
     }
 
-    check_canid_farewell(mons, !wizard && !mons_reset && !was_banished);
+    if (mons.type == MONS_INUGAMI)
+        check_canid_farewell(mons, !wizard && !mons_reset && !was_banished);
+    else if (mons.type == MONS_PLAYER_SHADOW)
+        dithmenos_cleanup_player_shadow(&mons);
 
     const bool death_message = !silent && !did_death_message
                                && you.can_see(mons);

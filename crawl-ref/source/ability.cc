@@ -50,6 +50,7 @@
 #include "menu.h"
 #include "message.h"
 #include "mon-behv.h"
+#include "mon-book.h"
 #include "mon-place.h"
 #include "mon-tentacle.h"
 #include "mon-util.h"
@@ -270,6 +271,13 @@ struct ability_def
     {
         if (!piety_cost)
             return 0;
+
+        // Report a more accurate average cost to the UI, since actual payment
+        // is special-cased and most of it happens after confirming that the
+        // marionette acted.
+        if (ability == ABIL_DITHMENOS_APHOTIC_MARIONETTE)
+            return 4;
+
         return piety_cost.base + piety_cost.add/2;
     }
 
@@ -292,9 +300,13 @@ struct ability_def
             // since Ignis's max piety is Special.
             return "";
         }
-        const int perc = max(avg_piety_cost() * 100 / 200, 1);
-        return make_stringf(" (about %d%% of your maximum possible piety)",
-                            perc);
+
+        if (avg_piety_cost() <= 1)
+            return " (less than 1% of your maximum possible piety)";
+
+        // Round up
+        const int perc = max((avg_piety_cost() * 100 + 199) / 200, 0);
+        return make_stringf(" (about %d%% of your maximum possible piety)", perc);
     }
 };
 
@@ -377,6 +389,8 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_HEAL_WOUNDS, "Heal Wounds",
             0, 0, 0, -1, {fail_basis::xl, 45, 2}, abflag::none },
 #endif
+        { ABIL_IMBUE_SERVITOR, "Imbue Servitor",
+            0, 0, 0, -1, {}, abflag::none },
         { ABIL_END_TRANSFORMATION, "End Transformation",
             0, 0, 0, -1, {}, abflag::none },
         { ABIL_BEGIN_UNTRANSFORM, "Begin Untransformation",
@@ -580,11 +594,12 @@ static vector<ability_def> &_get_ability_list()
             0, 0, 0, -1, {fail_basis::invo}, abflag::curse },
 
         // Dithmenos
-        { ABIL_DITHMENOS_SHADOW_STEP, "Shadow Step",
-            4, 80, 5, -1, {fail_basis::invo, 30, 6, 20}, // range special-cased
-            abflag::none },
-        { ABIL_DITHMENOS_SHADOW_FORM, "Shadow Form",
-            9, 0, 12, -1, {fail_basis::invo, 80, 4, 25}, abflag::max_hp_drain },
+        { ABIL_DITHMENOS_SHADOWSLIP, "Shadowslip",
+            4, 60, 2, -1, {fail_basis::invo, 50, 6, 30}, abflag::instant },
+        { ABIL_DITHMENOS_APHOTIC_MARIONETTE, "Aphotic Marionette",
+            5, 0, generic_cost::fixed(1), -1, {fail_basis::invo, 60, 4, 25}, abflag::target },
+        { ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL, "Primordial Nightfall",
+            8, 0, 12, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
 
         // Ru
         { ABIL_RU_DRAW_OUT_POWER, "Draw Out Power",
@@ -767,9 +782,6 @@ int ability_range(ability_type abil)
     {
         case ABIL_HOP:
             range = frog_hop_range();
-            break;
-        case ABIL_DITHMENOS_SHADOW_STEP:
-            range = you.umbra_radius();
             break;
         default:
             break;
@@ -2097,18 +2109,6 @@ static bool _check_ability_possible(const ability_def& abil, bool quiet = false)
         return true;
     }
 
-    case ABIL_DITHMENOS_SHADOW_FORM:
-    {
-        const string reason = cant_transform_reason(transformation::shadow);
-        if (!reason.empty())
-        {
-            if (!quiet)
-                mpr(reason);
-            return false;
-        }
-        return true;
-    }
-
 #if TAG_MAJOR_VERSION == 34
     case ABIL_HEAL_WOUNDS:
         if (you.hp == you.hp_max)
@@ -2374,6 +2374,39 @@ static bool _check_ability_possible(const ability_def& abil, bool quiet = false)
         }
         return true;
 
+    case ABIL_DITHMENOS_SHADOWSLIP:
+    {
+        const string reason = dithmenos_cannot_shadowslip_reason();
+        if (!reason.empty())
+        {
+            if (!quiet)
+                mpr(reason.c_str());
+            return false;
+        }
+        return true;
+    }
+
+    case ABIL_DITHMENOS_APHOTIC_MARIONETTE:
+    {
+        const string reason = dithmenos_cannot_marionette_reason();
+        if (!reason.empty())
+        {
+            if (!quiet)
+                mpr(reason.c_str());
+            return false;
+        }
+        return true;
+    }
+
+    case ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL:
+    if (you.duration[DUR_PRIMORDIAL_NIGHTFALL])
+    {
+        if (!quiet)
+            mpr("Night has already fallen.");
+        return false;
+    }
+    return true;
+
     default:
         return true;
     }
@@ -2435,6 +2468,45 @@ static vector<string> _desc_bind_soul_hp(const monster_info& mi)
     return vector<string>{make_stringf("hp as a bound soul: ~%d", yred_get_bound_soul_hp(mi.type, true))};
 }
 
+static vector<string> _desc_marionette_spells(const monster_info& mi)
+{
+    if (mi.is(MB_SHADOWLESS) || mi.is(MB_SUMMONED) || mi.attitude != ATT_HOSTILE)
+        return vector<string>();
+
+    vector<mon_spell_slot> spells = get_unique_spells(mi);
+    int num_spells = spells.size();
+    int num_usable_spells = 0;
+    for (mon_spell_slot spell : spells)
+    {
+        if (valid_marionette_spell(spell.spell))
+            ++num_usable_spells;
+    }
+
+    return vector<string>{make_stringf("%d/%d spells usable", num_usable_spells, num_spells)};
+}
+
+static vector<coord_def> _find_shadowslip_affected()
+{
+    vector<coord_def> targs;
+
+    monster* shadow = dithmenos_get_player_shadow();
+    ASSERT(shadow && shadow->alive());
+
+    // All monsters in LoS of both the player and their shadow, and which are
+    // currently focused on the player.
+    for (monster_near_iterator mi(shadow->pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (*mi != shadow && !mons_aligned(*mi, shadow)
+            && you.see_cell_no_trans(mi->pos())
+            && (mi->foe == MHITYOU && mi->behaviour == BEH_SEEK))
+        {
+            targs.push_back(mi->pos());
+        }
+    }
+
+    return targs;
+}
+
 unique_ptr<targeter> find_ability_targeter(ability_type ability)
 {
     switch (ability)
@@ -2465,6 +2537,8 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
         return make_unique<targeter_walls>(&you, find_slimeable_walls());
     case ABIL_SIPHON_ESSENCE:
         return make_unique<targeter_siphon_essence>();
+    case ABIL_DITHMENOS_SHADOWSLIP:
+        return make_unique<targeter_multiposition>(&you, _find_shadowslip_affected(), AFF_YES);
 
     // Full LOS:
     case ABIL_KIKU_TORMENT:
@@ -2518,7 +2592,6 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
     case ABIL_JIYVA_SLIMIFY:
     case ABIL_CHEIBRIADOS_TIME_STEP:
     case ABIL_CHEIBRIADOS_DISTORTION:
-    case ABIL_DITHMENOS_SHADOW_FORM:
     case ABIL_RU_DRAW_OUT_POWER:
     case ABIL_GOZAG_POTION_PETITION:
     case ABIL_GOZAG_CALL_MERCHANT:
@@ -2542,6 +2615,9 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
 
     case ABIL_CHEIBRIADOS_SLOUCH:
         return make_unique<targeter_slouch>();
+
+    case ABIL_DITHMENOS_APHOTIC_MARIONETTE:
+        return make_unique<targeter_marionette>();
 
     default:
         break;
@@ -2608,6 +2684,8 @@ bool activate_talent(const talent& tal, dist *target)
             args.get_desc_func = bind(_desc_bind_soul_hp, placeholders::_1);
         else if (abil.ability == ABIL_CHEIBRIADOS_SLOUCH)
             args.get_desc_func = bind(_desc_slouch_damage, placeholders::_1);
+        else if (abil.ability == ABIL_DITHMENOS_APHOTIC_MARIONETTE)
+            args.get_desc_func = bind(_desc_marionette_spells, placeholders::_1);
 
         if (abil.failure.base_chance)
         {
@@ -2980,6 +3058,9 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
         }
         break;
     }
+
+    case ABIL_IMBUE_SERVITOR:
+        return imbue_servitor();
 
     case ABIL_COMBUSTION_BREATH:
     case ABIL_GLACIAL_BREATH:
@@ -3571,15 +3652,14 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
             return spret::abort;
         break;
 
-    case ABIL_DITHMENOS_SHADOW_STEP:
-        if (_abort_if_stationary() || cancel_harmful_move(false))
-            return spret::abort;
-        return dithmenos_shadow_step(fail);
+    case ABIL_DITHMENOS_SHADOWSLIP:
+        return dithmenos_shadowslip(fail);
 
-    case ABIL_DITHMENOS_SHADOW_FORM:
-        fail_check();
-        transform(you.skill(SK_INVOCATIONS, 2), transformation::shadow);
-        break;
+    case ABIL_DITHMENOS_APHOTIC_MARIONETTE:
+        return dithmenos_marionette(*monster_at(beam.target), fail);
+
+    case ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL:
+        return dithmenos_nightfall(fail);
 
     case ABIL_GOZAG_POTION_PETITION:
         run_uncancel(UNC_POTION_PETITION, 0);
@@ -4054,6 +4134,8 @@ bool player_has_ability(ability_type abil, bool include_unusable)
     case ABIL_INVENT_GIZMO:
         return you.species == SP_COGLIN
         && !you.props.exists(INVENT_GIZMO_USED_KEY);
+    case ABIL_IMBUE_SERVITOR:
+        return you.has_spell(SPELL_SPELLFORGED_SERVITOR);
     // mutations
     case ABIL_DAMNATION:
         return you.get_mutation_level(MUT_HURL_DAMNATION);
@@ -4132,6 +4214,7 @@ vector<talent> your_talents(bool check_confused, bool include_unusable, bool ign
             ABIL_INVENT_GIZMO,
             ABIL_BLINKBOLT,
             ABIL_SIPHON_ESSENCE,
+            ABIL_IMBUE_SERVITOR,
             ABIL_END_TRANSFORMATION,
             ABIL_BEGIN_UNTRANSFORM,
             ABIL_RENOUNCE_RELIGION,

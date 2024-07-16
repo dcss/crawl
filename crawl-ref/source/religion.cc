@@ -253,12 +253,12 @@ const vector<vector<god_power>> & get_all_god_powers()
 
         // Beogh
         {   { 2, ABIL_BEOGH_SMITING, "smite your foes" },
-            { 1, ABIL_BEOGH_RECALL_APOSTLES, "recall your orcish followers" },
+            { 1, ABIL_BEOGH_RECALL_APOSTLES, "recall your apostles" },
             { 3, "Beogh will now send orc apostles to challenge you in battle as you gain piety.",
                  "Beogh will no longer send orc apostles to challenge you in battle.",
                  "Beogh will send orc apostles to challenge you in battle as you gain piety." },
             { 0, "", "", "You can recruit apostles that you defeat into your service." },
-            { 3, "", "", "Your orcish followers are sometimes invigorated when you deal damage." },
+            { 3, "", "", "Your apostles are sometimes healed when you deal damage." },
             { 5, ABIL_BEOGH_BLOOD_FOR_BLOOD, "rally a vengeful horde" },
             { 0, ABIL_BEOGH_RECRUIT_APOSTLE, "" },
             { 0, ABIL_BEOGH_DISMISS_APOSTLE_1, ""},
@@ -270,7 +270,7 @@ const vector<vector<god_power>> & get_all_god_powers()
         // Jiyva
         {   { 2, "Jiyva is now protecting you from corrosive effects.",
                  "Jiyva will no longer protect you from corrosive effects.",
-                 "Jiyva protects you from corrosive effects. (rCorr)" },
+                 "Jiyva protects you from corrosive effects." },
             { 3, "Jiyva will now mutate your body as you gain piety.",
                  "Jiyva will no longer mutate your body.",
                  "Jiyva will mutate your body as you gain piety." },
@@ -320,16 +320,17 @@ const vector<vector<god_power>> & get_all_god_powers()
         },
 
         // Dithmenos
-        {   { 2, ABIL_DITHMENOS_SHADOW_STEP,
-                 "step into the shadows of nearby creatures" },
-            { 3, "You will now sometimes bleed smoke when heavily injured by enemies.",
-                 "You will no longer bleed smoke.",
-                 "You sometimes bleed smoke when heavily injured by enemies." },
-            { 4, "Your shadow now sometimes tangibly mimics your actions.",
+        {   { 1, "Dithmenos quiets all noise in your surroundings.",
+                 "Dithmenos no longer quiets all noise in your surroundings."},
+            { 2, "Your shadow now sometimes tangibly mimics your actions.",
                  "Your shadow no longer tangibly mimics your actions.",
                  "Your shadow sometimes tangibly mimics your actions." },
-            { 5, ABIL_DITHMENOS_SHADOW_FORM,
-                 "transform into a swirling mass of shadows" },
+            { 3, ABIL_DITHMENOS_SHADOWSLIP,
+                 "mislead enemies by swapping places with your shadow" },
+            { 4, ABIL_DITHMENOS_APHOTIC_MARIONETTE,
+                 "unleash an enemy's spells as if they were a marionette"},
+            { 5, ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL,
+                 "surround yourself with impenetrable night"},
         },
 
         // Gozag
@@ -417,7 +418,10 @@ const vector<vector<god_power>> & get_all_god_powers()
 
         // Ignis
         {
-            { 0, "", "", "You are resistant to fire. (rF+)" },
+            // It would be nice to specify explicitly that this is rF+
+            // Unfortunately, including parentheses at the end here breaks
+            // the UI on Webtiles.
+            { 0, "", "", "You are resistant to fire." },
             { 1, ABIL_IGNIS_FIERY_ARMOUR, "armour yourself in flame" },
             { 1, ABIL_IGNIS_FOXFIRE, "call a swarm of foxfires against your foes" },
             { 7, ABIL_IGNIS_RISING_FLAME, "rocket upward and away, once" },
@@ -502,8 +506,7 @@ bool is_evil_god(god_type god)
            || god == GOD_MAKHLEB
            || god == GOD_YREDELEMNUL
            || god == GOD_BEOGH
-           || god == GOD_LUGONU
-           || god == GOD_DITHMENOS;
+           || god == GOD_LUGONU;
 }
 
 bool is_good_god(god_type god)
@@ -1029,7 +1032,7 @@ static const vector<random_pick_entry<monster_type>> _yred_servants =
   { -1,  7,   75, PEAK, MONS_PHANTOM },
   {  2,  9,   70, SEMI, MONS_MARROWCUDA },
   {  4,  11,  145, SEMI, MONS_WIGHT },
-  {  6,  13,  90, SEMI, MONS_SHADOW },
+  {  6,  13,  90, SEMI, MONS_SHADOWGHAST },
   {  8,  15,  110, SEMI, MONS_WRAITH },
   {  9,  15,  90, SEMI, MONS_VAMPIRE },
   { 10,  16,  110, SEMI, MONS_FREEZING_WRAITH },
@@ -2732,6 +2735,13 @@ bool god_protects(const actor *agent, const monster &target, bool quiet)
         return true;
     }
 
+    if (aligned && agent->is_player()
+        && will_have_passive(passive_t::shadow_attacks)
+        && mons_is_player_shadow(target))
+    {
+        return true;
+    }
+
     if (aligned
         && agent->is_player()
         && have_passive(passive_t::neutral_slimes)
@@ -3071,8 +3081,6 @@ void excommunication(bool voluntary, god_type new_god)
         break;
 
     case GOD_DITHMENOS:
-        if (you.form == transformation::shadow)
-            untransform();
         break;
 
     case GOD_GOZAG:
@@ -3804,17 +3812,18 @@ void join_religion(god_type which_god)
     you.religion = static_cast<god_type>(which_god);
     set_god_ability_slots();    // remove old god's slots, reserve new god's
 
-    mark_milestone("god.worship", "became a worshipper of "
-                   + god_name(you.religion) + ".");
-    take_note(Note(NOTE_GET_GOD, you.religion));
-
+    // included in default force_more_message
     simple_god_message(make_stringf(" welcomes you%s!",
                                     you.worshipped[which_god] ? " back"
                                                               : "").c_str());
-    // included in default force_more_message
     update_whereis();
 
     _set_initial_god_piety();
+
+    // Only mark the milestone now that piety has been set due to invo titles.
+    mark_milestone("god.worship", "became a worshipper of "
+                   + god_name(you.religion) + ".");
+    take_note(Note(NOTE_GET_GOD, you.religion));
 
     const function<void ()> *join_effect = map_find(on_join, you.religion);
     if (join_effect != nullptr)

@@ -527,9 +527,11 @@ static bool _is_invalid_challenge_level()
     // No Abyss/Pan/Portals/Zot or on rune floors (banning the player from
     // retreating or stairdancing there seems too mean)
     return !is_connected_branch(level_id::current())
+           || player_in_branch(BRANCH_TEMPLE)
+           || player_in_branch(BRANCH_DUNGEON)
+              && you.depth < 6
            || player_in_branch(BRANCH_ZOT)
-           || branch_has_rune(level_id::current().branch)
-              && at_branch_bottom();
+              && you.depth == 5;
 }
 
 // Try to avoid locking the player into an apostle challenge if they're already
@@ -537,10 +539,14 @@ static bool _is_invalid_challenge_level()
 // every combination of bad circumstance, but should at least help.
 static bool _is_bad_moment_for_challenge()
 {
-    if (you.hp < you.hp_max / 2
+    // Make the injury requirement more lenient at lower xl.
+    // (Scaling from requiring 80% of max at xl 0 to 50% by xl 27)
+    const int threshold = 80 - (you.experience_level * 30 / 27);
+
+    if (you.hp < you.hp_max * threshold / 100
         || player_stair_delay()
         || player_on_orb_run()
-        || get_tension() > 45)
+        || get_tension() > 40)
     {
         return true;
     }

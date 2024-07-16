@@ -329,6 +329,7 @@ enum monster_type                      // env.mons[].type
     MONS_IRON_ELEMENTAL,
     MONS_QUICKSILVER_ELEMENTAL,
     MONS_ELEMENTAL_WELLSPRING,
+    MONS_SHADOW_PUPPET,
 #endif
     MONS_TWISTER,        // air miscasts
     MONS_GOLDEN_EYE,
@@ -767,7 +768,7 @@ enum monster_type                      // env.mons[].type
     MONS_VAMPIRE_MAGE,
     MONS_GHOST,                 // common genus for monster and player ghosts
     MONS_PHANTOM,
-    MONS_SHADOW,
+    MONS_SHADOWGHAST,
 #if TAG_MAJOR_VERSION == 34
     MONS_HUNGRY_GHOST,
 #endif
@@ -961,6 +962,7 @@ enum monster_type                      // env.mons[].type
     MONS_ORB_OF_DESTRUCTION,    // a projectile, not a real mon
 #if TAG_MAJOR_VERSION > 34
     MONS_FULMINANT_PRISM,
+    MONS_SHADOW_PRISM,
     MONS_BATTLESPHERE,
     MONS_FOXFIRE,
     MONS_BOULDER,
@@ -982,7 +984,7 @@ enum monster_type                      // env.mons[].type
     MONS_SENSED_FRIENDLY,
     MONS_PLAYER,                // a certain ugly creature
 #if TAG_MAJOR_VERSION > 34
-    MONS_PLAYER_SHADOW,         // Dithmenos / god wrath
+    MONS_PLAYER_SHADOW,         // Dithmenos
     MONS_ANCESTOR,              // Hepliaklqana
     MONS_ANCESTOR_KNIGHT,
     MONS_ANCESTOR_BATTLEMAGE,
@@ -993,6 +995,7 @@ enum monster_type                      // env.mons[].type
     MONS_TEST_STATUE,
     MONS_TEST_BLOB,
     MONS_NAMELESS,              // summoning miscast
+    MONS_GOD_WRATH_AVATAR,      // some god wrath effects
 #endif
 
     // Add new monsters here:
@@ -1024,7 +1027,7 @@ enum monster_type                      // env.mons[].type
 
     MONS_GIANT_LIZARD,          // genus
     MONS_DRAKE,                 // genus
-    MONS_PLAYER_SHADOW,         // Dithmenos / god wrath
+    MONS_PLAYER_SHADOW,         // Dithmenos
 
     MONS_DEEP_TROLL_EARTH_MAGE,
     MONS_DEEP_TROLL_SHAMAN,
@@ -1259,6 +1262,9 @@ enum monster_type                      // env.mons[].type
     MONS_UNDYING_ARMOURY,
     MONS_XAKKRIXIS,
     MONS_HELLFIRE_MORTAR,
+    MONS_GOD_WRATH_AVATAR,      // Used as a source for some god wrath effects
+    MONS_SHADOW_PUPPET,
+    MONS_SHADOW_PRISM,
 #endif
 
     NUM_MONSTERS,               // used for polymorph

@@ -110,6 +110,8 @@ void slime_wall_damage(actor* act, int delay);
 
 int count_adjacent_icy_walls(const coord_def &pos);
 
+bool near_visible_wall(coord_def observer_pos, coord_def cell);
+
 void get_door_description(int door_size, const char** adjective,
                           const char** noun);
 void feat_splash_noise(dungeon_feature_type feat);

@@ -961,6 +961,10 @@ static bool _handle_reaching(monster& mons)
     const reach_type range = mons.reach_range();
     actor *foe = mons.get_foe();
 
+    // Don't attempt to reach-attack a player we cannot see through Nightfall
+    if (you.current_vision < range)
+        return false;
+
     if (mons.caught()
         || mons_is_confused(mons)
         || !foe
@@ -1820,14 +1824,16 @@ void handle_monster_move(monster* mons)
             mons->lose_energy(EUT_SPECIAL);
     }
 
-    if (mons->type == MONS_FULMINANT_PRISM)
+    if (mons->type == MONS_FULMINANT_PRISM
+        || mons->type == MONS_SHADOW_PRISM)
     {
         ++mons->prism_charge;
         if (mons->prism_charge == 2)
             mons->suicide();
         else
         {
-            if (player_can_hear(mons->pos()))
+            if (mons->type == MONS_FULMINANT_PRISM
+                && player_can_hear(mons->pos()))
             {
                 if (you.can_see(*mons))
                 {
@@ -1868,6 +1874,14 @@ void handle_monster_move(monster* mons)
     if (mons->type == MONS_BLAZEHEART_CORE)
     {
         mons->suicide();
+        return;
+    }
+
+    // Friendly player shadows don't act independently (though hostile ones from
+    // wrath effects may do so)
+    if (mons_is_player_shadow(*mons))
+    {
+        mons->lose_energy(EUT_MOVE);
         return;
     }
 

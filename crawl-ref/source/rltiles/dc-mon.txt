@@ -314,6 +314,7 @@ water_elemental MONS_WATER_ELEMENTAL
 air_elemental MONS_AIR_ELEMENTAL
 iron_elemental MONS_IRON_ELEMENTAL
 wellspring MONS_ELEMENTAL_WELLSPRING
+shadow_puppet MONS_SHADOW_PUPPET
 %rim 0
 quicksilver_elemental MONS_QUICKSILVER_ELEMENTAL
 fire_vortex1 MONS_FIRE_VORTEX /*'v'*/
@@ -353,6 +354,10 @@ fulminant_prism1 MONS_FULMINANT_PRISM
 fulminant_prism2
 fulminant_prism3
 fulminant_prism4
+shadow_prism1 MONS_SHADOW_PRISM
+shadow_prism2
+shadow_prism3
+shadow_prism4
 foxfire MONS_FOXFIRE
 marshlight MONS_MARSHLIGHT
 living_spell MONS_LIVING_SPELL
@@ -645,6 +650,37 @@ xmas-sigmund MONS_XMAS_SIGMUND
 zenata MONS_ZENATA
 %rim 1
 terence MONS_TERENCE
+%sdir mon/nonliving
+player_shadow MONS_PLAYER_SHADOW
+%sdir mon/nonliving/shadows
+%rim 0
+shadow_armataur MONS_PLAYER_SHADOW_ARMATAUR
+shadow_barachi MONS_PLAYER_SHADOW_BARACHI
+shadow_coglin MONS_PLAYER_SHADOW_COGLIN
+shadow_demigod MONS_PLAYER_SHADOW_DEMIGOD
+shadow_demonspawn MONS_PLAYER_SHADOW_DEMONSPAWN
+shadow_djinn MONS_PLAYER_SHADOW_DJINN
+shadow_draconian MONS_PLAYER_SHADOW_DRACONIAN
+shadow_dwarf MONS_PLAYER_SHADOW_DWARF
+shadow_elf MONS_PLAYER_SHADOW_ELF
+shadow_felid MONS_PLAYER_SHADOW_FELID
+shadow_formicid MONS_PLAYER_SHADOW_FORMICID
+shadow_gargoyle MONS_PLAYER_SHADOW_GARGOYLE
+shadow_ghoul MONS_PLAYER_SHADOW_GHOUL
+shadow_gnoll MONS_PLAYER_SHADOW_GNOLL
+shadow_human MONS_PLAYER_SHADOW_HUMAN
+shadow_kobold MONS_PLAYER_SHADOW_KOBOLD
+shadow_merfolk MONS_PLAYER_SHADOW_MERFOLK
+shadow_minotaur MONS_PLAYER_SHADOW_MINOTAUR
+shadow_mummy MONS_PLAYER_SHADOW_MUMMY
+shadow_naga MONS_PLAYER_SHADOW_NAGA
+shadow_octopode MONS_PLAYER_SHADOW_OCTOPODE
+shadow_oni MONS_PLAYER_SHADOW_ONI
+shadow_spriggan MONS_PLAYER_SHADOW_SPRIGGAN
+shadow_tengu MONS_PLAYER_SHADOW_TENGU
+shadow_troll MONS_PLAYER_SHADOW_TROLL
+shadow_vampire MONS_PLAYER_SHADOW_VAMPIRE
+shadow_vine_stalker MONS_PLAYER_SHADOW_VINE_STALKER
 
 %sdir mon/amorphous
 %rim 0
@@ -1196,7 +1232,7 @@ deformed_orc MONS_DEFORMED_ORC
 ## Ghosts ('p')
 %sdir mon/undead
 %rim 0
-shadow MONS_SHADOW /*' '*/
+shadowghast MONS_SHADOWGHAST /*' '*/
 phantom MONS_PHANTOM
 ## Ghosts of AXED_MONs
 missing_ghost MONS_GHOST
@@ -1318,7 +1354,6 @@ lich_form_felid TRAN_LICH_FELID
 tree_form TRAN_TREE
 %rim 0
 mushroom_form TRAN_MUSHROOM
-shadow_form TRAN_SHADOW
 storm_form TRAN_STORM_HUMANOID
 storm_form_felid TRAN_STORM_FELID
 storm_form_octopode TRAN_STORM_OCTOPODE
