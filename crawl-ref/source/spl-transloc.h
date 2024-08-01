@@ -4,6 +4,7 @@
 
 class actor;
 class dist;
+struct dice_def;
 
 const int GOLUBRIA_FUZZ_RANGE = 2;
 const int GAVOTTE_DISTANCE = 4;
@@ -63,11 +64,12 @@ vector<monster *> find_chaos_targets(bool just_check = false);
 spret word_of_chaos(int pow, bool fail);
 spret blinkbolt(int power, bolt &beam, bool fail);
 
-int piledriver_collision_power(int pow, int dist);
+dice_def piledriver_collision_damage(int pow, int dist, bool random);
 vector<coord_def> piledriver_beam_paths(const vector<coord_def> &targets);
 vector<coord_def> possible_piledriver_targets();
 spret cast_piledriver(int pow, bool fail);
 
-int gavotte_impact_power(int pow, int dist);
+dice_def gavotte_impact_damage(int pow, int dist, bool random);
 spret cast_gavotte(int pow, const coord_def dir, bool fail);
-vector<monster*> gavotte_affected_monsters(const coord_def dir);
+vector<monster*> gavotte_affected_monsters(const coord_def dir,
+                                           bool actual = true);

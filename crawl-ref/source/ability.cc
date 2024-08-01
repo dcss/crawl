@@ -52,6 +52,7 @@
 #include "mon-behv.h"
 #include "mon-book.h"
 #include "mon-place.h"
+#include "mon-project.h"
 #include "mon-tentacle.h"
 #include "mon-util.h"
 #include "movement.h"
@@ -72,6 +73,7 @@
 #include "spl-clouds.h"
 #include "spl-damage.h"
 #include "spl-goditem.h"
+#include "spl-monench.h"
 #include "spl-miscast.h"
 #include "spl-other.h"
 #include "spl-selfench.h"
@@ -122,18 +124,20 @@ struct generic_cost
 
 struct scaling_cost
 {
-    int value;
+    int scaling_val;
+    int fixed_val;
 
-    scaling_cost(int permille) : value(permille) {}
+    scaling_cost(int permille, int fixed = 0)
+        : scaling_val(permille), fixed_val(fixed) {}
 
     static scaling_cost fixed(int fixed)
     {
-        return scaling_cost(-fixed);
+        return scaling_cost(0, fixed);
     }
 
     int cost(int max) const;
 
-    operator bool () const { return value != 0; }
+    operator bool () const { return fixed_val != 0 || scaling_val != 0; }
 };
 
 /// What affects the failure chance of the ability?
@@ -262,6 +266,13 @@ struct ability_def
     int get_hp_cost() const
     {
         int cost = hp_cost.cost(you.hp_max);
+        if (ability == ABIL_MAKHLEB_DESTRUCTION
+            && you.has_mutation(MUT_MAKHLEB_MARK_ATROCITY)
+            && you.duration[DUR_GROWING_DESTRUCTION])
+        {
+            const int stacks = makhleb_get_atrocity_stacks();
+            cost = cost * (100 + (stacks * 13)) / 100 + (stacks * 4);
+        }
         if (you.has_mutation(MUT_HP_CASTING))
             return cost + mp_cost;
         return cost;
@@ -271,12 +282,6 @@ struct ability_def
     {
         if (!piety_cost)
             return 0;
-
-        // Report a more accurate average cost to the UI, since actual payment
-        // is special-cased and most of it happens after confirming that the
-        // marionette acted.
-        if (ability == ABIL_DITHMENOS_APHOTIC_MARIONETTE)
-            return 4;
 
         return piety_cost.base + piety_cost.add/2;
     }
@@ -425,7 +430,7 @@ static vector<ability_def> &_get_ability_list()
 
         // The Shining One
         { ABIL_TSO_DIVINE_SHIELD, "Divine Shield",
-            3, 0, 2, -1, {fail_basis::invo, 40, 5, 20}, abflag::none },
+            3, 0, 3, -1, {fail_basis::invo, 35, 5, 20}, abflag::none },
         { ABIL_TSO_CLEANSING_FLAME, "Cleansing Flame",
             5, 0, 2, -1, {fail_basis::invo, 70, 4, 25}, abflag::none },
         { ABIL_TSO_SUMMON_DIVINE_WARRIOR, "Summon Divine Warrior",
@@ -436,8 +441,8 @@ static vector<ability_def> &_get_ability_list()
         // Kikubaaqudgha
         { ABIL_KIKU_UNEARTH_WRETCHES, "Unearth Wretches",
             3, 0, 5, -1, {fail_basis::invo, 40, 5, 20}, abflag::none },
-        { ABIL_KIKU_TORMENT, "Torment",
-            4, 0, 6, -1, {fail_basis::invo, 60, 5, 20}, abflag::none },
+        { ABIL_KIKU_SIGN_OF_RUIN, "Sign of Ruin",
+            5, 0, 4, -1, {fail_basis::invo, 60, 5, 20}, abflag::target },
         { ABIL_KIKU_GIFT_CAPSTONE_SPELLS, "Receive Forbidden Knowledge",
             0, 0, 0, -1, {fail_basis::invo}, abflag::none },
         { ABIL_KIKU_BLESS_WEAPON, "Brand Weapon With Pain",
@@ -462,7 +467,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_OKAWARU_FINESSE, "Finesse",
             5, 0, 5, -1, {fail_basis::invo, 60, 4, 25}, abflag::none },
         { ABIL_OKAWARU_DUEL, "Duel",
-            7, 0, 10, LOS_MAX_RANGE, {fail_basis::invo, 80, 4, 20},
+            7, 0, 5, LOS_MAX_RANGE, {fail_basis::invo, 80, 4, 20},
             abflag::target | abflag::not_self },
         { ABIL_OKAWARU_GIFT_WEAPON, "Receive Weapon",
             0, 0, 0, -1, {fail_basis::invo}, abflag::none },
@@ -471,18 +476,25 @@ static vector<ability_def> &_get_ability_list()
 
 
         // Makhleb
-        { ABIL_MAKHLEB_MINOR_DESTRUCTION, "Minor Destruction",
-            0, scaling_cost::fixed(1), 0, 5, {fail_basis::invo, 40, 5, 20},
-            abflag::dir_or_target },
-        { ABIL_MAKHLEB_LESSER_SERVANT_OF_MAKHLEB, "Lesser Servant of Makhleb",
-            0, scaling_cost::fixed(4), 2, -1, {fail_basis::invo, 40, 5, 20},
-            abflag::hostile },
-        { ABIL_MAKHLEB_MAJOR_DESTRUCTION, "Major Destruction",
-            0, scaling_cost::fixed(6), generic_cost::range(0, 1), LOS_MAX_RANGE,
-            {fail_basis::invo, 60, 4, 25}, abflag::dir_or_target },
-        { ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB, "Greater Servant of Makhleb",
-            0, scaling_cost::fixed(10), 5, -1, {fail_basis::invo, 90, 2, 5},
-            abflag::hostile },
+        { ABIL_MAKHLEB_DESTRUCTION, "Unleash Destruction",
+            0, scaling_cost(65, 2), 0, LOS_MAX_RANGE, {fail_basis::invo, 20, 5, 20},
+            abflag::dir_or_target | abflag::not_self },
+        { ABIL_MAKHLEB_ANNIHILATION, "Globe of Annihilation",
+            0, scaling_cost::fixed(6), 2, LOS_MAX_RANGE,
+            {fail_basis::invo, 20, 5, 20}, abflag::dir_or_target },
+        { ABIL_MAKHLEB_INFERNAL_SERVANT, "Infernal Servant",
+            0, scaling_cost::fixed(8), 4, -1, {fail_basis::invo, 40, 5, 20}},
+        { ABIL_MAKHLEB_INFERNAL_LEGION, "Infernal Legion",
+            0, scaling_cost::fixed(10), 8, -1, {fail_basis::invo, 55, 5, 20}},
+        { ABIL_MAKHLEB_BRAND_SELF_1, "Brand Self #1",
+            0, 0, 0, -1, {fail_basis::invo}, abflag::pain },
+        { ABIL_MAKHLEB_BRAND_SELF_2, "Brand Self #2",
+            0, 0, 0, -1, {fail_basis::invo}, abflag::pain },
+        { ABIL_MAKHLEB_BRAND_SELF_3, "Brand Self #3",
+            0, 0, 0, -1, {fail_basis::invo}, abflag::pain },
+        { ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER, "Vessel of Slaughter",
+            0, 0, 12, -1,
+            {fail_basis::invo, 75, 5, 25}, abflag::none },
 
         // Sif Muna
         { ABIL_SIF_MUNA_CHANNEL_ENERGY, "Channel Magic",
@@ -585,7 +597,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_CHEIBRIADOS_SLOUCH, "Slouch",
             5, 0, 8, -1, {fail_basis::invo, 60, 4, 25}, abflag::none },
         { ABIL_CHEIBRIADOS_TIME_STEP, "Step From Time",
-            10, 0, 10, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
+            10, 0, 12, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
 
         // Ashenzari
         { ABIL_ASHENZARI_CURSE, "Curse Item",
@@ -597,7 +609,7 @@ static vector<ability_def> &_get_ability_list()
         { ABIL_DITHMENOS_SHADOWSLIP, "Shadowslip",
             4, 60, 2, -1, {fail_basis::invo, 50, 6, 30}, abflag::instant },
         { ABIL_DITHMENOS_APHOTIC_MARIONETTE, "Aphotic Marionette",
-            5, 0, generic_cost::fixed(1), -1, {fail_basis::invo, 60, 4, 25}, abflag::target },
+            5, 0, 4, -1, {fail_basis::invo, 60, 4, 25}, abflag::target },
         { ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL, "Primordial Nightfall",
             8, 0, 12, -1, {fail_basis::invo, 80, 4, 25}, abflag::none },
 
@@ -790,6 +802,22 @@ int ability_range(ability_type abil)
     return min((int)you.current_vision, range);
 }
 
+static int _makhleb_destruction_power()
+{
+    if (you.has_mutation(MUT_MAKHLEB_MARK_ATROCITY))
+    {
+        const int stacks = makhleb_get_atrocity_stacks();
+        return you.skill_rdiv(SK_INVOCATIONS, 8 + (3 * stacks), 6) + (stacks * 3);
+    }
+    else
+        return you.skill_rdiv(SK_INVOCATIONS, 4, 3);
+}
+
+static int _makhleb_annihilation_power()
+{
+    return you.skill_rdiv(SK_INVOCATIONS, 7, 3);
+}
+
 static int _ability_zap_pow(ability_type abil)
 {
     switch (abil)
@@ -801,6 +829,8 @@ static int _ability_zap_pow(ability_type abil)
             return you.form == transformation::dragon
                                  ? 2 * you.experience_level
                                  : you.experience_level;
+        case ABIL_MAKHLEB_DESTRUCTION:
+            return _makhleb_destruction_power();
         default:
             ASSERT(ability_to_zap(abil) == NUM_ZAPS);
             return 0;
@@ -1136,12 +1166,6 @@ ability_type fixup_ability(ability_type ability)
         else
             return ability;
 
-    case ABIL_OKAWARU_DUEL:
-        if (brdepth[BRANCH_ARENA] == -1)
-            return ABIL_NON_ABILITY;
-        else
-            return ability;
-
     case ABIL_OKAWARU_GIFT_ARMOUR:
         if (you.props.exists(OKAWARU_ARMOUR_GIFTED_KEY)
             || !player_can_use_armour())
@@ -1165,8 +1189,6 @@ ability_type fixup_ability(ability_type ability)
 
     case ABIL_ELYVILON_HEAL_OTHER:
     case ABIL_TSO_SUMMON_DIVINE_WARRIOR:
-    case ABIL_MAKHLEB_LESSER_SERVANT_OF_MAKHLEB:
-    case ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB:
     case ABIL_TROG_BROTHERS_IN_ARMS:
     case ABIL_GOZAG_BRIBE_BRANCH:
     case ABIL_QAZLAL_ELEMENTAL_FORCE:
@@ -1209,6 +1231,20 @@ ability_type fixup_ability(ability_type ability)
         if (get_num_apostles() < 1)
             return ABIL_NON_ABILITY;
         return ability;
+
+    case ABIL_MAKHLEB_INFERNAL_SERVANT:
+        if (you.has_mutation(MUT_MAKHLEB_MARK_ANNIHILATION))
+            return ABIL_MAKHLEB_ANNIHILATION;
+        else if (you.allies_forbidden())
+            return ABIL_NON_ABILITY;
+        else if (you.has_mutation(MUT_MAKHLEB_MARK_LEGION))
+            return ABIL_MAKHLEB_INFERNAL_LEGION;
+        return ability;
+
+    case ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER:
+        if (you.has_mutation(MUT_MAKHLEB_MARK_FANATIC))
+            return ability;
+        return ABIL_NON_ABILITY;
 
     default:
         return ability;
@@ -1271,6 +1307,21 @@ talent get_talent(ability_type ability, bool check_confused)
     return result;
 }
 
+mutation_type makhleb_ability_to_mutation(ability_type abil)
+{
+    // XXX: The list of marks the player will be offered is generated as soon
+    //      as the player first joins Makhleb, but internally their ability
+    //      keybinds are assigned before god-specific code is run, and it will
+    //      try to pull the names of mutations that aren't assigned yet. Use a
+    //      placeholder to stop a crash on conversion.
+    if (!you.props.exists(MAKHLEB_OFFERED_MARKS_KEY))
+        return MUT_NON_MUTATION;
+
+    return (mutation_type)you.props[MAKHLEB_OFFERED_MARKS_KEY]
+                            .get_vector()[abil - ABIL_MAKHLEB_BRAND_SELF_1].get_int();
+}
+
+
 string ability_name(ability_type ability, bool dbname)
 {
     // Special-case some dynamic names
@@ -1299,6 +1350,17 @@ string ability_name(ability_type ability, bool dbname)
                 return "Dismiss Apostle";
             else
                 return "Dismiss " + get_apostle_name(3, true);
+
+        case ABIL_MAKHLEB_BRAND_SELF_1:
+        case ABIL_MAKHLEB_BRAND_SELF_2:
+        case ABIL_MAKHLEB_BRAND_SELF_3:
+            if (dbname)
+                return "Brand Self";
+            else
+            {
+                return make_stringf("Accept %s",
+                                    mutation_name(makhleb_ability_to_mutation(ability)));
+            }
 
         default:
             return get_ability_def(ability).name;
@@ -1410,7 +1472,6 @@ static string _ability_damage_string(ability_type ability)
     // Hep: idealise
     // Ignis: fiery armour
     // Kiku: unearth wretches
-    // Makhleb: minor destruction, major destruction
     // Ru: draw out power
     // Yred: fathomless shackles
     // Zin: vitalisation
@@ -1420,6 +1481,14 @@ static string _ability_damage_string(ability_type ability)
 
     switch (ability)
     {
+        case ABIL_MAKHLEB_DESTRUCTION:
+            return spell_damage_string(SPELL_UNLEASH_DESTRUCTION, false,
+                                       _makhleb_destruction_power());
+
+        case ABIL_MAKHLEB_ANNIHILATION:
+            return spell_damage_string(SPELL_UNLEASH_DESTRUCTION, false,
+                                       _makhleb_annihilation_power());
+
         case ABIL_YRED_HURL_TORCHLIGHT:
             return spell_damage_string(SPELL_HURL_TORCHLIGHT, false,
                                        _yred_hurl_torchlight_power());
@@ -1503,15 +1572,33 @@ string get_ability_desc(const ability_type ability, bool need_title)
     if (lookup.empty()) // Nothing found?
         lookup = "No description found.\n";
 
-    if (ability == ABIL_ASHENZARI_CURSE)
-        lookup += _curse_desc();
+    switch (ability)
+    {
+        case ABIL_ASHENZARI_CURSE:
+            lookup += _curse_desc();
+            break;
 
-    if (ability == ABIL_BEOGH_DISMISS_APOSTLE_1)
-        lookup += "\n" + apostle_short_description(1) + "\n";
-    else if (ability == ABIL_BEOGH_DISMISS_APOSTLE_2)
-        lookup += "\n" + apostle_short_description(2) + "\n";
-    else if (ability == ABIL_BEOGH_DISMISS_APOSTLE_3)
-        lookup += "\n" + apostle_short_description(3) + "\n";
+        case ABIL_BEOGH_DISMISS_APOSTLE_1:
+        case ABIL_BEOGH_DISMISS_APOSTLE_2:
+        case ABIL_BEOGH_DISMISS_APOSTLE_3:
+        {
+            const int index = ability - ABIL_BEOGH_DISMISS_APOSTLE_1;
+            lookup += "\n" + apostle_short_description(index) + "\n";
+        }
+        break;
+
+        case ABIL_MAKHLEB_BRAND_SELF_1:
+        case ABIL_MAKHLEB_BRAND_SELF_2:
+        case ABIL_MAKHLEB_BRAND_SELF_3:
+        {
+            const mutation_type mut = makhleb_ability_to_mutation(ability);
+            lookup += "\n" + get_mutation_desc(mut);
+        }
+        break;
+
+        default:
+        break;
+    }
 
     if (testbits(get_ability_def(ability).flags, abflag::sacrifice))
         lookup += _sacrifice_desc(ability);
@@ -2081,7 +2168,7 @@ static bool _check_ability_possible(const ability_def& abil, bool quiet = false)
         if (draconian_breath_uses_available() <= 0)
         {
             if (!quiet)
-                mpr("You have exhausted your breath weapon. Dive deeper!");
+                mpr("You have exhausted your breath weapon. Slay more foes!");
             return false;
         }
         return true;
@@ -2399,13 +2486,28 @@ static bool _check_ability_possible(const ability_def& abil, bool quiet = false)
     }
 
     case ABIL_DITHMENOS_PRIMORDIAL_NIGHTFALL:
-    if (you.duration[DUR_PRIMORDIAL_NIGHTFALL])
-    {
-        if (!quiet)
-            mpr("Night has already fallen.");
-        return false;
-    }
-    return true;
+        if (you.duration[DUR_PRIMORDIAL_NIGHTFALL])
+        {
+            if (!quiet)
+                mpr("Night has already fallen.");
+            return false;
+        }
+        return true;
+
+    case ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER:
+        if (player_in_branch(BRANCH_CRUCIBLE))
+        {
+            if (!quiet)
+                mpr("Mahkleb denies you. Endure the Crucible first!");
+            return false;
+        }
+        else if (you.form == transformation::slaughter)
+        {
+            if (!quiet)
+                mpr("You are already a vessel of slaughter!");
+            return false;
+        }
+        return true;
 
     default:
         return true;
@@ -2475,12 +2577,7 @@ static vector<string> _desc_marionette_spells(const monster_info& mi)
 
     vector<mon_spell_slot> spells = get_unique_spells(mi);
     int num_spells = spells.size();
-    int num_usable_spells = 0;
-    for (mon_spell_slot spell : spells)
-    {
-        if (valid_marionette_spell(spell.spell))
-            ++num_usable_spells;
-    }
+    int num_usable_spells = monster_at(mi.pos)->props[DITHMENOS_MARIONETTE_SPELLS_KEY].get_int();
 
     return vector<string>{make_stringf("%d/%d spells usable", num_usable_spells, num_spells)};
 }
@@ -2499,6 +2596,22 @@ static vector<coord_def> _find_shadowslip_affected()
         if (*mi != shadow && !mons_aligned(*mi, shadow)
             && you.see_cell_no_trans(mi->pos())
             && (mi->foe == MHITYOU && mi->behaviour == BEH_SEEK))
+        {
+            targs.push_back(mi->pos());
+        }
+    }
+
+    return targs;
+}
+
+static vector<coord_def> _find_carnage_servant_targets()
+{
+    vector<coord_def> targs;
+
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+         if (!mi->wont_attack() && !mons_is_firewood(**mi)
+            && you.can_see(**mi))
         {
             targs.push_back(mi->pos());
         }
@@ -2541,7 +2654,6 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
         return make_unique<targeter_multiposition>(&you, _find_shadowslip_affected(), AFF_YES);
 
     // Full LOS:
-    case ABIL_KIKU_TORMENT:
     case ABIL_QAZLAL_DISASTER_AREA: // Doesn't account for explosions hitting
                                     // areas behind glass.
     case ABIL_RU_APOCALYPSE:
@@ -2551,13 +2663,16 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
 
     // Summons:
     case ABIL_TSO_SUMMON_DIVINE_WARRIOR:
-    case ABIL_MAKHLEB_LESSER_SERVANT_OF_MAKHLEB:
-    case ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB:
     case ABIL_TROG_BROTHERS_IN_ARMS:
     case ABIL_KIKU_UNEARTH_WRETCHES:
         return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 2, 0, 1);
     case ABIL_IGNIS_FOXFIRE:
         return make_unique<targeter_radius>(&you, LOS_NO_TRANS, 2, 0, 1);
+    case ABIL_MAKHLEB_INFERNAL_SERVANT:
+        if (you.has_mutation(MUT_MAKHLEB_MARK_CARNAGE))
+            return make_unique<targeter_multiposition>(&you, _find_carnage_servant_targets(), AFF_MAYBE);
+        else
+            return make_unique<targeter_maybe_radius>(&you, LOS_NO_TRANS, 2, 0, 1);
 
     // Self-targeted:
     case ABIL_TRAN_BAT:
@@ -2618,6 +2733,9 @@ unique_ptr<targeter> find_ability_targeter(ability_type ability)
 
     case ABIL_DITHMENOS_APHOTIC_MARIONETTE:
         return make_unique<targeter_marionette>();
+
+    case ABIL_KIKU_SIGN_OF_RUIN:
+        return make_unique<targeter_smite>(&you, LOS_RADIUS, 2, 2);
 
     default:
         break;
@@ -2685,15 +2803,19 @@ bool activate_talent(const talent& tal, dist *target)
         else if (abil.ability == ABIL_CHEIBRIADOS_SLOUCH)
             args.get_desc_func = bind(_desc_slouch_damage, placeholders::_1);
         else if (abil.ability == ABIL_DITHMENOS_APHOTIC_MARIONETTE)
+        {
             args.get_desc_func = bind(_desc_marionette_spells, placeholders::_1);
+            // Calculate and cache what spells are usable by each target in
+            // screen so that this doesn't get recalculated numerous times as
+            // the player interacts with the targeter.
+            dithmenos_cache_marionette_viability();
+        }
 
         if (abil.failure.base_chance)
         {
             args.top_prompt +=
-                make_stringf(" <lightgrey>(%s risk of %s)</lightgrey>",
-                             failure_rate_to_string(tal.fail).c_str(),
-                             testbits(abil.flags, abflag::hostile) ? "hostile"
-                                                                   : "failure");
+                make_stringf(" <lightgrey>(%s risk of failure)</lightgrey>",
+                             failure_rate_to_string(tal.fail).c_str());
         }
         args.behaviour = &beh;
         if (!is_targeted)
@@ -2727,7 +2849,7 @@ bool activate_talent(const talent& tal, dist *target)
     {
         case spret::success:
         {
-            ASSERT(!fail || testbits(abil.flags, abflag::hostile));
+            ASSERT(!fail);
             practise_using_ability(abil.ability);
             _pay_ability_costs(abil);
 
@@ -3218,10 +3340,11 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
         kiku_unearth_wretches();
         break;
 
-    case ABIL_KIKU_TORMENT:
+    case ABIL_KIKU_SIGN_OF_RUIN:
         fail_check();
-        simple_god_message(" torments the living!");
-        torment(&you, TORMENT_KIKUBAAQUDGHA, you.pos());
+        mpr("You invoke the name of Kikubaaqudgha!");
+        cast_sign_of_ruin(you, beam.target,
+                          (4 + you.skill_rdiv(SK_NECROMANCY, 4, 7)) * BASELINE_DELAY);
         break;
 
     case ABIL_KIKU_BLESS_WEAPON:
@@ -3335,68 +3458,37 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
             return spret::abort;
         break;
 
-    case ABIL_MAKHLEB_MINOR_DESTRUCTION:
-    {
-        int power = you.skill(SK_INVOCATIONS, 1)
-                    + random2(1 + you.skill(SK_INVOCATIONS, 1))
-                    + random2(1 + you.skill(SK_INVOCATIONS, 1));
+    case ABIL_MAKHLEB_ANNIHILATION:
+        return cast_iood(&you, _makhleb_annihilation_power(), &beam, 0, 0, MHITNOT,
+                         fail, false, MONS_GLOBE_OF_ANNIHILATION);
 
-        // Since the actual beam is random, check with BEAM_MMISSILE.
-        if (!player_tracer(ZAP_MAGIC_DART, power, beam, beam.range))
+    case ABIL_MAKHLEB_DESTRUCTION:
+        return makhleb_unleash_destruction(_makhleb_destruction_power(), beam, fail);
+
+    case ABIL_MAKHLEB_INFERNAL_SERVANT:
+        if (you.has_mutation(MUT_MAKHLEB_MARK_CARNAGE)
+            && get_dist_to_nearest_monster() > you.current_vision)
+        {
+            mprf("You can't see any nearby targets.");
             return spret::abort;
+        }
 
         fail_check();
-        beam.origin_spell = SPELL_MINOR_DESTRUCTION;
-
-        switch (random2(5))
-        {
-        case 0: zapping(ZAP_THROW_FLAME, power, beam); break;
-        case 1: zapping(ZAP_PAIN, power, beam); break;
-        case 2: zapping(ZAP_STONE_ARROW, power, beam); break;
-        case 3: zapping(ZAP_SHOCK, power, beam); break;
-        case 4: zapping(ZAP_BREATHE_ACID, power / 7, beam); break;
-        }
-        break;
-    }
-
-    case ABIL_MAKHLEB_LESSER_SERVANT_OF_MAKHLEB:
-        summon_demon_type(random_choose(MONS_HELLWING, MONS_NEQOXEC,
-                                        MONS_ORANGE_DEMON, MONS_SMOKE_DEMON,
-                                        MONS_YNOXINUL),
-                          20 + you.skill(SK_INVOCATIONS, 3),
-                          GOD_MAKHLEB, 0, !fail);
+        makhleb_infernal_servant();
         break;
 
-    case ABIL_MAKHLEB_MAJOR_DESTRUCTION:
-    {
-        int power = you.skill(SK_INVOCATIONS, 2)
-                    + random2(1 + you.skill(SK_INVOCATIONS, 2))
-                    + random2(1 + you.skill(SK_INVOCATIONS, 2));
+    case ABIL_MAKHLEB_INFERNAL_LEGION:
+        return makhleb_infernal_legion(fail);
 
-        // Since the actual beam is random, check with BEAM_MMISSILE.
-        if (!player_tracer(ZAP_SEARING_RAY, power, beam, beam.range))
-            return spret::abort;
-
+    case ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER:
         fail_check();
-        {
-            beam.origin_spell = SPELL_MAJOR_DESTRUCTION;
-            zap_type ztype =
-                random_choose(ZAP_BOLT_OF_FIRE,
-                              ZAP_LIGHTNING_BOLT,
-                              ZAP_BOLT_OF_MAGMA,
-                              ZAP_BOLT_OF_DRAINING,
-                              ZAP_CORROSIVE_BOLT);
-            zapping(ztype, power, beam);
-        }
+        makhleb_vessel_of_slaughter();
         break;
-    }
 
-    case ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB:
-        summon_demon_type(random_choose(MONS_EXECUTIONER, MONS_GREEN_DEATH,
-                                        MONS_BLIZZARD_DEMON, MONS_BALRUG,
-                                        MONS_CACODEMON),
-                          20 + you.skill(SK_INVOCATIONS, 3),
-                          GOD_MAKHLEB, 0, !fail);
+    case ABIL_MAKHLEB_BRAND_SELF_1:
+    case ABIL_MAKHLEB_BRAND_SELF_2:
+    case ABIL_MAKHLEB_BRAND_SELF_3:
+        makhleb_inscribe_mark(makhleb_ability_to_mutation(abil.ability));
         break;
 
     case ABIL_TROG_BERSERK:
@@ -3429,6 +3521,7 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
 
     case ABIL_SIF_MUNA_CHANNEL_ENERGY:
         fail_check();
+        mpr("You channel some magical energy.");
         you.increase_duration(DUR_CHANNEL_ENERGY,
             4 + random2avg(you.skill_rdiv(SK_INVOCATIONS, 2, 3), 2), 100);
         break;
@@ -3625,8 +3718,7 @@ static spret _do_ability(const ability_def& abil, bool fail, dist *target,
 
     case ABIL_CHEIBRIADOS_TIME_STEP:
         fail_check();
-        cheibriados_time_step(max(1, you.skill(SK_INVOCATIONS, 10)
-                                     * you.piety / 100));
+        cheibriados_time_step(you.skill(SK_INVOCATIONS, 10));
         break;
 
     case ABIL_CHEIBRIADOS_TIME_BEND:
@@ -3864,8 +3956,7 @@ static int _scale_piety_cost(ability_type abil, int original_cost)
     // Abilities that have aroused our ire earn 2.5x their classic
     // Crawl piety cost.
     return (crawl_state.game_is_sprint()
-            && (abil == ABIL_TROG_BROTHERS_IN_ARMS
-                || abil == ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB))
+            && abil == ABIL_TROG_BROTHERS_IN_ARMS)
            ? div_rand_round(original_cost * 5, 2)
            : original_cost;
 }
@@ -3898,7 +3989,12 @@ static void _pay_ability_costs(const ability_def& abil)
     }
 
     if (hp_cost)
+    {
         dec_hp(hp_cost, false);
+
+        // This should still trigger off using other invocations that cost HP
+        makhleb_celebrant_bloodrite();
+    }
 
     if (piety_cost)
         lose_piety(piety_cost);
@@ -4042,9 +4138,7 @@ string describe_talent(const talent& tal)
 {
     ASSERT(tal.which != ABIL_NON_ABILITY);
 
-    const string failure = failure_rate_to_string(tal.fail)
-        + (testbits(get_ability_def(tal.which).flags, abflag::hostile)
-           ? " hostile" : "");
+    const string failure = failure_rate_to_string(tal.fail);
 
     ostringstream desc;
     desc << left
@@ -4587,5 +4681,5 @@ int generic_cost::cost() const
 
 int scaling_cost::cost(int max) const
 {
-    return (value < 0) ? (-value) : ((value * max + 500) / 1000);
+    return fixed_val + ((scaling_val * max + 500) / 1000);
 }

@@ -516,6 +516,9 @@ void player_reacts_to_monsters()
         _handle_uskayaw_time(you.time_taken);
 
     announce_beogh_conversion_offer();
+
+    if (player_in_branch(BRANCH_ARENA) && !okawaru_duel_active())
+        okawaru_end_duel();
 }
 
 static bool _check_recite()
@@ -877,6 +880,9 @@ static void _decrement_durations()
     if (you.duration[DUR_DRAGON_CALL])
         do_dragon_call(delay);
 
+    if (you.duration[DUR_INFERNAL_LEGION])
+        makhleb_infernal_legion_tick(delay);
+
     if (you.duration[DUR_DOOM_HOWL])
         doom_howl(min(delay, you.duration[DUR_DOOM_HOWL]));
 
@@ -897,8 +903,6 @@ static void _decrement_durations()
     {
         _try_to_respawn_ancestor();
     }
-
-    okawaru_handle_duel();
 
     const bool sanguine_armour_is_valid = sanguine_armour_valid();
     if (sanguine_armour_is_valid)
@@ -999,7 +1003,7 @@ static void _maybe_attune_items(bool attune_regen, bool attune_mana_regen)
 
     plural = plural || eq_list.size() > 1;
     string eq_str = comma_separated_line(eq_list.begin(), eq_list.end());
-    mprf("Your %s attune%s to your body and you begin to regenerate%s "
+    mprf("Your %s attune%s to your body, and you begin to regenerate%s "
          "more quickly.", eq_str.c_str(), plural ? " themselves" : "s itself",
          msg);
 }
@@ -1127,11 +1131,8 @@ void player_reacts()
     abyss_maybe_spawn_xp_exit();
 
     actor_apply_cloud(&you);
-    // Miasma immunity from Dreadful Rot. Only lasts for one turn,
-    // so erase it just after we apply clouds for the turn (above).
-    if (you.props.exists(MIASMA_IMMUNE_KEY))
-        you.props.erase(MIASMA_IMMUNE_KEY);
-    // Ditto for blastmotes.
+    // Immunity due to just casting Volatile Blastmotes. Only lasts for one
+    // turn, so erase it just after we apply clouds for the turn (above).
     if (you.props.exists(BLASTMOTE_IMMUNE_KEY))
         you.props.erase(BLASTMOTE_IMMUNE_KEY);
 
@@ -1148,6 +1149,12 @@ void player_reacts()
     you.handle_constriction();
 
     _regenerate_hp_and_mp(you.time_taken);
+
+    if (you.duration[DUR_CELEBRANT_COOLDOWN] && you.hp == you.hp_max)
+    {
+        mprf(MSGCH_DURATION, "You are ready to perform a blood rite again.");
+        you.duration[DUR_CELEBRANT_COOLDOWN] = 0;
+    }
 
     if (you.duration[DUR_POISONING])
         handle_player_poison(you.time_taken);

@@ -309,7 +309,7 @@ page, clearly reserving this book for only the tackiest of wizards.
 %%%%
 book of spontaneous combustion
 
-A heavy tome whose desiccated pages smell faintly of sulfer. The ink with which
+A heavy tome whose desiccated pages smell faintly of sulphur. The ink with which
 it was written is wildly flammable and care must be taken even opening it, but
 the power of the spells described therein is undeniable.
 %%%%
@@ -691,10 +691,10 @@ glaive
 
 A pole with a large, heavy blade on one end.
 %%%%
-gold dragon scales
+golden dragon scales
 
-The scales of a gold dragon. It is much heavier than most dragon scale armours,
-and grants its wearer resistance to poison, fire and cold.
+The scales of a golden dragon. It is much heavier than most dragon scale
+armours, and grants its wearer resistance to poison, fire and cold.
 %%%%
 gold piece
 

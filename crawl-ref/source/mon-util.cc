@@ -53,6 +53,7 @@
 #include "mon-place.h"
 #include "mon-poly.h"
 #include "mon-tentacle.h"
+#include "mon-util.h"
 #include "mutant-beast.h"
 #include "notes.h"
 #include "options.h"
@@ -70,6 +71,7 @@
 #include "tilepick.h"
 #include "tileview.h"
 #include "timed-effects.h"
+#include "transform.h"
 #include "traps.h"
 #include "unicode.h"
 #include "unwind.h"
@@ -1831,6 +1833,15 @@ bool mons_can_use_stairs(const monster& mon, dungeon_feature_type stair)
         return false;
     }
 
+    // If this is the entrance to a portal vault (or another region of Pandemonium)
+    // only friendly monsters can traverse this.
+    if (!mon.friendly()
+        && (feat_is_portal_entrance(stair) || stair == DNGN_TRANSIT_PANDEMONIUM
+                                           || stair == DNGN_ENTER_PANDEMONIUM))
+    {
+        return false;
+    }
+
     // Everything else is fine
     return true;
 }
@@ -1848,7 +1859,7 @@ void name_zombie(monster& mon, monster_type mc, const string &mon_name)
     }
     // Also for the Enchantress: treat Enchantress as an adjective to
     // avoid mentions of "the Enchantress the spriggan zombie".
-    else if (mc == MONS_THE_ENCHANTRESS)
+    else if (mc == MONS_ENCHANTRESS)
     {
         mon.mname = "Enchantress";
         mon.flags |= MF_NAME_ADJECTIVE;
@@ -2067,12 +2078,23 @@ mon_attack_def mons_attack_spec(const monster& m, int attk_number,
         if (mon.type == MONS_NAMELESS)
             attk.damage = mon.get_hit_dice() * 2;
 
+        if (mon.type == MONS_SOUL_WISP)
+            attk.damage = 2 + mon.get_hit_dice();
+
         // Boulder beetles get double attack damage and a normal 'hit' attack.
         if (mon.has_ench(ENCH_ROLLING))
         {
             attk.type = AT_HIT;
             attk.damage *= 2;
         }
+    }
+    // Give Coglin player shadows a second attack for their second weapon
+    else if (attk_number == 1 && mon.type == MONS_PLAYER_SHADOW
+             && you.has_mutation(MUT_WIELD_OFFHAND))
+    {
+        attk.type = AT_HIT;
+        if (mon.props.exists(DITH_SHADOW_ATTACK_KEY))
+            attk.damage = mon.props[DITH_SHADOW_ATTACK_KEY].get_int();
     }
     else if (mons_species(mon.type) == MONS_DRACONIAN
              && mon.type != MONS_DRACONIAN
@@ -2781,8 +2803,12 @@ vector<mon_spell_slot> get_unique_spells(const monster_info &mi,
     {
         const mon_spell_slot breath =
             drac_breath(mi.draconian_subspecies());
-        if (breath.flags & flags && breath.spell != SPELL_NO_SPELL)
+
+        if (breath.spell != SPELL_NO_SPELL
+            && (flags == MON_SPELL_NO_FLAGS || (breath.flags & flags)))
+        {
             slots.push_back(breath);
+        }
     }
 
     // No other spells (e.g. drac and/or wand); quit right away.
@@ -4268,6 +4294,131 @@ static string _random_class_of_god_name(bool (*class_of_god)(god_type god))
     return result;
 }
 
+// part_class should be a body_part_class_flags value.
+string random_body_part_name(bool plural, int part_class)
+{
+    vector<bool> plural_parts;
+    vector<string> body_parts;
+
+    if (part_class & BPART_INTERNAL)
+    {
+        plural_parts.push_back(false);
+        body_parts.push_back("soul");
+
+        plural_parts.push_back(true);
+        body_parts.push_back("muscles");
+
+        if (you.has_blood())
+        {
+            plural_parts.push_back(false);
+            body_parts.push_back("blood");
+        }
+
+        if (you.has_bones())
+        {
+            plural_parts.push_back(true);
+            body_parts.push_back("bones");
+        }
+    }
+
+    if (part_class & BPART_EXTERNAL)
+    {
+        plural_parts.push_back(false);
+        body_parts.push_back("head");
+
+        string hands;
+        if (you.get_mutation_level(MUT_MISSING_HAND))
+        {
+            hands = you.hand_name(false);
+            plural_parts.push_back(false);
+        }
+        else
+        {
+            hands = you.hand_name(true);
+            plural_parts.push_back(true);
+        }
+        body_parts.push_back(hands);
+
+        string arms = you.arm_name(true);
+        plural_parts.push_back(true);
+        body_parts.push_back(arms);
+
+        if (player_has_feet())
+        {
+            string feet = you.foot_name(true);
+            plural_parts.push_back(true);
+            body_parts.push_back(feet);
+        }
+
+        if (you.has_tail())
+        {
+            plural_parts.push_back(false);
+            body_parts.push_back("tail");
+        }
+
+        if (player_has_ears())
+        {
+            plural_parts.push_back(true);
+            body_parts.push_back("ears");
+        }
+
+        if (player_has_eyes())
+        {
+            string eyes;
+            if (you.get_mutation_level(MUT_MISSING_EYE))
+            {
+                plural_parts.push_back(false);
+                eyes = "eye";
+            }
+            else
+            {
+                plural_parts.push_back(true);
+                eyes = "eyes";
+            }
+            body_parts.push_back(eyes);
+        }
+
+        plural_parts.push_back(false);
+        body_parts.push_back("mouth");
+
+        if (player_has_hair())
+        {
+            plural_parts.push_back(false);
+            body_parts.push_back("hair");
+        }
+
+        string flesh;
+        if (you.petrified())
+        {
+            plural_parts.push_back(false);
+            flesh = "stone";
+        }
+        else if (!get_form()->flesh_equivalent.empty())
+        {
+            plural_parts.push_back(false);
+            flesh = get_form()->flesh_equivalent;
+        }
+        else
+        {
+            string skin = species::skin_name(you.species);
+            // Check plurality as the species::skin_name() comment suggests.
+            plural_parts.push_back(ends_with(skin, "s"));
+            flesh = skin;
+        }
+        body_parts.push_back(flesh);
+    }
+
+    int which_part;
+
+    do
+    {
+        which_part = random2(body_parts.size());
+    }
+    while (plural_parts[which_part] != plural);
+
+    return body_parts[which_part];
+}
+
 static string _get_species_insult(const string &species, const string &type)
 {
     string insult;
@@ -4447,6 +4598,15 @@ string do_mon_str_replacements(const string &in_msg, const monster& mons,
         msg = replace_all(msg, "@The_something@", name);
         msg = replace_all(msg, "@the_monster@",   name);
         msg = replace_all(msg, "@The_monster@",   name);
+
+        msg = replace_all(msg, "@the_something_possessive@",
+                          apostrophise(name));
+        msg = replace_all(msg, "@The_something_possessive@",
+                          apostrophise(name));
+        msg = replace_all(msg, "@the_monster_possessive@",
+                          apostrophise(name));
+        msg = replace_all(msg, "@The_monster_possessive@",
+                          apostrophise(name));
     }
     else if (mons.attitude == ATT_FRIENDLY
              && !mons_is_unique(mons.type)
@@ -4457,9 +4617,18 @@ string do_mon_str_replacements(const string &in_msg, const monster& mons,
         cap   = DESC_PLAIN;
 
         msg = replace_all(msg, "@the_something@", "your @the_something@");
-        msg = replace_all(msg, "@The_something@", "Your @The_something@");
+        msg = replace_all(msg, "@The_something@", "Your @the_something@");
         msg = replace_all(msg, "@the_monster@",   "your @the_monster@");
         msg = replace_all(msg, "@The_monster@",   "Your @the_monster@");
+
+        msg = replace_all(msg, "@the_something_possessive@",
+                          "your @the_something_possessive@");
+        msg = replace_all(msg, "@The_something_possessive@",
+                          "Your @the_something_possessive@");
+        msg = replace_all(msg, "@the_monster_possessive@",
+                          "your @the_monster_possessive@");
+        msg = replace_all(msg, "@The_monster_possessive@",
+                          "Your @the_monster_possessive@");
     }
 
     // XXX: Shouldn't be able to see 'fake' monsters
@@ -4489,33 +4658,47 @@ string do_mon_str_replacements(const string &in_msg, const monster& mons,
     msg = replace_all(msg, "@something@",   something);
     msg = replace_all(msg, "@a_something@", mons.name(DESC_A));
     msg = replace_all(msg, "@the_something@", mons.name(nocap));
+    msg = replace_all(msg, "@the_something_possessive@",
+                      apostrophise(mons.name(nocap)));
 
     something[0] = toupper_safe(something[0]);
     msg = replace_all(msg, "@Something@",   something);
     msg = replace_all(msg, "@A_something@", mons.name(DESC_A));
     msg = replace_all(msg, "@The_something@", mons.name(cap));
+    msg = replace_all(msg, "@The_something_possessive@",
+                      apostrophise(mons.name(cap)));
 
     // Player name.
     msg = replace_all(msg, "@player_name@", you.your_name);
+    msg = replace_all(msg, "@player_name_possessive@",
+                      apostrophise(you.your_name));
 
     string plain = mons.name(DESC_PLAIN);
     msg = replace_all(msg, "@monster@",     plain);
     msg = replace_all(msg, "@a_monster@",   mons.name(DESC_A));
     msg = replace_all(msg, "@the_monster@", mons.name(nocap));
+    msg = replace_all(msg, "@the_monster_possessive@",
+                      apostrophise(mons.name(nocap)));
 
     plain[0] = toupper_safe(plain[0]);
     msg = replace_all(msg, "@Monster@",     plain);
     msg = replace_all(msg, "@A_monster@",   mons.name(DESC_A));
     msg = replace_all(msg, "@The_monster@", mons.name(cap));
+    msg = replace_all(msg, "@The_monster_possessive@",
+                      apostrophise(mons.name(cap)));
 
-    msg = replace_all(msg, "@Subjective@",
-                      mons.pronoun(PRONOUN_SUBJECTIVE));
-    msg = replace_all(msg, "@subjective@",
-                      mons.pronoun(PRONOUN_SUBJECTIVE));
-    msg = replace_all(msg, "@Possessive@",
-                      mons.pronoun(PRONOUN_POSSESSIVE));
-    msg = replace_all(msg, "@possessive@",
-                      mons.pronoun(PRONOUN_POSSESSIVE));
+    string subj_or_poss;
+
+    subj_or_poss = mons.pronoun(PRONOUN_SUBJECTIVE);
+    msg = replace_all(msg, "@subjective@", subj_or_poss);
+    subj_or_poss[0] = toupper_safe(subj_or_poss[0]);
+    msg = replace_all(msg, "@Subjective@", subj_or_poss);
+
+    subj_or_poss = mons.pronoun(PRONOUN_POSSESSIVE);
+    msg = replace_all(msg, "@possessive@", subj_or_poss);
+    subj_or_poss[0] = toupper_safe(subj_or_poss[0]);
+    msg = replace_all(msg, "@Possessive@", subj_or_poss);
+
     msg = replace_all(msg, "@reflexive@",
                       mons.pronoun(PRONOUN_REFLEXIVE));
     msg = replace_all(msg, "@objective@",
@@ -4628,6 +4811,22 @@ string do_mon_str_replacements(const string &in_msg, const monster& mons,
                           _random_class_of_god_name(is_evil_god));
         msg = replace_all(msg, "@random_god_good@",
                           _random_class_of_god_name(is_good_god));
+    }
+
+    if (msg.find("@random_body_part") != string::npos)
+    {
+        msg = replace_all(msg, "@random_body_part_any_singular@",
+                          random_body_part_name(false, BPART_ANY));
+        msg = replace_all(msg, "@random_body_part_internal_singular@",
+                          random_body_part_name(false, BPART_INTERNAL));
+        msg = replace_all(msg, "@random_body_part_external_singular@",
+                          random_body_part_name(false, BPART_EXTERNAL));
+        msg = replace_all(msg, "@random_body_part_any_plural@",
+                          random_body_part_name(true, BPART_ANY));
+        msg = replace_all(msg, "@random_body_part_internal_plural@",
+                          random_body_part_name(true, BPART_INTERNAL));
+        msg = replace_all(msg, "@random_body_part_external_plural@",
+                          random_body_part_name(true, BPART_EXTERNAL));
     }
 
     // Replace with species specific insults.
@@ -5393,7 +5592,7 @@ void print_wounds(const monster& mons)
 
     desc.insert(0, " is ");
     desc += ".";
-    simple_monster_message(mons, desc.c_str(), MSGCH_MONSTER_DAMAGE,
+    simple_monster_message(mons, desc.c_str(), false, MSGCH_MONSTER_DAMAGE,
                            dam_level);
 }
 

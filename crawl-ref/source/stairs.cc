@@ -216,7 +216,10 @@ static void _climb_message(dungeon_feature_type stair, bool going_up,
         return;
 
     if (feat_is_portal(stair))
-        mpr("The world spins around you as you enter the gateway.");
+    {
+        if (stair != DNGN_ENTER_CRUCIBLE)
+            mpr("The world spins around you as you enter the gateway.");
+    }
     else if (feat_is_escape_hatch(stair))
     {
         if (going_up)
@@ -493,7 +496,7 @@ static void _hell_effects()
     if (have_passive(passive_t::resist_hell_effects)
         && x_chance_in_y(you.piety, MAX_PIETY * 2) || is_sanctuary(you.pos()))
     {
-        simple_god_message("'s power protects you from the chaos of Hell!");
+        simple_god_message(" power protects you from the chaos of Hell!", true);
         return;
     }
 
@@ -1002,6 +1005,9 @@ void floor_transition(dungeon_feature_type how,
 
         if (branch == BRANCH_GAUNTLET)
             _gauntlet_effect();
+
+        if (branch == BRANCH_ARENA)
+            okawaru_duel_healing();
 
         const set<branch_type> boring_branch_exits = {
             BRANCH_TEMPLE,

@@ -720,7 +720,7 @@ void beogh_recruit_apostle()
 
     mpr(msg.c_str());
 
-    // Now atually convert and save the apostle
+    // Now actually convert and save the apostle
     real->hit_points = real->max_hit_points;
     real->timeout_enchantments(1000);
     real->flags &= ~MF_APOSTLE_BAND;
@@ -865,7 +865,7 @@ static apostle_data& _get_saved_apostle(const monster apostle)
 
 int get_num_apostles()
 {
-    return apostles.size() - 1;
+    return max(0, (int)apostles.size() - 1);
 }
 
 bool beogh_apostle_is_alive(int slot)

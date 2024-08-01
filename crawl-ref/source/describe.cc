@@ -71,6 +71,7 @@
 #include "skills.h"
 #include "species.h"
 #include "spl-cast.h"
+#include "spl-damage.h"
 #include "spl-book.h"
 #include "spl-goditem.h"
 #include "spl-miscast.h"
@@ -81,6 +82,7 @@
 #include "stringutil.h" // to_string on Cygwin
 #include "tag-version.h"
 #include "terrain.h"
+#include "throw.h"
 #include "tile-flags.h"
 #include "tilepick.h"
 #ifdef USE_TILE_LOCAL
@@ -1077,7 +1079,7 @@ static string _describe_demon(const string& name, bool flying, colour_t colour)
         " It moves in a series of hideous convulsions.",
         " It moves with an unearthly grace.",
         " It leaves a glistening oily trail.",
-        " It shimmers before your eyes.",
+        " It shimmers before you.",
         " It is surrounded by a brilliant glow.",
         " It radiates an aura of extreme power.",
         " It seems utterly heartbroken.",
@@ -1700,29 +1702,6 @@ static string _category_string(const item_def &item, bool monster)
     return description;
 }
 
-static string _ghost_brand_extra_info(brand_type brand)
-{
-    switch (brand)
-    {
-    case SPWPN_FLAMING:
-    case SPWPN_FREEZING:      return "+1/4 damage after AC";
-    case SPWPN_HOLY_WRATH:    return "+3/4 damage vs evil after AC"; // ish
-    case SPWPN_ELECTROCUTION: return "1/4 chance of 8-20 damage";
-    case SPWPN_ACID:          return "2d4 damage, corrosion";
-    // Would be nice to show Pain/Foul Flame damage and chance
-    default: return "";
-    }
-}
-
-static string _desc_ghost_brand(brand_type brand)
-{
-    const string base_name = uppercase_first(brand_type_name(brand, true));
-    const string extra_info = _ghost_brand_extra_info(brand);
-    if (extra_info.empty())
-        return base_name;
-    return make_stringf("%s (%s)", base_name.c_str(), extra_info.c_str());
-}
-
 static string _describe_weapon_brand(const item_def &item)
 {
     if (is_unrandom_artefact(item))
@@ -1874,7 +1853,7 @@ static string _equip_type_name(const item_def &item)
 
 static string _equipment_switchto_string(const item_def &item)
 {
-    if (item.base_type == OBJ_WEAPONS)
+    if (item.base_type == OBJ_WEAPONS || item.base_type == OBJ_STAVES)
         return "wielding";
     // Not always the same verb used elsewhere, but "switch putting on" sounds weird
     else
@@ -2960,6 +2939,9 @@ string get_item_description(const item_def &item,
             string art_desc = _artefact_descrip(item);
             if (!art_desc.empty())
                 description << "\n\n" + art_desc;
+
+            if (verbose && crawl_state.need_save && you.could_wield(item, true, true))
+                description << _equipment_ac_ev_sh_change(item);
         }
         description << "\n\nIt falls into the 'Staves' category. ";
         description << _handedness_string(item);
@@ -4536,6 +4518,14 @@ static string _player_spell_desc(spell_type spell)
                     << "\n";
     }
 
+    if (spell == SPELL_GRAVE_CLAW && you.has_spell(SPELL_GRAVE_CLAW))
+    {
+        description << "\nYou have harvested enough death to cast this spell "
+                    << you.props[GRAVE_CLAW_CHARGES_KEY].get_int() << " time"
+                    << (you.props[GRAVE_CLAW_CHARGES_KEY].get_int() == 1 ? "" : "s")
+                    << ". (Maximum of " << GRAVE_CLAW_MAX_CHARGES << ".)";
+    }
+
     return description.str();
 }
 
@@ -4608,7 +4598,7 @@ static void _get_spell_description(const spell_type spell,
         }
 
         const int hd = mon_owner->spell_hd();
-        const int range = mons_spell_range_for_hd(spell, hd);
+        const int range = mons_spell_range_for_hd(spell, hd, mon_owner->is(MB_PLAYER_SERVITOR));
         description += "\nRange : ";
         if (spell == SPELL_CALL_DOWN_LIGHTNING)
             description += stringize_glyph(mons_char(mon_owner->type)) + "..---->";
@@ -5103,8 +5093,6 @@ static int _monster_slaying(const monster_info& mi)
 
     // Largely a duplication of monster::scan_artefacts,
     // but there's no equivalent for monster_info :(
-    const item_def *weapon       = mi.inv[MSLOT_WEAPON].get();
-    const item_def *other_weapon = mi.inv[MSLOT_ALT_WEAPON].get();
     const item_def *armour       = mi.inv[MSLOT_ARMOUR].get();
     const item_def *shield       = mi.inv[MSLOT_SHIELD].get();
     const item_def *jewellery    = mi.inv[MSLOT_JEWELLERY].get();
@@ -5115,15 +5103,6 @@ static int _monster_slaying(const monster_info& mi)
             slaying += jewellery->plus;
         if (is_artefact(*jewellery))
             slaying += artefact_property(*jewellery, artp);
-    }
-
-    if (weapon && weapon->base_type == OBJ_WEAPONS && is_artefact(*weapon))
-        slaying += artefact_property(*weapon, artp);
-
-    if (other_weapon && other_weapon->base_type == OBJ_WEAPONS
-        && is_artefact(*other_weapon) && mi.wields_two_weapons())
-    {
-        slaying += artefact_property(*other_weapon, artp);
     }
 
     if (armour && armour->base_type == OBJ_ARMOUR && is_artefact(*armour))
@@ -5169,28 +5148,25 @@ static string _monster_staff_damage_string(const monster_info &mi,
                         dam_type_string.c_str());
 }
 
-static string _monster_attacks_description(const monster_info& mi)
+struct mon_attack_desc_info
 {
-    // Spectral weapons use the wielder's stats to attack, so displaying
-    // their 'monster' damage here is just misleading.
-    // TODO: display the right number without an awful hack
-    if (mi.type == MONS_SPECTRAL_WEAPON)
-        return "";
-
-    ostringstream result;
     map<mon_attack_info, int> attack_counts;
-    brand_type special_flavour = SPWPN_NORMAL;
+    brand_type special_flavour;
+    bool has_any_flavour;
+    bool flavour_without_dam;
+    bool plural;
+    size_t attk_desc_width;
+    size_t damage_width;
+    size_t bonus_width;
+    vector<string> attack_descriptions;
+    vector<string> damage_descriptions;
+    vector<string> bonus_descriptions;
+};
 
-    if (mi.props.exists(SPECIAL_WEAPON_KEY))
-    {
-        ASSERT(mi.type == MONS_PANDEMONIUM_LORD || mons_is_pghost(mi.type));
-        special_flavour = (brand_type) mi.props[SPECIAL_WEAPON_KEY].get_int();
-    }
-
-    bool has_any_flavour = special_flavour != SPWPN_NORMAL;
-    bool flavour_without_dam = special_flavour != SPWPN_NORMAL;
-    bool plural = false;
-    for (int i = 0; i < MAX_NUM_ATTACKS; ++i)
+static void _check_attack_counts_and_flavours(const monster_info &mi,
+                                              mon_attack_desc_info &di)
+{
+    for (int i = 0; i < MAX_NUM_ATTACKS; i++)
     {
         mon_attack_info attack_info = _atk_info(mi, i);
         const mon_attack_def &attack = attack_info.definition;
@@ -5203,177 +5179,172 @@ static string _monster_attacks_description(const monster_info& mi)
              || mons_species(mi.base_type) == MONS_SERPENT_OF_HELL)
             && i == 0)
         {
-            attack_counts[attack_info] = mi.num_heads;
+            di.attack_counts[attack_info] = mi.num_heads;
         }
         else
-            ++attack_counts[attack_info];
+            ++di.attack_counts[attack_info];
 
         if (i > 0)
-            plural = true;
+            di.plural = true;
 
         const item_def *quiv = mi.inv[MSLOT_MISSILE].get();
         if (quiv && quiv->base_type == OBJ_MISSILES)
         {
-            plural = true;
+            di.plural = true;
             if (quiv->sub_type == MI_DART || quiv->sub_type == MI_THROWING_NET)
             {
-                has_any_flavour = true;
-                flavour_without_dam = true;
+                di.has_any_flavour = true;
+                di.flavour_without_dam = true;
             }
+        }
+
+        // Nessos' special cased poisonous ranged attacks
+        if (mi.type == MONS_NESSOS && attack_info.weapon && is_range_weapon(*attack_info.weapon))
+        {
+            di.has_any_flavour = true;
+            di.flavour_without_dam = true;
         }
 
         if (attack.flavour == AF_PLAIN || attack.flavour == AF_PURE_FIRE)
             continue;
 
-        has_any_flavour = true;
+        di.has_any_flavour = true;
         const bool needs_dam = !flavour_triggers_damageless(attack.flavour)
-                            && !flavour_has_mobility(attack.flavour)
-                            && !flavour_has_reach(attack.flavour);
+                                && !flavour_has_mobility(attack.flavour)
+                                && !flavour_has_reach(attack.flavour);
         if (!needs_dam && attack.flavour != AF_REACH_TONGUE)
-            flavour_without_dam = true;
+            di.flavour_without_dam = true;
     }
+}
 
-    if (attack_counts.empty())
-        return "";
+// Get all the info required to form one row of the table of attacks.
+static void _attacks_table_row(const monster_info &mi, mon_attack_desc_info &di,
+                               const mon_attack_info &info, const item_def* wpn)
+{
+    const mon_attack_def &attack = info.definition;
+    const bool ranged = wpn && is_range_weapon(*wpn);
 
-    _describe_mons_to_hit(mi, result);
+    int attk_mult = di.attack_counts[info];
+    di.attack_counts[info] = 0;
 
-    result << "\n";
+    // Part 1: The "Attacks" column
+    // Display the name of the attack, along with any weapon used with it
 
-    size_t attk_desc_width = 7;                    // length of "Attacks"
-    size_t damage_width   = 10;                    // length of "Max Damage"
-    size_t bonus_width = !has_any_flavour ? 0      // no bonus column
-                       : flavour_without_dam ? 5   // length of "Bonus"
-                                             : 19; //  of "After Damaging Hits"
-    vector<string> attack_descriptions;
-    vector<string> damage_descriptions;
-    vector<string> bonus_descriptions;
-
-    // Get all the info that will form the table of attacks
-    for (int i = 0; i < MAX_NUM_ATTACKS; ++i)
+    if (weapon_multihits(wpn))
+        attk_mult *= weapon_hits_per_swing(*wpn);
+    string attk_name = uppercase_first(mon_attack_name_short(attack.type));
+    if (ranged)
+        attk_name = "Shoot";
+    string weapon_descriptor = "";
+    if (wpn)
+        weapon_descriptor = ": " + wpn->name(DESC_PLAIN, true, true, false);
+    else if (di.special_flavour != SPWPN_NORMAL)
+        weapon_descriptor = ": " + ghost_brand_name(di.special_flavour, mi.type);
+    string attk_desc = make_stringf("%s%s", attk_name.c_str(),
+                                    weapon_descriptor.c_str());
+    if (attk_mult > 1)
     {
-        const mon_attack_info info = _atk_info(mi, i);
-        const mon_attack_def &attack = info.definition;
+        attk_desc = make_stringf("%dx %s%s", attk_mult, attk_name.c_str(),
+                                    weapon_descriptor.c_str());
+    }
+    di.attack_descriptions.emplace_back(attk_desc);
+    di.attk_desc_width = max(di.attk_desc_width, attk_desc.length());
 
-        int attk_mult = attack_counts[info];
-        if (!attk_mult) // we're done
-            break;
-        attack_counts[info] = 0;
+    // Part 2: The "Max Damage" column
+    // Display the max damage from the attack (including any weapon)
+    // and additionally display max brand damage separately
 
-        // Part 1: The "Attacks" column
-        // Display the name of the attack, along with any weapon used with it
+    const int flav_dam = flavour_damage(attack.flavour, mi.hd, false);
 
-        if (weapon_multihits(info.weapon))
-            attk_mult *= weapon_hits_per_swing(*info.weapon);
-        string attk_name = uppercase_first(mon_attack_name_short(attack.type));
-        if (info.weapon && is_range_weapon(*info.weapon))
-            attk_name = "Shoot";
-        string weapon_descriptor = "";
-        if (info.weapon)
-            weapon_descriptor = ": " + info.weapon->name(DESC_PLAIN, true, true, false);
-        string attk_desc = make_stringf("%s%s", attk_name.c_str(),
-                                        weapon_descriptor.c_str());
-        if (attk_mult > 1)
-        {
-            attk_desc = make_stringf("%dx %s%s", attk_mult, attk_name.c_str(),
-                                     weapon_descriptor.c_str());
-        }
-        attack_descriptions.emplace_back(attk_desc);
-        attk_desc_width = max(attk_desc_width, attk_desc.length());
+    int dam = attack.damage;
+    int slaying = _monster_slaying(mi);
 
-        // Part 2: The "Max Damage" column
-        // Display the max damage from the attack (including any weapon)
-        // and additionally display max brand damage separately
+    if (attack.flavour == AF_PURE_FIRE)
+        dam = flav_dam;
+    else if (attack.flavour == AF_CRUSH)
+        dam = 0;
+    else if (wpn)
+    {
+        // From attack::calc_damage
+        // damage = 1 + random2(monster attack damage)
+        //          + random2(weapon damage) + random2(1 + enchant + slay)
+        const int base_dam = property(*wpn, PWPN_DAMAGE);
+        dam += brand_adjust_weapon_damage(base_dam, get_weapon_brand(*wpn), false) - 1;
+        if (ranged && mons_class_flag(mi.type, M_ARCHER))
+            dam += archer_bonus_damage(mi.hd);
+        slaying += wpn->plus;
+    }
+    dam += max(slaying, 0);
 
-        const int flav_dam = flavour_damage(attack.flavour, mi.hd, false);
-
-        int dam = attack.damage;
-        int slaying = _monster_slaying(mi);
-
-        if (attack.flavour == AF_PURE_FIRE)
-            dam = flav_dam;
-        else if (attack.flavour == AF_CRUSH)
-            dam = 0;
-        else if (info.weapon)
-        {
-            // From attack::calc_damage
-            // damage = 1 + random2(monster attack damage)
-            //          + random2(weapon damage) + random2(1 + enchant + slay)
-            const int base_dam = property(*info.weapon, PWPN_DAMAGE);
-            dam += brand_adjust_weapon_damage(base_dam, get_weapon_brand(*info.weapon), false) - 1;
-            if (is_range_weapon(*info.weapon) && mons_class_flag(mi.type, M_ARCHER))
-                dam += archer_bonus_damage(mi.hd);
-            slaying += info.weapon->plus;
-        }
-        dam += max(slaying, 0);
-
-        // Show damage modified by effects, if applicable
-        int real_dam = dam;
+    // Show damage modified by effects, if applicable
+    int real_dam = dam;
+    if (!ranged)
+    {
         if (mi.is(MB_STRONG) || mi.is(MB_BERSERK))
             real_dam = real_dam * 3 / 2;
         if (mi.is(MB_IDEALISED))
             real_dam = real_dam * 2;
         if (mi.is(MB_WEAK))
             real_dam = real_dam * 2 / 3;
-        if (mi.is(MB_TOUCH_OF_BEOGH))
-            real_dam = real_dam * 4 / 3;
+    }
+    if (mi.is(MB_TOUCH_OF_BEOGH))
+        real_dam = real_dam * 4 / 3;
 
-        string dam_str;
-        if (dam != real_dam)
-            dam_str = make_stringf("%d (base %d)", real_dam, dam);
-        else
-            dam_str = make_stringf("%d", dam);
+    string dam_str;
+    if (dam != real_dam)
+        dam_str = make_stringf("%d (base %d)", real_dam, dam);
+    else
+        dam_str = make_stringf("%d", dam);
 
-        if (attack.flavour == AF_PURE_FIRE)
-            dam_str += " fire";
+    if (attack.flavour == AF_PURE_FIRE)
+        dam_str += " fire";
 
-        string brand_str;
-        if (info.weapon)
+    string brand_str;
+    if (wpn)
+    {
+        if (wpn->base_type == OBJ_WEAPONS)
         {
-            if (info.weapon->base_type == OBJ_WEAPONS)
-            {
-                brand_str = _brand_damage_string(mi,
-                                                 get_weapon_brand(*info.weapon),
-                                                 dam);
-            }
-            else if (info.weapon->base_type == OBJ_STAVES)
-                brand_str = _monster_staff_damage_string(mi,
-                                static_cast<stave_type>(info.weapon->sub_type));
+            brand_str = _brand_damage_string(mi, get_weapon_brand(*wpn),
+                                             real_dam);
         }
-
-        string final_dam_str = make_stringf("%s%s%s", dam_str.c_str(),
-                                            brand_str.c_str(),
-                                            attk_mult > 1 ? " each" : "");
-        damage_descriptions.emplace_back(final_dam_str);
-        damage_width = max(damage_width, final_dam_str.size());
-
-        // Part 3: The "Bonus" column
-        // Describe any additional effects from a monster's attack flavour
-
-        if (special_flavour != SPWPN_NORMAL)
+        else if (wpn->base_type == OBJ_STAVES)
         {
-            // TODO Merge this with weapon brand handling above
-            bonus_descriptions.emplace_back(_desc_ghost_brand(special_flavour));
-            bonus_width = max(bonus_width, _desc_ghost_brand(special_flavour).size());
-            continue;
+            brand_str = _monster_staff_damage_string(mi,
+                            static_cast<stave_type>(wpn->sub_type));
         }
+    }
+    else if (di.special_flavour != SPWPN_NORMAL)
+        brand_str = _brand_damage_string(mi, di.special_flavour, real_dam);
 
-        string bonus_desc = uppercase_first(_flavour_base_desc(attack.flavour));
+    string final_dam_str = make_stringf("%s%s%s", dam_str.c_str(),
+                                        brand_str.c_str(),
+                                        attk_mult > 1 ? " each" : "");
+    di.damage_descriptions.emplace_back(final_dam_str);
+    di.damage_width = max(di.damage_width, final_dam_str.size());
+
+    // Part 3: The "Bonus" column
+    // Describe any additional effects from a monster's attack flavour
+
+    string bonus_desc = "";
+    // Attack flavours don't apply to ranged weapon attacks...
+    if (!ranged)
+    {
+        bonus_desc = uppercase_first(_flavour_base_desc(attack.flavour));
         if (flav_dam && attack.flavour != AF_PURE_FIRE)
         {
             bonus_desc += make_stringf(" (max %d%s)",
-                                       flav_dam,
-                                       attk_mult > 1 ? " each" : "");
+                                    flav_dam,
+                                    attk_mult > 1 ? " each" : "");
         }
         else if (attack.flavour == AF_DRAIN)
             bonus_desc += make_stringf(" (max %d damage)", real_dam / 2);
         else if (attack.flavour == AF_CRUSH)
         {
             bonus_desc += make_stringf(" (%d-%d dam)", attack.damage,
-                                       attack.damage*2);
+                                    attack.damage*2);
         }
 
-        if (flavour_without_dam
+        if (di.flavour_without_dam
             && !bonus_desc.empty()
             && !flavour_triggers_damageless(attack.flavour)
             && !flavour_has_mobility(attack.flavour))
@@ -5381,136 +5352,204 @@ static string _monster_attacks_description(const monster_info& mi)
             bonus_desc += " (if damage dealt)";
         }
 
-        // Nessos' ranged weapon attacks apply venom as a special effect
-        if (mi.type == MONS_NESSOS
-            && info.weapon && is_range_weapon(*info.weapon))
-        {
-            bonus_desc += make_stringf("Poison");
-            has_any_flavour = true;
-            flavour_without_dam = true;
-        }
-
         if (flavour_has_reach(attack.flavour))
         {
             bonus_desc += (bonus_desc.empty() ? "Reaches" : "; reaches");
-            bonus_desc += (attack.flavour == AF_RIFT ? " very far" : " from afar");
+            bonus_desc += (attack.flavour == AF_RIFT ? " very far"
+                                                     : " from afar");
         }
-
-        bonus_descriptions.emplace_back(bonus_desc);
-        bonus_width = max(bonus_width, bonus_desc.size());
     }
+    // ...except Nessos' ranged attacks apply venom as a special effect
+    else if (mi.type == MONS_NESSOS)
+        bonus_desc += make_stringf("Poison");
 
-    // Check for throwing weapons
+    di.bonus_descriptions.emplace_back(bonus_desc);
+    di.bonus_width = max(di.bonus_width, bonus_desc.size());
+}
+
+// Get all the info required to form an attacks table row for the monster's
+// throwing weapons, if applicable.
+static void _attacks_table_row_throwing(const monster_info &mi,
+                                        mon_attack_desc_info &di)
+{
     item_def *quiv = mi.inv[MSLOT_MISSILE].get();
-    if (quiv && quiv->base_type == OBJ_MISSILES)
+    if (!quiv || quiv->base_type != OBJ_MISSILES)
+        return;
+
+    string throw_str = "Throw: ";
+    if (quiv->is_type(OBJ_MISSILES, MI_THROWING_NET))
+        throw_str += quiv->name(DESC_A, false, false, true, false);
+    else
+        throw_str += pluralise(quiv->name(DESC_PLAIN, false, false,
+                                          true, false));
+    di.attack_descriptions.emplace_back(throw_str);
+    di.attk_desc_width = max(di.attk_desc_width, throw_str.size());
+
+    string dam_desc = "0";
+    string bonus_desc = "";
+    if (quiv->sub_type == MI_THROWING_NET)
+        bonus_desc = "Ensnare in a net";
+    else if (quiv->sub_type == MI_DART)
     {
-        string throw_str = "Throw: ";
-        if (quiv->is_type(OBJ_MISSILES, MI_THROWING_NET))
-            throw_str += quiv->name(DESC_A, false, false, true, false);
-        else
-            throw_str += pluralise(quiv->name(DESC_PLAIN, false, false,
-                                              true, false));
-        attack_descriptions.emplace_back(throw_str);
-        attk_desc_width = max(attk_desc_width, throw_str.size());
-
-        string dam_desc = "0";
-        string bonus_desc = "";
-        if (quiv->sub_type == MI_THROWING_NET)
+        switch (quiv->brand)
         {
-            bonus_desc = "Ensnare in a net";
-            has_any_flavour = true;
-            flavour_without_dam = true;
+        case SPMSL_CURARE:
+            dam_desc = "12 (curare)"; // direct curare damage is 2d6
+            bonus_desc = "Poison and slowing";
+            break;
+        case SPMSL_POISONED:
+            bonus_desc = "Poison";
+            break;
+        case SPMSL_BLINDING:
+            bonus_desc = "Blinding and confusion";
+            break;
+        case SPMSL_FRENZY:
+            bonus_desc = "Drive defenders into a frenzy";
+            break;
+        case SPMSL_DISPERSAL:
+            bonus_desc = "Blink the defender away";
+            break;
+        default:
+            break;
         }
-        else if (quiv->sub_type == MI_DART)
+    }
+    else // ordinary missiles
+    {
+        // Missile attacks use the damage number of a monster's first attack
+        const mon_attack_info info = _atk_info(mi, 0);
+        const mon_attack_def &attack = info.definition;
+        int dam = attack.damage;
+        dam += property(*quiv, PWPN_DAMAGE) - 1;
+        dam += max(_monster_slaying(mi), 0);
+        if (mons_class_flag(mi.type, M_ARCHER))
+            dam += archer_bonus_damage(mi.hd);
+        string silver_str;
+        if (quiv->brand == SPMSL_SILVER)
         {
-            has_any_flavour = true;
-            flavour_without_dam = true;
-            switch (quiv->brand)
-            {
-            case SPMSL_CURARE:
-                dam_desc = "12 (curare)"; // direct curare damage is 2d6
-                bonus_desc = "Poison and slowing";
-                break;
-            case SPMSL_POISONED:
-                bonus_desc = "Poison";
-                break;
-            case SPMSL_BLINDING:
-                bonus_desc = "Blinding and confusion";
-                break;
-            case SPMSL_FRENZY:
-                bonus_desc = "Drive defenders into a frenzy";
-                break;
-            case SPMSL_DISPERSAL:
-                bonus_desc = "Blink the defender away";
-                break;
-            default:
-                break;
-            }
+            string dmg_msg;
+            int silver_dam = max(dam / 3,
+                                 silver_damages_victim(&you, dam, dmg_msg));
+            silver_str = make_stringf(" + %d (silver)", silver_dam);
         }
-        else // ordinary missiles
-        {
-            // Missile attacks use the damage number of a monster's first attack
-            const mon_attack_info info = _atk_info(mi, 0);
-            const mon_attack_def &attack = info.definition;
-            int dam = attack.damage;
-            dam += property(*quiv, PWPN_DAMAGE) - 1;
-            dam += max(_monster_slaying(mi), 0);
-            if (mons_class_flag(mi.type, M_ARCHER))
-                dam += archer_bonus_damage(mi.hd);
-            string silver_str;
-            if (quiv->brand == SPMSL_SILVER)
-            {
-                string dmg_msg;
-                int silver_dam = max(dam / 3,
-                                     silver_damages_victim(&you, dam, dmg_msg));
-                silver_str = make_stringf(" + %d (silver)", silver_dam);
-            }
-            dam_desc = make_stringf("%d%s", dam, silver_str.c_str());
-        }
-
-        damage_descriptions.emplace_back(dam_desc);
-        bonus_descriptions.emplace_back(bonus_desc);
-        damage_width = max(damage_width, dam_desc.size());
-        bonus_width = max(bonus_width, bonus_desc.size());
+        dam_desc = make_stringf("%d%s", dam, silver_str.c_str());
     }
 
-    // Hopefully enough for every possibility
-    damage_width    = min(damage_width, (size_t) 31);
-    bonus_width     = min(bonus_width, 69 - damage_width);
+    di.damage_descriptions.emplace_back(dam_desc);
+    di.bonus_descriptions.emplace_back(bonus_desc);
+    di.damage_width = max(di.damage_width, dam_desc.size());
+    di.bonus_width = max(di.bonus_width, bonus_desc.size());
+}
+
+// Build the table of attacks, for real
+static void _build_table_of_attacks(mon_attack_desc_info &di,
+                                    ostringstream &result)
+{
+    // Hopefully enough width for every possibility
+    di.damage_width    = min(di.damage_width, (size_t) 31);
+    di.bonus_width     = min(di.bonus_width, 69 - di.damage_width);
 
     // Table lines can't be longer than 80 chars wide (incl 4 spaces)
     // so cut off the attack description if it's too long.
     // Note: minimum 7 (length of "Attacks")
-    attk_desc_width = min(attk_desc_width, 76 - damage_width - bonus_width);
+    di.attk_desc_width = min(di.attk_desc_width,
+                             76 - di.damage_width - di.bonus_width);
 
     // Now we can actually build the table of attacks
     // Note: columns are separated by (a minimum of) 2 spaces
 
     // First, the table header
-    result << padded_str(plural ? "Attacks" : "Attack", attk_desc_width + 2)
-           << padded_str("Max Damage", damage_width + 2);
-    if (has_any_flavour)
+    result << padded_str(di.plural ? "Attacks" : "Attack",
+                         di.attk_desc_width + 2)
+           << padded_str("Max Damage", di.damage_width + 2);
+    if (di.has_any_flavour)
     {
-        result << padded_str(flavour_without_dam ? "Bonus"
-                                                 : "After Damaging Hits",
-                             bonus_width);
+        result << padded_str(di.flavour_without_dam ? "Bonus"
+                                                    : "After Damaging Hits",
+                             di.bonus_width);
     }
     result << "\n";
-    // Table body
-    for (unsigned int i = 0; i < attack_descriptions.size(); ++i)
-    {
-        if (attack_descriptions[i] == "")
-            break;
 
-        result << chop_string(attack_descriptions[i], attk_desc_width)
+    // Table body
+    for (unsigned int i = 0; i < di.attack_descriptions.size(); ++i)
+    {
+        result << chop_string(di.attack_descriptions[i], di.attk_desc_width)
                << "  "
-               << chop_string(damage_descriptions[i], damage_width)
+               << chop_string(di.damage_descriptions[i], di.damage_width)
                << "  "
-               << chop_string(bonus_descriptions[i], bonus_width)
+               << chop_string(di.bonus_descriptions[i], di.bonus_width)
                << "\n";
     }
+}
+
+// Get a description of the monster's to-hit, the player's to-hit against
+// the monster, and a table of attacks, for the monster description.
+static string _monster_attacks_description(const monster_info& mi)
+{
+    // Spectral weapons use the wielder's stats to attack, so displaying
+    // their 'monster' damage here is just misleading.
+    // TODO: display the right number without an awful hack
+    if (mi.type == MONS_SPECTRAL_WEAPON)
+        return "";
+
+    ostringstream result;
+    mon_attack_desc_info di;
+    di.special_flavour = SPWPN_NORMAL;
+
+    if (mi.props.exists(SPECIAL_WEAPON_KEY))
+    {
+        ASSERT(mi.type == MONS_PANDEMONIUM_LORD || mons_is_pghost(mi.type));
+        di.special_flavour = (brand_type) mi.props[SPECIAL_WEAPON_KEY].get_int();
+    }
+
+    di.has_any_flavour = false;
+    di.flavour_without_dam = false;
+    di.plural = false;
+
+    _check_attack_counts_and_flavours(mi, di);
+
+    if (di.attack_counts.empty())
+        return "";
+
+    _describe_mons_to_hit(mi, result);
 
     result << "\n";
+
+    // Assign minimum column widths according to the lengths of their headers.
+    di.attk_desc_width = di.plural ? 7 : 6;         // "Attack"/"Attacks"
+    di.damage_width   = 10;                         // "Max Damage"
+    di.bonus_width = !di.has_any_flavour    ? 0     // no bonus column
+                   : di.flavour_without_dam ? 5     // "Bonus"
+                                            : 19;   // "After Damaging Hits"
+
+    // Get the info for the table of attacks
+    for (int i = 0; i < MAX_NUM_ATTACKS; ++i)
+    {
+        const mon_attack_info info = _atk_info(mi, i);
+        if (!di.attack_counts[info])
+            continue;
+
+        _attacks_table_row(mi, di, info, info.weapon);
+
+        // For ranged weapons, it's misleading to show attack flavours on the
+        // same table row as the ranged weapon damage, since monsters
+        // (except Nessos) don't apply their attack flavour to ranged attacks.
+
+        // So that the player can see the attack flavour of the monster's
+        // primary melee attack at all times, when the monster has a ranged
+        // weapon, we add an extra row for the melee base damage and flavour of
+        // the monster's corresponding melee attack.
+        if (info.weapon && is_range_weapon(*info.weapon))
+            _attacks_table_row(mi, di, info, nullptr);
+    }
+
+    // Check for throwing weapons
+    _attacks_table_row_throwing(mi, di);
+
+    // Use all the gathered information in `di` to build the table
+    _build_table_of_attacks(di, result);
+
+    result << "\n";
+
     return result.str();
 }
 
@@ -5544,38 +5583,88 @@ static string _monster_spells_description(const monster_info& mi, bool mark_spel
 }
 
 /**
- * Display the % chance of a player hitting the given monster.
+ * Calculate and describe the % chance of a player hitting the given monster.
  *
  * @param mi[in]            Player-visible info about the monster in question.
  * @param result[in,out]    The stringstream to append to.
+ * @param weapon            The weapon you are hitting them with
+ * @param verbose           Uses more flowery language (for monster info pane)
+ * @param source            An attack source to use for calculations. An appropriate
+ *                          one will be created if not provided.
+ * @param distance          Distance from which the attack is being made. If not
+ *                          provided, assume distance between player and the target.
  */
-void describe_to_hit(const monster_info& mi, ostringstream &result,
-                     const item_def* weapon)
+void describe_to_hit(const monster_info &mi, ostringstream &result,
+                     const item_def *weapon, bool verbose, attack *source,
+                     int distance)
 {
-    if (weapon != nullptr && !is_weapon(*weapon))
+    if (weapon != nullptr
+        && !(is_weapon(*weapon) || is_throwable(&you, *weapon)))
+    {
         return; // breadwielding
+    }
 
-    const bool melee = weapon == nullptr || !is_range_weapon(*weapon);
+    const bool melee = weapon == nullptr || !(is_range_weapon(*weapon)
+                                              || is_throwable(&you, *weapon));
+    int distance_from = distance > 0 ? distance
+                                     : you.pos().distance_from(mi.pos);
+    // On xv screen, don't show a bigger penalty than player's maximum reach,
+    // even if we're the other side of the map. But if we're adjacent and
+    // targetting, show correct penalty for 1 tile distance.
+    if (melee)
+        distance_from = min(distance_from, (int)you.reach_range());
     int acc_pct;
     if (melee)
     {
         melee_attack attk(&you, nullptr);
-        acc_pct = to_hit_pct(mi, attk, true);
+        acc_pct = to_hit_pct(mi, source ? *source : attk, true, false,
+                             distance_from);
+    }
+    else if (weapon->base_type == OBJ_MISSILES)
+    {
+        ranged_attack attk(&you, nullptr, nullptr, weapon, false);
+        const bool penetrating = is_penetrating_attack(you, nullptr, *weapon);
+        acc_pct = to_hit_pct(mi, attk, false, penetrating, distance_from);
     }
     else
     {
-        // TODO: handle throwing to-hit somehow?
         item_def fake_proj;
         populate_fake_projectile(*weapon, fake_proj);
+        const bool penetrating = is_penetrating_attack(you, weapon, fake_proj);
         ranged_attack attk(&you, nullptr, weapon, &fake_proj, false);
-        acc_pct = to_hit_pct(mi, attk, false);
+        acc_pct = to_hit_pct(mi, attk, false, penetrating, distance_from);
     }
 
-    result << "about " << (100 - acc_pct) << "% to evade ";
-    if (weapon == nullptr)
-        result << "your " << you.hand_name(true);
-    else
-        result << weapon->name(DESC_YOUR, false, false, false);
+    describe_hit_chance(acc_pct, result, weapon, verbose, distance_from);
+}
+
+/**
+ * Describe the given hit chance and write to an string stream
+ */
+void describe_hit_chance(int hit_chance, ostringstream &result, const item_def *weapon,
+                         bool verbose, int distance_from)
+{
+    if (verbose)
+        result << "about ";
+
+    result << hit_chance << "% to hit";
+
+    if (verbose)
+    {
+        result << " with ";
+        if (weapon == nullptr)
+            result << "your " << you.hand_name(true);
+        else
+            result << weapon->name(DESC_YOUR, false, false, false);
+    }
+
+    if (you.duration[DUR_BLIND])
+    {
+        if (verbose)
+            result << " (while you are blinded and from distance " << distance_from << ")";
+        else
+            result << " at this distance";
+    }
 }
 
 static bool _visible_to(const monster_info& mi)
@@ -6027,9 +6116,8 @@ static string _monster_stat_description(const monster_info& mi, bool mark_spells
 
     if (crawl_state.game_started)
     {
-        result << uppercase_first(mi.pronoun(PRONOUN_SUBJECTIVE)) << " "
-               << conjugate_verb("have", mi.pronoun_plurality()) << " ";
-        describe_to_hit(mi, result, you.weapon());
+        result << "You have ";
+        describe_to_hit(mi, result, you.weapon(), true);
         if (mi.base_ev != mi.ev)
         {
             if (!mi.ev)

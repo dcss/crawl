@@ -679,9 +679,9 @@ const vector<GameOption*> game_options::build_options_list()
              {"one", KDO_ONE_PLACE},
              {"true", KDO_ONE_PLACE}}, true),
         new ListGameOption<string>(SIMPLE_NAME(dump_order),
-            {"header", "hiscore", "stats", "misc", "inventory", "skills",
-             "spells", "overview", "mutations", "messages", "screenshot",
-             "monlist", "kills", "notes", "screenshots", "vaults",
+            {"header", "hiscore", "stats", "misc",  "apostles", "inventory",
+             "skills", "spells", "overview", "mutations", "messages",
+             "screenshot", "monlist", "kills", "notes", "screenshots", "vaults",
              "skill_gains", "action_counts"}),
         new ListGameOption<text_pattern>(SIMPLE_NAME(confirm_action), {}, true),
         new MultipleChoiceGameOption<easy_confirm_type>(
@@ -1651,7 +1651,7 @@ void game_options::reset_options()
     force_ability_targeter =
         { ABIL_ZIN_SANCTUARY, ABIL_TSO_CLEANSING_FLAME, ABIL_WORD_OF_CHAOS,
           ABIL_ZIN_RECITE, ABIL_QAZLAL_ELEMENTAL_FORCE, ABIL_JIYVA_OOZEMANCY,
-          ABIL_GALVANIC_BREATH, ABIL_KIKU_TORMENT, ABIL_YRED_FATHOMLESS_SHACKLES,
+          ABIL_GALVANIC_BREATH, ABIL_YRED_FATHOMLESS_SHACKLES,
           ABIL_CHEIBRIADOS_SLOUCH, ABIL_QAZLAL_DISASTER_AREA,
           ABIL_RU_APOCALYPSE, ABIL_LUGONU_CORRUPT, ABIL_IGNIS_FOXFIRE,
           ABIL_SIPHON_ESSENCE, ABIL_DITHMENOS_SHADOWSLIP };

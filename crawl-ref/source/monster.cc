@@ -693,7 +693,18 @@ bool monster::can_throw_large_rocks() const
            || species == MONS_CYCLOPS
            || species == MONS_OGRE
            || type == MONS_PARGHIT // he's stronger than your average troll
-           || type == MONS_BOUND_SOUL;
+           || type == MONS_BOUND_SOUL
+           || type == MONS_PLAYER_SHADOW; // can throw them if you can!
+}
+
+bool monster::can_be_dazzled() const
+{
+    return mons_can_be_dazzled(type);
+}
+
+bool monster::can_be_blinded() const
+{
+    return mons_can_be_blinded(type);
 }
 
 bool monster::can_speak()
@@ -2753,7 +2764,7 @@ void monster::banish(const actor *agent, const string &, const int, bool force)
     {
         string msg = make_stringf(" prevents %s banishment from the Arena!",
                                   name(DESC_ITS).c_str());
-        simple_god_message(msg.c_str(), GOD_OKAWARU);
+        simple_god_message(msg.c_str(), false, GOD_OKAWARU);
         return;
     }
 
@@ -2774,7 +2785,7 @@ void monster::banish(const actor *agent, const string &, const int, bool force)
         }
     }
 
-    simple_monster_message(*this, " is devoured by a tear in reality.",
+    simple_monster_message(*this, " is devoured by a tear in reality.", false,
                            MSGCH_BANISHMENT);
     if (agent && mons_gives_xp(*this, *agent) && damage_contributes_xp(*agent))
     {
@@ -2947,7 +2958,9 @@ bool monster::backlit(bool self_halo, bool /*temp*/) const
         return true;
     }
 
-    return !umbraed() && haloed() && (self_halo || halo_radius() == -1);
+    return !umbraed() && haloed()
+                && (self_halo || halo_radius() == -1
+                    || (friendly() && have_passive(passive_t::halo)));
 }
 
 bool monster::umbra() const
@@ -3017,7 +3030,7 @@ bool monster::good_neutral() const
 
 bool monster::wont_attack() const
 {
-    return friendly() || good_neutral();
+    return friendly() || good_neutral() || attitude == ATT_MARIONETTE;
 }
 
 bool monster::pacified() const
@@ -4321,6 +4334,14 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
                 flags |= MF_EXPLODE_KILL;
         }
 
+        // Apply damage multiplier from Vessel of Slaughter
+        if (amount != INSTANT_DEATH && agent && agent->is_player()
+            && you.form == transformation::slaughter)
+        {
+            amount = amount * (100 + you.props[MAKHLEB_SLAUGHTER_BOOST_KEY].get_int())
+                            / 100;
+        }
+
         amount = min(amount, hit_points);
         hit_points -= amount;
 
@@ -4332,7 +4353,7 @@ int monster::hurt(const actor *agent, int amount, beam_type flavour,
 
         if (flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
         {
-            if (can_bleed())
+            if (has_blood())
                 blood_spray(pos(), type, amount / 5);
 
             if (!alive())
@@ -5114,9 +5135,17 @@ bool monster::can_polymorph() const
     return can_mutate();
 }
 
-bool monster::can_bleed(bool /*temp*/) const
+bool monster::has_blood(bool /*temp*/) const
 {
+    if (petrified())
+        return false;
+
     return mons_has_blood(type);
+}
+
+bool monster::has_bones(bool /*temp*/) const
+{
+    return mons_skeleton(type);
 }
 
 bool monster::is_stationary() const
@@ -5573,7 +5602,7 @@ void monster::put_to_sleep(actor */*attacker*/, int /*strength*/, bool hibernate
         add_ench(ENCH_SLEEP_WARY);
 }
 
-void monster::weaken(actor *attacker, int pow)
+void monster::weaken(const actor *attacker, int pow)
 {
     if (!has_ench(ENCH_WEAK))
         simple_monster_message(*this, " looks weaker.");

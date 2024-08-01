@@ -194,10 +194,14 @@ Cures all your mutations — but only once.
 # The Shining One
 Divine Shield ability
 
-Grants a temporary divine shield. Because it is held aloft by the Shining One's
-power, it does not interfere with your equipment, but it functions otherwise as
-a normal, physical shield. The strength and duration of the shield are increased
-by Invocations skill.
+Manifests a blindingly bright shield in front of the user. Held aloft by the
+Shining One's power, it will unerringly block the next several attacks which
+could be blocked by a mundane shield. Ranged attacks will be reflected and melee
+attackers have a chance of being briefly blinded by the resulting flash of
+light.
+
+This shield will block only a limited number of attacks before vanishing, with
+Invocations skill increasing how many.
 %%%%
 Cleansing Flame ability
 
@@ -223,11 +227,9 @@ Bring forth those near death from Kikubaaqudgha's necropolis, providing ample
 fodder for all kinds of necromancy. Their number and quality is dependent on
 Necromancy skill.
 %%%%
-Torment ability
+Sign of Ruin ability
 
-Call out to the dead, making all living creatures in sight experience all the
-pain some poor soul suffered in its entire life. This damage is never directly
-lethal. Kikubaaqudgha will always at least partially shield you from the effect.
+[[Sign of Ruin spell]]
 %%%%
 Brand Weapon With Pain ability
 
@@ -318,6 +320,11 @@ Duel ability
 Enters you into single combat with a worthy foe. On success, you and the
 challenged foe will be transported to Okawaru's Arena to fight to the death,
 with no escape until you either emerge victorious or are slain.
+
+Half of your missing health will be restored as the duel begins, and upon
+victory, Okawaru will return your health and magical power to whatever they
+were before you issued the challenge - letting you shake off any damage taken
+during it in the blink of an eye.
 %%%%
 Receive Weapon ability
 
@@ -330,25 +337,99 @@ Acquires a piece of armour from a choice of four. This blessing may only be
 redeemed once.
 %%%%
 # Makhleb
-Minor Destruction ability
+Unleash Destruction ability
 
-Shoots a weak blast of fire, lightning, stone, acid, or negative energy at the
-targeted creature. Damage and accuracy are increased by Invocations skill.
+Channels a blast of hellish {{
+    if you.get_base_mutation_level("Gehenna destruction") == 1 then
+        return "piercing fire, lava (from Gehenna's influence), lightning, or negative energy"
+    elseif you.get_base_mutation_level("Cocytus destruction") == 1 then
+        return "piercing ice (from Cocytus' influence), cold, lightning, or negative energy"
+    elseif you.get_base_mutation_level("Tartarus destruction") == 1 then
+        return "piercing fire, cold, devastation (from Tartarus' influence), or negative energy"
+    elseif you.get_base_mutation_level("Dis destruction") == 1 then
+        return "piercing fire, cold, lightning, acid, or metal splinters (the last two from Dis' influence)"
+    else
+        return "fire, cold, lightning, or negative energy"
+    end
+}} at a targeted creature. Damage and accuracy are increased by Invocations
+skill.
 %%%%
-Lesser Servant of Makhleb ability
+Infernal Servant ability
 
-Summons a minor demon. Failing to use this ability correctly will turn the
-demon hostile.
+Beckons a demon from the far reaches of Hell and binds it into service with your
+blood. At low Invocations skill, only lesser devils may be summoned, but major
+demons and even executioners may answer the call of those with high Invocations
+skill.
+
+Beware that the armies of chaos are prone to infighting, and sometimes a
+hostile demon may answer the ritual alongside your summoned servant.
 %%%%
-Major Destruction ability
+Brand Self ability
 
-Shoots a piercing bolt of fire, lightning, magma, acid, or negative energy at
-the targeted creature. Damage and accuracy are increased by Invocations skill.
+Permanently carves an Infernal Mark into yourself, forever tainting body and
+soul in service of the Destroyer.
+
+So long as you continue to worship Makhleb, this mark will grant you the
+following power:
+
 %%%%
-Greater Servant of Makhleb ability
+Infernal Legion ability
 
-[[Greater Servant of Makhleb spell]] Failing to use this ability correctly will
-turn the demon hostile.
+Uses one's own body as a conduit to unleash an army of chaos upon the world.
+For a short while, lesser demons will continuously manifest near the user -
+provided there is something around for them to fight. While these demons may
+be individually short-lived, the legions of chaos as a whole are virtually
+inexhaustible.
+%%%%
+Globe of Annihilation ability
+
+Launches a roiling sphere of intense destructive force drawn from the {{
+    if you.get_base_mutation_level("Gehenna destruction") == 1 then
+        return "endless fires of Gehenna."
+    elseif you.get_base_mutation_level("Cocytus destruction") == 1 then
+        return "frigid wastes of Cocytus."
+    elseif you.get_base_mutation_level("Tartarus destruction") == 1 then
+        return "wailing grief of Tartarus."
+    elseif you.get_base_mutation_level("Dis destruction") == 1 then
+        return "ruthless spite of Dis."
+    else
+        return "very Hells themselves."
+    end
+}}
+
+This sphere gathers strength as it travels, and will attempt to home in on a
+designated target, though it moves and turns with considerable inertia. When it
+collides with a creature or other obstruction, it will detonate in a violent
+explosion of {{
+    if you.get_base_mutation_level("Gehenna destruction") == 1 then
+        return "fire or lava"
+    elseif you.get_base_mutation_level("Cocytus destruction") == 1 then
+        return "cold or ice"
+    elseif you.get_base_mutation_level("Tartarus destruction") == 1 then
+        return "negative energy or devastation"
+    elseif you.get_base_mutation_level("Dis destruction") == 1 then
+        return "acid or metal splinters"
+    else
+        return "hellish energy"
+    end
+}} whose radius depends on the distance travelled.
+
+You are protected from this explosion yourself.
+%%%%
+Vessel of Slaughter ability
+
+Invokes a blood pact with the Destroyer, temporarily granting you enormous power
+at a dangerous price.
+
+At the moment the pact is sealed, a massive explosion of damnation will surround
+you, and you will transform into a demonic avatar, granting you demonic
+resistances, invulnerable will, doubled healing from kills, and reducing all
+damage you take by 1/3. You will additionally gain a bonus to all outgoing
+damage proportional to how injured you were when you used this ability.
+
+When your transformation expires, you will be dragged down into the Crucible of
+Flesh, and made to fight through waves of demons until Makhleb considers your
+debt paid.
 %%%%
 # Sif Muna
 %%%%
@@ -562,11 +643,13 @@ damage with greater differences in speed.
 %%%%
 Step From Time ability
 
-Removes you completely from the flow of time. Things around you will happen at
-their usual busy pace, and monsters will wander and may even forget about you.
-After some time has passed, you will return in the same state as the very
-second you departed. Invocations skill increases the amount of time that passes
-while you're gone.
+Removes you completely from the flow of time. Time will pass as it usually does,
+and monsters will wander away and sometimes even fall back to sleep. After some
+time has passed, you will return in the same state as the very second you
+departed.
+
+Invocations skill increases the likelihood that your absence will have been so
+long that alert monsters have fallen asleep again.
 %%%%
 # Jiyva
 Slimify ability
@@ -607,10 +690,10 @@ summon this way will belong to you, and many beneficial effects that they would
 apply to themselves will be applied to you instead. You are also fully protected
 from any damage they would cause.
 
-Can only be used on creatures with eligible spells and only while another enemy
-is present for them to target. The process also leaves the victim's shadow too
-dim to grasp a second time - once used successfully on a target, it may never be
-used on them again.
+Can only be used on creatures with eligible spells that they could productively
+cast at the moment. The process also leaves the victim's shadow too dim to grasp
+a second time - once used successfully on a target, it may never be used on them
+again.
 
 (Not all spells can be cast via this method; those which cannot will be marked
 with an exclamation mark when examined.)

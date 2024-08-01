@@ -403,8 +403,11 @@ static void _dispellable_player_buffs(player_debuff_effects &buffs)
         const int dur = you.duration[i];
         if (dur <= 0 || !duration_dispellable((duration_type) i))
             continue;
-        if (i == DUR_TRANSFORMATION && you.form == you.default_form)
+        if (i == DUR_TRANSFORMATION && (you.form == you.default_form
+                                        || you.form == transformation::slaughter))
+        {
             continue;
+        }
         // XXX: Handle special-cases with regard to monster auras.
         //      (It would be nice if this could be handled automatically, but
         //      there aren't yet enough of these effects to bother doing such)
@@ -628,7 +631,7 @@ void debuff_monster(monster &mon)
     // effect = true does for PETRIFYING is cause it to turn into
     // ENCH_PETRIFIED. So... let's not do that. (Hacky, sorry!)
 
-    simple_monster_message(mon, "'s magical effects unravel!");
+    simple_monster_message(mon, " magical effects unravel!", true);
 }
 
 // pow -1 for passive

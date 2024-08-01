@@ -567,7 +567,17 @@ static void _DEMON_AXE_melee_effects(item_def* /*item*/, actor* attacker,
                 .set_summoned(mons, 6, SPELL_SUMMON_DEMON));
         }
         else if (!you.allies_forbidden())
-            cast_summon_demon(50 + random2(100));
+        {
+            monster_type type = (one_chance_in(3) ? random_demon_by_tier(3)
+                                                  : random_demon_by_tier(4));
+            if (create_monster(
+                    mgen_data(type, BEH_COPY, you.pos(), MHITYOU, MG_FORCE_BEH | MG_AUTOFOE)
+                    .set_summoned(&you, 6, SPELL_SUMMON_DEMON, GOD_NO_GOD)))
+            {
+                mpr("A gate to Pandemonium opens briefly!");
+            }
+        }
+
     }
 }
 
@@ -873,7 +883,7 @@ static void _WOE_melee_effects(item_def* /*weapon*/, actor* attacker,
     if (!mondied)
         defender->hurt(attacker, defender->stat_hp());
 
-    if (defender->as_monster()->can_bleed())
+    if (defender->as_monster()->has_blood())
     {
         blood_spray(defender->pos(), defender->as_monster()->type,
                     random_range(5, 10));
@@ -1080,10 +1090,10 @@ static void _FORCE_LANCE_melee_effects(item_def* /*weapon*/, actor* attacker,
                                        actor* defender, bool mondied, int dam)
 {
     if (mondied || !dam || !one_chance_in(3)) return;
-    // max power around a !!! hit (ie ~2d11 on collide from a 34+ damage hit)
-    // no real justification for this, just vibes
-    const int collide_power = min(100, dam * 3);
-    defender->knockback(*attacker, 1, collide_power, "blow");
+    // max power on a !!! hit (ie 36+ damage), but try to make some damage
+    // quite likely to beat AC on any collision.
+    const int collide_damage = 7 + roll_dice(3, div_rand_round(min(36, dam), 4));
+    defender->knockback(*attacker, 1, collide_damage, "blow");
 }
 
 ///////////////////////////////////////////////////
@@ -1352,7 +1362,7 @@ static void _LEECH_equip(item_def */*item*/, bool *show_msgs, bool /*unmeld*/)
 static void _LEECH_melee_effects(item_def* /*item*/, actor* attacker,
                                  actor* defender, bool mondied, int dam)
 {
-    if (attacker->is_player() && defender->can_bleed()
+    if (attacker->is_player() && defender->has_blood()
         && mondied && x_chance_in_y(dam, 729))
     {
         simple_monster_message(*(defender->as_monster()),

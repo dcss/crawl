@@ -35,6 +35,7 @@
 #include "religion.h"
 #include "shout.h"
 #include "spl-clouds.h" // explode_blastmotes_at
+#include "spl-damage.h" // dazzle_target
 #include "spl-util.h"
 #include "state.h"
 #include "stringutil.h"
@@ -181,7 +182,7 @@ static const cloud_data clouds[] = {
     // CLOUD_PETRIFY,
     { "calcifying dust",  nullptr,              // terse, verbose name
       WHITE,                                    // colour
-      { TILE_CLOUD_PETRIFY, CTVARY_RANDOM },    // tile
+      { TILE_CLOUD_PETRIFY, CTVARY_DUR },       // tile
       BEAM_PETRIFYING_CLOUD, {},                // beam_effect & damage
       true,                                     // opacity
     },
@@ -320,6 +321,11 @@ static const cloud_data clouds[] = {
     { "sparks", nullptr,         // terse, verbose name
       ETC_ELECTRICITY,                                   // colour
       { TILE_CLOUD_ELECTRICITY, CTVARY_RANDOM },        // tile
+    },
+    // CLOUD_FAINT_MIASMA,
+    { "faint pestilence", nullptr,                // terse, verbose name
+      DARKGREY,                                      // colour
+      { TILE_CLOUD_FAINT_MIASMA, CTVARY_RANDOM },    // tile
     },
 };
 COMPILE_CHECK(ARRAYSZ(clouds) == NUM_CLOUD_TYPES);
@@ -551,8 +557,25 @@ static void _dissipate_cloud(cloud_struct& cloud)
         cloud.decay       -= _spread_cloud(cloud);
     }
 
+    // Faint miasma becomes proper miasma after the first tick (regardless of
+    // duration), but will not spawn beneath the player.
+    // XXX: This is currently very player-centric, but the player is also the
+    //      only possible source of this at present.
+    if (cloud.type == CLOUD_FAINT_MIASMA)
+    {
+        if (cloud.decay > 1)
+            cloud.decay = 1;
+        else if (cloud.pos != you.pos())
+        {
+            cloud.decay = random_range(50, 90);
+            cloud.type = CLOUD_MIASMA;
+        }
+        else
+            delete_cloud(cloud.pos);
+    }
+
     // Check for total dissipation and handle accordingly.
-    if (cloud.decay < 1)
+    if (cloud.decay < 1 && cloud.type != CLOUD_FAINT_MIASMA)
         delete_cloud(cloud.pos);
 }
 
@@ -1436,10 +1459,6 @@ static bool _mons_avoids_cloud(const monster* mons, const cloud_struct& cloud,
 
     switch (cloud.type)
     {
-    case CLOUD_MIASMA:
-        // Even the dumbest monsters will avoid miasma if they can.
-        return true;
-
     case CLOUD_BLASTMOTES:
         // As with traps, make friendly monsters not walk into blastmotes.
         return mons->attitude == ATT_FRIENDLY
@@ -1461,8 +1480,9 @@ static bool _mons_avoids_cloud(const monster* mons, const cloud_struct& cloud,
         const int base_damage = _cloud_damage_calc(dam_info.random,
                                                    max(1, dam_info.random / 9),
                                                    dam_info.base, false);
-        // Add in an arbitrary proxy for poison damage from poison clouds.
-        const int bonus_dam = cloud.type == CLOUD_POISON ? roll_dice(3, 4) : 0;
+        // Add in an arbitrary proxy for poison damage from poison/miasma clouds.
+        const int bonus_dam = cloud.type == CLOUD_POISON ? roll_dice(3, 4)
+                              : cloud.type == CLOUD_MIASMA ? roll_dice(3, 5) : 0;
         const int damage = resist_adjust_damage(mons,
                                                 clouds[cloud.type].beam_effect,
                                                 base_damage + bonus_dam);
@@ -2019,6 +2039,17 @@ static const vector<chaos_effect> chaos_effects = {
         "petrify", 3, [](const actor &victim) {
             return _is_chaos_slowable(victim) && !victim.res_petrify();
         }, BEAM_PETRIFY,
+    },
+    {
+        "blinding", 5, [](const actor &victim) {
+            return victim.can_be_dazzled();
+        }, BEAM_NONE, [](actor* victim, actor* source) {
+            if (victim->is_player())
+                blind_player(random_range(7, 12), ETC_RANDOM);
+            else
+                dazzle_target(victim, source, 149);
+            return you.can_see(*victim);
+        },
     },
 };
 

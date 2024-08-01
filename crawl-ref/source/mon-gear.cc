@@ -884,7 +884,7 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
               { NUM_SPECIAL_WEAPONS, 3 } },
         } },
         { MONS_SPRIGGAN_DEFENDER, { SP_DEFENDER_WEAPONS, {}, {}, 1 } },
-        { MONS_THE_ENCHANTRESS, { SP_DEFENDER_WEAPONS, {}, {}, 1 } },
+        { MONS_ENCHANTRESS, { SP_DEFENDER_WEAPONS, {}, {}, 1 } },
         { MONS_HELLBINDER, { { { WPN_DEMON_BLADE, 1 } } } },
         { MONS_IGNACIO, {
             { { WPN_EXECUTIONERS_AXE, 1 } },
@@ -919,7 +919,7 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
             }, { 1, 2, 5 },
         } },
         { MONS_DEMONSPAWN_CORRUPTER,   { DS_WEAPONS } },
-        { MONS_DEMONSPAWN_BLACK_SUN,   { DS_WEAPONS } },
+        { MONS_DEMONSPAWN_SOUL_SCHOLAR,   { DS_WEAPONS } },
         { MONS_DEMONSPAWN_BLOOD_SAINT, {
             { { WPN_DAGGER,             4 },
               { WPN_QUARTERSTAFF,       1 } },
@@ -1239,7 +1239,7 @@ int make_mons_weapon(monster_type type, int level, bool melee_only)
         }
         break;
 
-    case MONS_THE_ENCHANTRESS:
+    case MONS_ENCHANTRESS:
         if (one_chance_in(6))
         {
             force_item = true;
@@ -1728,9 +1728,9 @@ static void _give_shield(monster* mon, int level)
             break;
     // else fall-through
     case MONS_SPRIGGAN_DEFENDER:
-    case MONS_THE_ENCHANTRESS:
+    case MONS_ENCHANTRESS:
         shield = make_item_for_monster(mon, OBJ_ARMOUR, ARM_BUCKLER,
-                      mon->type == MONS_THE_ENCHANTRESS ? ISPEC_GOOD_ITEM :
+                      mon->type == MONS_ENCHANTRESS ? ISPEC_GOOD_ITEM :
                       mon->type == MONS_SPRIGGAN_DEFENDER ? level * 2 + 1 :
                       level);
         if (shield && !is_artefact(*shield)) // ineligible...
@@ -1785,7 +1785,7 @@ static void _give_shield(monster* mon, int level)
         break;
 
     case MONS_DEMONSPAWN_CORRUPTER:
-    case MONS_DEMONSPAWN_BLACK_SUN:
+    case MONS_DEMONSPAWN_SOUL_SCHOLAR:
         if (one_chance_in(3))
         {
             armour_type shield_type = random_choose(ARM_BUCKLER, ARM_KITE_SHIELD);
@@ -1974,7 +1974,7 @@ int make_mons_armour(monster_type type, int level)
 
     case MONS_PARGHIT:
         item.base_type = OBJ_ARMOUR;
-        item.sub_type = ARM_GOLD_DRAGON_ARMOUR;
+        item.sub_type = ARM_GOLDEN_DRAGON_ARMOUR;
         if (one_chance_in(100) && !get_unique_item_status(UNRAND_DRAGON_KING))
             make_item_unrandart(item, UNRAND_DRAGON_KING);
         else
@@ -2165,7 +2165,7 @@ int make_mons_armour(monster_type type, int level)
         item.sub_type  = ARM_CLOAK;
         break;
 
-    case MONS_THE_ENCHANTRESS:
+    case MONS_ENCHANTRESS:
         force_item = true;
         make_item_unrandart(item, UNRAND_FAERIE);
         break;
@@ -2181,7 +2181,7 @@ int make_mons_armour(monster_type type, int level)
         break;
 
     case MONS_DEMONSPAWN_CORRUPTER:
-    case MONS_DEMONSPAWN_BLACK_SUN:
+    case MONS_DEMONSPAWN_SOUL_SCHOLAR:
         item.base_type = OBJ_ARMOUR;
         item.sub_type  = random_choose_weighted(2, ARM_LEATHER_ARMOUR,
                                                 3, ARM_RING_MAIL,
@@ -2364,7 +2364,7 @@ static const armour_list APOSTLE_ELITE_HEAVY_ARMOUR =
     {   { ARM_PLATE_ARMOUR,          45 },
         { ARM_STORM_DRAGON_ARMOUR,   25 },
         { ARM_SHADOW_DRAGON_ARMOUR,  20 },
-        { ARM_GOLD_DRAGON_ARMOUR,    8 },
+        { ARM_GOLDEN_DRAGON_ARMOUR,  8 },
         { ARM_CRYSTAL_PLATE_ARMOUR,  12 }, };
 
 void give_apostle_equipment(monster* apostle)
@@ -2457,7 +2457,7 @@ void give_apostle_equipment(monster* apostle)
                                                      RING_POISON_RESISTANCE,
                                                      RING_PROTECTION_FROM_COLD,
                                                      RING_EVASION,
-                                                     RING_LIFE_PROTECTION,
+                                                     RING_POSITIVE_ENERGY,
                                                      RING_PROTECTION);
 
                 make_item_for_monster(apostle, OBJ_JEWELLERY, rtype, 0,

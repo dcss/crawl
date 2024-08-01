@@ -67,7 +67,7 @@ function pan_lord_setup(_G, name)
                  "hellephant skeleton w:100 / soul eater w:200 / " ..
                  "reaper w:200 / executioner w:300 / " ..
                  "flayed ghost / laughing skull band / shadow wraith / " ..
-                 "demonspawn black sun"
+                 "demonspawn soul scholar"
     }
     local decName = "empty"
 
@@ -108,7 +108,7 @@ function pan_lord_setup(_G, name)
         _G.lrocktile("wall_hall_darkgray")
         _G.tile ("c = dngn_stone_dark")
         _G.kitem("O = dark rune of Zot")
-        _G.kmons("& = patrolling demonspawn black sun")
+        _G.kmons("& = patrolling demonspawn soul scholar")
         decName = "gloorxdec"
     end
 
@@ -207,13 +207,13 @@ end
 function pan_lord_vault_contents(e, anyglyph, commonglyph, greaterglyph)
     e.tags('allow_dup')
     e.orient('float')
-    e.kmons(anyglyph .. " = any demon w:76 / demonspawn black sun w:1 / \
+    e.kmons(anyglyph .. " = any demon w:76 / demonspawn soul scholar w:1 / \
                             demonspawn blood saint w:1 / \
                             demonspawn corrupter w:1 / \
                             demonspawn warmonger w:1")
     e.kmons(commonglyph .. " = common demon")
     e.kmons(greaterglyph .. " = greater demon w:36 / \
-                                demonspawn black sun w:1 / \
+                                demonspawn soul scholar w:1 / \
                                 demonspawn blood saint w:1 / \
                                 demonspawn corrupter w:1 / \
                                 demonspawn warmonger w:1")
@@ -902,7 +902,7 @@ MONS:     blizzard demon, green death
 MONS:     nagaraja / merfolk aquamancer / jorogumo / fenstrider witch
 MONS:     draconian annihilator, sixfirhy
 SUBST:    0 = 2344444556
-NSUBST:   Q = 1:O / *:4, 9 = 2 = 2233455 / *:.
+NSUBST:   Q = 1:O / *:4, 9 = 5 = 2233455 / *:.
 NSUBST:   B = 1:. / *:b
 TILE:     v = dngn_metal_wall_blue
 : pan_lord_setup(_G, 'Lom Lobon')
@@ -918,7 +918,7 @@ xxxxwxxwwwwbb....0....bbwbb....0....bbwwwwwwxxxxx
 xxxwwwwwwwbb...........bbb...........bbwwwwwwxxxx
 xxxwwwwwwbb...wwwwwww.......wwwwwww...bbwwwwxxxxx
 xxxxwwwwbb...wwwwwwwww..9..wwwwwwwww...bbwwwwxxxx
-xxwwwwwbb...wwbbbbbbbww...wwbbbbbbbww...bbwwwwxxx
+xxwwwwwbb...wwbbbbbbbww.9.wwbbbbbbbww...bbwwwwxxx
 xxxwwwbb...wwbbwwwwwbbw...wbbwwwwwbbww...bbwwwxxx
 xxxwwbb...wwbbwwwwwwwbb...bbwwwwwwwbbww...bbwwwxx
 xxwwbb...wwbbwwvvvwwwwbbBbbwwwwvvvwwbbww...bbwxxx
@@ -931,7 +931,7 @@ xxwwbb...wwbbwwwwwww.........wwwwwwwbbww...bbwxxx
 xwwwwbb...wwbbwwwwwb.........bwwwwwbbww...bbwwxxx
 xxxwwwbb...wwbbwwwbb.........bbwwwbbww...bbwwxxxx
 xxxxwwwbb.....bbbbb...........bbbbb.....bbwwwwxxx
-xxxwwwwwb.9...B.........1.........B...9.bwwwwwxxx
+xxxwwwwwb.99..B.........1.........B..99.bwwwwwxxx
 xxxwwwwbb.....bbbbb...........bbbbb.....bbwwwwwxx
 xxwwwwbb...wwbbwwwbb.........bbwwwbbww...bbwwwxxx
 xwwwwbb...wwbbwwwwwb.........bwwwwwbbww...bbwwwxx
@@ -944,7 +944,7 @@ xxxwbb..wwbbwwvv.vvwwwwb.bwwwwvv.vvwwbbww..bbwwxx
 xxwwbb...wwbbwwvvvwwwwbbBbbwwwwvvvwwbbww...bbwwxx
 xxxxwbb...wwbbwwwwwwwbb...bbwwwwwwwbbww...bbwwwxx
 xxxxwwbb...wwbbwwwwwbbw...wbbwwwwwbbww&..bbwwwxxx
-xxxxxwwbb...wwbbbbbbbww...wwbbbbbbbww&.&bbwwwwxxx
+xxxxxwwbb...wwbbbbbbbww.9.wwbbbbbbbww&.&bbwwwwxxx
 xxxxwwwwbb...wwwwwwwww..9..wwwwwwwww..&....wwwxxx
 xxxwwwwwwbb...wwwwwww.......wwwwwww...b.....wwwxx
 xxxxwwwwwwbb...........bbb...........bb.......wxx
@@ -2429,7 +2429,7 @@ KMONS:  p = human / elf / dwarf ; nothing / kobold ; nothing / mummy / \
             felid / octopode ; nothing / djinni ; nothing / \
             gargoyle ; nothing / formicid ; nothing / vine stalker ; nothing / \
             barachi ; nothing / gnoll ; nothing / armataur ; nothing / \
-            oni ; nothing
+            oni ; nothing / goblin ; nothing
 NSUBST: t = 10:p / *:', b = 10:p / *:'
 KPROP:  p' = no_tele_into
 : pan_demonic_rune(_G, 'P', true)
@@ -2620,9 +2620,9 @@ KITEM:   TUY = $ / nothing w:50
 KMONS:   HJKLMNOS-_ = deep elf demonologist / kobold demonologist / \
            mummy priest / orc high priest / orc sorcerer / dread lich / \
            greater demon w:60 / demonspawn warmonger w:2 / \
-           demonspawn black sun w:2 / demonspawn blood saint w:2 / \
+           demonspawn soul scholar w:2 / demonspawn blood saint w:2 / \
            demonspawn corrupter w:2 / any demon w:112 / nothing w:300
-KMONS:   YPQR = greater demon w:360 / demonspawn black sun / \
+KMONS:   YPQR = greater demon w:360 / demonspawn soul scholar / \
            demonspawn blood saint / demonspawn corrupter / demonspawn warmonger
 KFEAT:   _ = altar_gozag
 KFEAT:   P = exit_pandemonium
@@ -2697,7 +2697,7 @@ NAME:   regret_index_pan_draining_boxed
 TAGS:   pan_fixed_rune_boxes pan_fixed_lure_boxes transparent
 ORIENT: float
 MONS:   pandemonium lord, ghost moth
-MONS:   demonspawn black sun, sin beast, any demon
+MONS:   demonspawn soul scholar, sin beast, any demon
 KMONS:  6O = ghost moth
 : if demonic_rune_vault_is_decoy() then
 KITEM:  O = superb_item / demonic rune of zot mimic
@@ -2939,7 +2939,7 @@ NAME:   grunt_pan_frozen_over
 TAGS:   pan_fixed_rune_frozen pan_fixed_lure_frozen
 TAGS:   no_pool_fixup no_monster_gen transparent
 ORIENT: float
-MONS:   blizzard demon, demonspawn black sun
+MONS:   blizzard demon, demonspawn soul scholar
 MONS:   walking frostbound tome, ice devil
 KMONS:  56 = ice statue
 KMONS:  7 = executioner simulacrum

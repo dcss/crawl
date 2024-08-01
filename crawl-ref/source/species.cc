@@ -267,14 +267,34 @@ namespace species
                      : get_species_def(species).verbose_fake_mutations;
     }
 
+    bool has_blood(species_type species)
+    {
+        return !bool(get_species_def(species).flags & SPF_NO_BLOOD);
+    }
+
     bool has_hair(species_type species)
     {
-        return !bool(get_species_def(species).flags & (SPF_NO_HAIR | SPF_DRACONIAN));
+        return !bool(get_species_def(species).flags & SPF_NO_HAIR);
     }
 
     bool has_bones(species_type species)
     {
         return !bool(get_species_def(species).flags & SPF_NO_BONES);
+    }
+
+    bool has_feet(species_type species)
+    {
+        return !bool(get_species_def(species).flags & SPF_NO_FEET);
+    }
+
+    bool has_eyes(species_type species)
+    {
+        return !bool(get_species_def(species).flags & SPF_NO_EYES);
+    }
+
+    bool has_ears(species_type species)
+    {
+        return !bool(get_species_def(species).flags & SPF_NO_EARS);
     }
 
     bool can_throw_large_rocks(species_type species)
@@ -436,6 +456,8 @@ namespace species
             return adj ? "furry" : "fur";
         else if (species == SP_MUMMY)
             return adj ? "bandage-wrapped" : "bandages";
+        else if (species == SP_GARGOYLE)
+            return adj ? "stony" : "stone";
         else
             return adj ? "fleshy" : "skin";
     }

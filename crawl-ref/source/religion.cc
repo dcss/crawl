@@ -131,7 +131,7 @@ const vector<vector<god_power>> & get_all_god_powers()
             { 4, "Kikubaaqudgha is now protecting you from unholy torment.",
                  "Kikubaaqudgha will no longer protect you from unholy torment.",
                  "Kikubaaqudgha protects you from unholy torment." },
-            { 5, ABIL_KIKU_TORMENT, "invoke torment" },
+            { 5, ABIL_KIKU_SIGN_OF_RUIN, "invoke the sign of ruin" },
             { 7, ABIL_KIKU_BLESS_WEAPON,
                  "Kikubaaqudgha will grant you forbidden knowledge or bloody your weapon with pain... once.",
                  "Kikubaaqudgha is no longer ready to enhance your necromancy." },
@@ -183,14 +183,17 @@ const vector<vector<god_power>> & get_all_god_powers()
 
         // Makhleb
         {   { 1, "gain health from killing" },
-            { 2, ABIL_MAKHLEB_MINOR_DESTRUCTION,
-                 "harness Makhleb's destructive might" },
-            { 3, ABIL_MAKHLEB_LESSER_SERVANT_OF_MAKHLEB,
-                 "summon a lesser servant of Makhleb" },
-            { 4, ABIL_MAKHLEB_MAJOR_DESTRUCTION,
-                 "hurl Makhleb's greater destruction" },
-            { 5, ABIL_MAKHLEB_GREATER_SERVANT_OF_MAKHLEB,
-                 "summon a greater servant of Makhleb" },
+            { 2, ABIL_MAKHLEB_DESTRUCTION,
+                 "unleash Makhleb's destructive might" },
+            { 3, ABIL_MAKHLEB_INFERNAL_SERVANT,
+                 "summon an infernal servant of Makhleb" },
+            { 4, "", ""},   // XXX: A marker, replaced by dynamic text in _describe_god_powers()
+            { -1, ABIL_MAKHLEB_VESSEL_OF_SLAUGHTER, ""},
+            { 7, ABIL_MAKHLEB_BRAND_SELF_1,
+                 "Makhleb will allow you to brand your body with an infernal mark... once.",
+                 "Mahkleb will no longer allow you to brand your body with an infernal mark."},
+            { 7, ABIL_MAKHLEB_BRAND_SELF_2, ""},
+            { 7, ABIL_MAKHLEB_BRAND_SELF_3, ""},
         },
 
         // Sif Muna
@@ -666,7 +669,7 @@ void dec_penance(god_type god, int val)
         if (god == GOD_IGNIS)
         {
             simple_god_message(", with one final cry of rage, "
-                               "burns out of existence.", god);
+                               "burns out of existence.", false, god);
             add_daction(DACT_REMOVE_IGNIS_ALTARS);
         }
         else
@@ -675,7 +678,7 @@ void dec_penance(god_type god, int val)
             simple_god_message(
                 make_stringf(" seems mollified%s.",
                              dead_jiyva ? ", and vanishes" : "").c_str(),
-                god);
+                false, god);
 
             if (dead_jiyva)
                 add_daction(DACT_JIYVA_DEAD);
@@ -902,7 +905,7 @@ static void _inc_penance(god_type god, int val)
         else if (god == GOD_SHINING_ONE)
         {
             if (you.duration[DUR_DIVINE_SHIELD])
-                tso_remove_divine_shield();
+               you.duration[DUR_DIVINE_SHIELD] = 0;
             dismiss_divine_allies_fineff::schedule(GOD_SHINING_ONE);
         }
         else if (god == GOD_ELYVILON)
@@ -1108,13 +1111,11 @@ bool yred_reap_chance()
         return true;
 
     // Minimum chance scales from 15% at 0 piety to 40% at 6 stars
-    int ratio = min(piety_breakpoint(6), (int)you.piety) * 100 / piety_breakpoint(6);
+    int ratio = min(piety_breakpoint(5), (int)you.piety) * 100 / piety_breakpoint(5);
     int min_chance = 15 + (25 * ratio / 100);
 
     ratio = min(100, (hd * 100 / you.piety * 4));
     int chance = (ratio * min_chance / 100) + ((100 - ratio));
-
-    //mprf("Min chance: %d, Ratio: %d, Chance: %d", min_chance, ratio, chance);
 
     return x_chance_in_y(chance, 100);
 }
@@ -1229,8 +1230,8 @@ static set<spell_type> _vehumet_eligible_gift_spells(set<spell_type> excluded_sp
     if (gifts >= NUM_VEHUMET_GIFTS)
         return eligible_spells;
 
-    const int min_lev[] = {1,1,2,3,3,4,4,5,5,5,5,6,8};
-    const int max_lev[] = {1,2,3,4,5,7,7,7,7,7,7,8,9};
+    const int min_lev[] = {1,2,2,3,3,4,4,5,5,5,5,6,8};
+    const int max_lev[] = {1,3,3,4,5,7,7,7,7,7,7,8,9};
     COMPILE_CHECK(ARRAYSZ(min_lev) == NUM_VEHUMET_GIFTS);
     COMPILE_CHECK(ARRAYSZ(max_lev) == NUM_VEHUMET_GIFTS);
     int min_level = min_lev[gifts];
@@ -1494,10 +1495,10 @@ static bool _give_kiku_gift(bool forced)
         else
             chosen_spells.push_back(SPELL_FUGUE_OF_THE_FALLEN);
 
-        spell_options = {SPELL_NECROTISE,
+        spell_options = {SPELL_SOUL_SPLINTER,
                          SPELL_KISS_OF_DEATH,
                          SPELL_SUBLIMATION_OF_BLOOD,
-                         SPELL_ROT,
+                         SPELL_GRAVE_CLAW,
                          SPELL_VAMPIRIC_DRAINING};
     }
     else
@@ -1505,6 +1506,7 @@ static bool _give_kiku_gift(bool forced)
         spell_options = {SPELL_ANGUISH,
                          SPELL_MARTYRS_KNELL,
                          SPELL_DISPEL_UNDEAD,
+                         SPELL_PUTREFACTION,
                          SPELL_CURSE_OF_AGONY,
                          SPELL_BORGNJORS_VILE_CLUTCH,
                          SPELL_DEATH_CHANNEL,
@@ -2483,6 +2485,20 @@ static void _gain_piety_point()
         {
             beogh_increase_orcification();
         }
+
+        if (you_worship(GOD_MAKHLEB) && rank == 4
+            && !you.has_mutation(MUT_MAKHLEB_DESTRUCTION_GEH)
+            && !you.has_mutation(MUT_MAKHLEB_DESTRUCTION_COC)
+            && !you.has_mutation(MUT_MAKHLEB_DESTRUCTION_TAR)
+            && !you.has_mutation(MUT_MAKHLEB_DESTRUCTION_DIS))
+        {
+            mutation_type mut = random_choose(MUT_MAKHLEB_DESTRUCTION_GEH,
+                                              MUT_MAKHLEB_DESTRUCTION_COC,
+                                              MUT_MAKHLEB_DESTRUCTION_TAR,
+                                              MUT_MAKHLEB_DESTRUCTION_DIS);
+
+            perma_mutate(mut, 1, "Makhleb's blessing");
+        }
     }
 
     // The player's symbol depends on Beogh piety.
@@ -2720,7 +2736,7 @@ bool god_protects(const actor *agent, const monster &target, bool quiet)
             simple_god_message(
                         make_stringf(" protects %s plant from harm.",
                             agent->is_player() ? "your" : "a").c_str(),
-                        GOD_FEDHAS);
+                        false, GOD_FEDHAS);
         }
         return true;
     }
@@ -2748,7 +2764,10 @@ bool god_protects(const actor *agent, const monster &target, bool quiet)
         && mons_is_slime(target))
     {
         if (!quiet && you.can_see(target))
-            simple_god_message(" protects your slime from harm.", GOD_JIYVA);
+        {
+            simple_god_message(" protects your slime from harm.", false,
+                               GOD_JIYVA);
+        }
         return true;
     }
     return false;
@@ -2935,13 +2954,13 @@ void excommunication(bool voluntary, god_type new_god)
     update_whereis();
 
     if (old_god == GOD_IGNIS)
-        simple_god_message(" blazes with a vengeful fury!", old_god);
+        simple_god_message(" blazes with a vengeful fury!", false, old_god);
     else if (god_hates_your_god(old_god, new_god))
     {
         simple_god_message(
             make_stringf(" does not appreciate desertion%s!",
                          _god_hates_your_god_reaction(old_god, new_god).c_str()).c_str(),
-            old_god);
+            false, old_god);
     }
 
     if (had_halo)
@@ -2989,6 +3008,8 @@ void excommunication(bool voluntary, god_type new_god)
 
     case GOD_MAKHLEB:
         dismiss_divine_allies_fineff::schedule(GOD_MAKHLEB);
+        if (you.form == transformation::slaughter)
+            untransform();
         break;
 
     case GOD_TROG:
@@ -2999,7 +3020,7 @@ void excommunication(bool voluntary, god_type new_god)
         break;
 
     case GOD_BEOGH:
-        simple_god_message("'s voice booms out: Traitor to your kin!", old_god);
+        simple_god_message(" voice booms out: Traitor to your kin!", true, old_god);
         mprf(MSGCH_MONSTER_ENCHANT, "All of your followers decide to abandon you.");
 
         add_daction(DACT_ALLY_BEOGH);
@@ -3033,7 +3054,7 @@ void excommunication(bool voluntary, god_type new_god)
 
     case GOD_SHINING_ONE:
         if (you.duration[DUR_DIVINE_SHIELD])
-            tso_remove_divine_shield();
+            you.duration[DUR_DIVINE_SHIELD] = 0;
 
         dismiss_divine_allies_fineff::schedule(GOD_SHINING_ONE);
         break;
@@ -3139,7 +3160,8 @@ void excommunication(bool voluntary, god_type new_god)
 #endif
 
     case GOD_CHEIBRIADOS:
-        simple_god_message(" continues to slow your movements.", old_god);
+        simple_god_message(" continues to slow your movements.", false,
+                           old_god);
         break;
 
     case GOD_HEPLIAKLQANA:
@@ -3162,11 +3184,12 @@ void excommunication(bool voluntary, god_type new_god)
         if (you.duration[DUR_FINESSE])
             okawaru_remove_finesse();
         if (player_in_branch(BRANCH_ARENA))
-            okawaru_end_duel();
+            okawaru_end_duel(true);
         break;
 
     case GOD_IGNIS:
-        simple_god_message(" burns away your resistance to fire.", old_god);
+        simple_god_message(" burns away your resistance to fire.", false,
+                           old_god);
         if (you.duration[DUR_FIERY_ARMOUR])
         {
             you.duration[DUR_FIERY_ARMOUR] = 0;
@@ -3491,7 +3514,7 @@ static void _transfer_good_god_piety()
                                                "become a bug"),
                                         god_name(you.religion).c_str()).c_str(),
 
-                           old_god);
+                           false, old_god);
     }
 
     // Give a piety bonus when switching between good gods, or back to the
@@ -3543,7 +3566,7 @@ static void _check_good_god_wrath(god_type old_god)
         const string wrath_message
             = make_stringf(" says: %s!",
                            _good_god_wrath_message(good_god).c_str());
-        simple_god_message(wrath_message.c_str(), good_god);
+        simple_god_message(wrath_message.c_str(), false, good_god);
         set_penance_xp_timeout();
     }
 }
@@ -3741,6 +3764,40 @@ static void _join_cheibriados()
     notify_stat_change();
 }
 
+static void _join_makhleb()
+{
+    // Re-active our Mark, if we gained one, then abandoned and rejoined.
+    for (int i = 0; i < NUM_MUTATIONS; i++)
+    {
+        if (you.innate_mutation[i] && is_makhleb_mark((mutation_type)i))
+            mprf("Your %s burns with power once more.", mutation_name((mutation_type)i));
+    }
+
+    makhleb_initialize_marks();
+}
+
+// Initialize what Marks the player will eventually the offered.
+void makhleb_initialize_marks()
+{
+    vector<mutation_type> muts =
+    {
+        MUT_MAKHLEB_MARK_HAEMOCLASM,
+        MUT_MAKHLEB_MARK_LEGION,
+        MUT_MAKHLEB_MARK_CARNAGE,
+        MUT_MAKHLEB_MARK_ANNIHILATION,
+        MUT_MAKHLEB_MARK_TYRANT,
+        MUT_MAKHLEB_MARK_CELEBRANT,
+        MUT_MAKHLEB_MARK_EXECUTION,
+        MUT_MAKHLEB_MARK_ATROCITY,
+        MUT_MAKHLEB_MARK_FANATIC,
+    };
+    shuffle_array(muts);
+
+    CrawlVector& marks = you.props[MAKHLEB_OFFERED_MARKS_KEY].get_vector();
+    for (int i = 0; i < 3; ++i)
+        marks.push_back(muts[i]);
+}
+
 /// What special things happen when you join a god?
 static const map<god_type, function<void ()>> on_join = {
     { GOD_BEOGH, update_player_symbol },
@@ -3764,6 +3821,7 @@ static const map<god_type, function<void ()>> on_join = {
     { GOD_RU, _join_ru },
     { GOD_TROG, join_trog_skills },
     { GOD_ZIN, _join_zin },
+    { GOD_MAKHLEB, _join_makhleb },
     { GOD_JIYVA, []() { you.redraw_armour_class = true; /* slime wall immunity */ }}
 };
 
@@ -3903,7 +3961,8 @@ void god_pitch(god_type which_god)
     if (which_god == GOD_LUGONU && you.penance[GOD_LUGONU])
     {
         you.turn_is_over = false;
-        simple_god_message(" refuses to forgive you so easily!", which_god);
+        simple_god_message(" refuses to forgive you so easily!", false,
+                           which_god);
         return;
     }
 
@@ -3923,7 +3982,7 @@ void print_god_rejection(god_type which_god)
     if (which_god == GOD_GOZAG)
     {
         simple_god_message(" does not accept service from beggars like you!",
-                           which_god);
+                           false, which_god);
         const int fee = gozag_service_fee();
         if (you.gold == 0)
         {
@@ -3940,18 +3999,18 @@ void print_god_rejection(god_type which_god)
     if (you.get_mutation_level(MUT_NO_LOVE) && _god_rejects_loveless(which_god))
     {
         simple_god_message(" does not accept worship from the loveless!",
-                           which_god);
+                           false, which_god);
         return;
     }
     if (!_transformed_player_can_join_god(which_god))
     {
         simple_god_message(" says: How dare you approach in such a loathsome "
-                           "form!", which_god);
+                           "form!", false, which_god);
         return;
     }
 
     simple_god_message(" does not accept worship from those such as you!",
-                       which_god);
+                       false, which_god);
 }
 
 /** Ask the user for a god by name.
@@ -4272,6 +4331,9 @@ void handle_god_time(int /*time_delta*/)
         if (you.piety < 1)
             excommunication();
     }
+
+    if (player_in_branch(BRANCH_CRUCIBLE))
+        makhleb_handle_crucible_of_flesh();
 }
 
 int god_colour(god_type god) // mv - added
@@ -4521,28 +4583,24 @@ int get_monster_tension(const monster& mons, god_type god)
         exper /= 2;
 
     if (mons.has_ench(ENCH_SLOW))
-    {
-        exper *= 2;
-        exper /= 3;
-    }
+        exper = exper * 2 / 3;
 
     if (mons.has_ench(ENCH_HASTE))
-    {
-        exper *= 3;
-        exper /= 2;
-    }
+        exper = exper * 3 / 2;
 
     if (mons.has_ench(ENCH_MIGHT))
-    {
-        exper *= 5;
-        exper /= 4;
-    }
+        exper = exper * 5 / 4;
+
+    if (mons.has_ench(ENCH_EMPOWERED_SPELLS))
+        exper = exper * 5 / 4;
+
+    if (mons.has_ench(ENCH_ARMED))
+        exper = exper * 5 / 4;
 
     if (mons.berserk_or_frenzied())
     {
         // in addition to haste and might bonuses above
-        exper *= 3;
-        exper /= 2;
+        exper = exper * 3 / 2;
     }
 
     return exper;
@@ -4594,10 +4652,7 @@ int get_tension(god_type god)
         if (tension < 2)
             tension = 2;
         else
-        {
-            tension *= 3;
-            tension /= 2;
-        }
+            tension = tension * 3 / 2;
     }
 
     if (you.cannot_act())
@@ -4608,23 +4663,59 @@ int get_tension(god_type god)
         return tension;
     }
 
+    if (you.magic_points <= you.max_magic_points / 10)
+        tension = tension * 9 / 8;
+
     if (you.confused())
         tension *= 2;
 
     if (you.caught())
         tension *= 2;
 
+    if (you.duration[DUR_CORROSION])
+        tension = tension * (10 + you.props[CORROSION_KEY].get_int() / 4) / 10;
+
+    if (you.duration[DUR_MESMERISED])
+        tension = tension * 6 / 5;
+
+    if (you.duration[DUR_AFRAID])
+        tension = tension * 6 / 5;
+
+    if (you.duration[DUR_VITRIFIED])
+        tension = tension * 4 / 3;
+
+    if (you.duration[DUR_NO_POTIONS])
+        tension = tension * 4 / 3;
+
+    if (you.duration[DUR_NO_SCROLLS])
+        tension = tension * 4 / 3;
+
     if (you.duration[DUR_SLOW])
+        tension = tension * 3 / 2;
+
+    if (you.duration[DUR_SENTINEL_MARK])
+        tension = tension * 3 / 2;
+
+    if (you.duration[DUR_ATTRACTIVE])
+        tension = tension * 3 / 2;
+
+    if (you.duration[DUR_NO_CAST])
+        tension = tension * 3 / 2;
+
+    if (you.form == transformation::bat ||
+        you.form == transformation::wisp)
     {
-        tension *= 3;
-        tension /= 2;
+        tension = tension * 3 / 2;
+    }
+    else if (you.form == transformation::fungus ||
+             you.form == transformation::pig ||
+             you.form == transformation::tree)
+    {
+        tension = tension * 5 / 3;
     }
 
     if (you.duration[DUR_HASTE])
-    {
-        tension *= 2;
-        tension /= 3;
-    }
+        tension = tension * 2 / 3;
 
     return max(0, tension);
 }

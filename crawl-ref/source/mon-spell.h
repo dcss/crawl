@@ -1612,11 +1612,11 @@ static const mon_spellbook mspell_list[] =
       }
     },
 
-    {  MST_DEMONSPAWN_BLACK_SUN,
+    {  MST_DEMONSPAWN_SOUL_SCHOLAR,
       {
        { SPELL_BOLT_OF_DRAINING, 18, MON_SPELL_PRIEST },
        { SPELL_DISPEL_UNDEAD_RANGE, 18, MON_SPELL_PRIEST },
-       { SPELL_BLACK_MARK, 28, MON_SPELL_PRIEST },
+       { SPELL_SIGN_OF_RUIN, 28, MON_SPELL_PRIEST },
       }
     },
 
@@ -1791,7 +1791,7 @@ static const mon_spellbook mspell_list[] =
     },
 
     // ('i') Spriggans.
-    { MST_THE_ENCHANTRESS,
+    { MST_ENCHANTRESS,
       {
        { SPELL_SLOW, 11, MON_SPELL_WIZARD },
        { SPELL_DIMENSION_ANCHOR, 11, MON_SPELL_WIZARD },
@@ -1856,7 +1856,7 @@ static const mon_spellbook mspell_list[] =
       {
        { SPELL_SYMBOL_OF_TORMENT, 11, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
        { SPELL_SUMMON_UNDEAD, 33, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
-       { SPELL_BLACK_MARK, 22, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
+       { SPELL_SIGN_OF_RUIN, 22, MON_SPELL_MAGICAL | MON_SPELL_NOISY },
       }
     },
 
@@ -1944,10 +1944,10 @@ static const mon_spellbook mspell_list[] =
     // ('H') Hybrids.
     {  MST_ARACHNE,
       {
-       { SPELL_VENOM_BOLT, 16, MON_SPELL_WIZARD },
-       { SPELL_POISON_ARROW, 16, MON_SPELL_WIZARD },
+       { SPELL_VENOM_BOLT, 18, MON_SPELL_WIZARD },
+       { SPELL_POISON_ARROW, 18, MON_SPELL_WIZARD },
        { SPELL_GREATER_ENSNARE, 34, MON_SPELL_WIZARD },
-       { SPELL_BLINK, 11, MON_SPELL_WIZARD },
+       { SPELL_BLINK_RANGE, 11, MON_SPELL_WIZARD },
       }
     },
 
@@ -2094,6 +2094,7 @@ static const mon_spellbook mspell_list[] =
     {  MST_MOON_TROLL,
       {
        { SPELL_CORROSIVE_BOLT, 50, MON_SPELL_WIZARD },
+       { SPELL_DAZZLING_FLASH, 50, MON_SPELL_NATURAL },
       }
     },
 

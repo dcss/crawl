@@ -3304,7 +3304,8 @@ bool drink(item_def* potion)
 
     if (player_under_penance(GOD_GOZAG) && one_chance_in(3))
     {
-        simple_god_message(" petitions for your drink to fail.", GOD_GOZAG);
+        simple_god_message(" petitions for your drink to fail.", false,
+                           GOD_GOZAG);
         you.turn_is_over = true;
         return false;
     }
@@ -4489,12 +4490,19 @@ void tile_item_pickup(int idx, bool part)
         return;
     }
 
-    if (part)
+    int quantity = env.item[idx].quantity;
+    if (part && quantity > 1)
     {
-        pickup_menu(idx);
-        return;
+        quantity = prompt_for_int("Pick up how many? ", true);
+        if (quantity < 1)
+        {
+            canned_msg(MSG_OK);
+            return;
+        }
+        if (quantity > env.item[idx].quantity)
+            quantity = env.item[idx].quantity;
     }
-    pickup_single_item(idx, -1);
+    pickup_single_item(idx, quantity);
 }
 
 void tile_item_drop(int idx, bool partdrop)

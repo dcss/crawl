@@ -532,16 +532,10 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         {
             if (!quiet)
             {
-                if (me.ench == ENCH_CHARM && props.exists(CHARMED_DEMON_KEY))
-                {
-                    mprf("%s breaks free of your control!",
-                         name(DESC_THE, true).c_str());
-                }
-                else
-                    mprf("%s is no longer %s.", name(DESC_THE, true).c_str(),
-                         me.ench == ENCH_CHARM   ? "charmed"
-                         : me.ench == ENCH_HEXED ? "hexed"
-                                                 : "bribed");
+                mprf("%s is no longer %s.", name(DESC_THE, true).c_str(),
+                        me.ench == ENCH_CHARM   ? "charmed"
+                        : me.ench == ENCH_HEXED ? "hexed"
+                                                : "bribed");
 
                 mprf("You can %s detect %s.",
                      friendly() ? "once again" : "no longer",
@@ -558,18 +552,12 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         {
             if (!quiet)
             {
-                if (me.ench == ENCH_CHARM && props.exists(CHARMED_DEMON_KEY))
-                {
-                    simple_monster_message(*this,
-                                           " breaks free of your control!");
-                }
-                else
-                    simple_monster_message(*this,
-                                        me.ench == ENCH_CHARM
-                                        ? " is no longer charmed."
-                                        : me.ench == ENCH_HEXED
-                                        ? " is no longer hexed."
-                                        : " is no longer bribed.");
+                simple_monster_message(*this,
+                                    me.ench == ENCH_CHARM
+                                    ? " is no longer charmed."
+                                    : me.ench == ENCH_HEXED
+                                    ? " is no longer hexed."
+                                    : " is no longer bribed.");
             }
 
         }
@@ -588,13 +576,6 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
             patrol_point.reset();
         }
         mons_att_changed(this);
-
-        // If a greater demon is breaking free, give the player time to respond
-        if (me.ench == ENCH_CHARM && props.exists(CHARMED_DEMON_KEY))
-        {
-            speed_increment -= speed;
-            props.erase(CHARMED_DEMON_KEY);
-        }
 
         // Reevaluate behaviour.
         behaviour_event(this, ME_EVAL);
@@ -698,7 +679,7 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
 
     case ENCH_INNER_FLAME:
         if (!quiet && alive())
-            simple_monster_message(*this, "'s inner flame fades away.");
+            simple_monster_message(*this, " inner flame fades away.", true);
         break;
 
     //The following should never happen, but just in case...
@@ -757,13 +738,14 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         break;
 
     case ENCH_HAUNTING:
-    {
-        mon_enchant abj = get_ench(ENCH_ABJ);
-        abj.degree = 1;
-        abj.duration = min(5 + random2(30), abj.duration);
-        update_ench(abj);
+        if (type != MONS_SOUL_WISP)
+        {
+            mon_enchant abj = get_ench(ENCH_ABJ);
+            abj.degree = 1;
+            abj.duration = min(5 + random2(30), abj.duration);
+            update_ench(abj);
+        }
         break;
-    }
 
     case ENCH_WEAK:
         if (!quiet)
@@ -804,13 +786,8 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         calc_speed();
         break;
 
-    case ENCH_BLACK_MARK:
-        if (!quiet)
-        {
-            simple_monster_message(*this, " is no longer absorbing vital"
-                                         " energies.");
-        }
-        calc_speed();
+    case ENCH_SIGN_OF_RUIN:
+        simple_monster_message(*this, " sign of ruin fades away.", true);
         break;
 
     case ENCH_SAP_MAGIC:
@@ -910,7 +887,7 @@ void monster::remove_enchantment_effect(const mon_enchant &me, bool quiet)
         if (props.exists(BINDING_SIGIL_DURATION_KEY))
         {
             if (!quiet)
-                simple_monster_message(*this, "'s lost momentum returns!");
+                simple_monster_message(*this, " lost momentum returns!", true);
             add_ench(mon_enchant(ENCH_SWIFT, 1, &you,
                                  props[BINDING_SIGIL_DURATION_KEY].get_int()));
             props.erase(BINDING_SIGIL_DURATION_KEY);
@@ -1387,12 +1364,11 @@ void monster::apply_enchantment(const mon_enchant &me)
     case ENCH_EMPOWERED_SPELLS:
     case ENCH_BOUND_SOUL:
     case ENCH_INFESTATION:
-    case ENCH_BLACK_MARK:
+    case ENCH_SIGN_OF_RUIN:
     case ENCH_STILL_WINDS:
     case ENCH_VILE_CLUTCH:
     case ENCH_GRASPING_ROOTS:
     case ENCH_WATERLOGGED:
-    case ENCH_NECROTISE:
     case ENCH_CONCENTRATE_VENOM:
     case ENCH_VITRIFIED:
     case ENCH_INSTANT_CLEAVE:
@@ -1407,7 +1383,7 @@ void monster::apply_enchantment(const mon_enchant &me)
 
     case ENCH_ANTIMAGIC:
         if (decay_enchantment(en))
-            simple_monster_message(*this, "'s magic is no longer disrupted.");
+            simple_monster_message(*this, " magic is no longer disrupted.", true);
         break;
 
     case ENCH_ROLLING:
@@ -1421,7 +1397,7 @@ void monster::apply_enchantment(const mon_enchant &me)
 
     case ENCH_MIRROR_DAMAGE:
         if (decay_enchantment(en))
-            simple_monster_message(*this, "'s dark mirror aura disappears.");
+            simple_monster_message(*this, " dark mirror aura disappears.", true);
         break;
 
     case ENCH_SILENCE:
@@ -2161,9 +2137,9 @@ static const char *enchant_names[] =
     "ring_acid", "ring_miasma", "concentrate_venom", "fire_champion",
     "anguished",
 #if TAG_MAJOR_VERSION == 34
-    "simulacra",
+    "simulacra", "necrotising",
 #endif
-    "necrotizing", "glowing",
+     "glowing",
 #if TAG_MAJOR_VERSION == 34
     "pursuing",
 #endif
@@ -2314,7 +2290,7 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_WEAK:
     case ENCH_INVIS:
     case ENCH_AGILE:
-    case ENCH_BLACK_MARK:
+    case ENCH_SIGN_OF_RUIN:
     case ENCH_RESISTANCE:
     case ENCH_IDEALISED:
     case ENCH_BOUND_SOUL:
@@ -2440,8 +2416,6 @@ int mon_enchant::calc_duration(const monster* mons,
     case ENCH_EMPOWERED_SPELLS:
         cturn = 35 * 10 / _mod_speed(10, mons->speed);
         break;
-    case ENCH_NECROTISE:
-        return 10;
     case ENCH_RING_OF_THUNDER:
     case ENCH_RING_OF_FLAMES:
     case ENCH_RING_OF_CHAOS:

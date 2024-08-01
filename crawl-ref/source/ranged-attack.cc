@@ -72,7 +72,7 @@ int ranged_attack::post_roll_to_hit_modifiers(int mhit, bool random)
 
     if (teleport && attacker->is_monster())
         modifiers += attacker->as_monster()->get_hit_dice() * 3 / 2;
-    // XXX: Not reflected in visible to-hit display.
+    // Duplicated in melee.cc _to_hit_hit_chance
     else if (defender && attacker->is_player()
              && you.duration[DUR_DIMENSIONAL_BULLSEYE]
              && (mid_t)you.props[BULLSEYE_TARGET_KEY].get_int()
@@ -714,11 +714,13 @@ bool ranged_attack::apply_missile_brand()
     case SPMSL_BLINDING:
         if (!dart_check(brand))
             break;
-        if (defender->is_monster())
+        if (defender->can_be_blinded())
         {
-            monster* mon = defender->as_monster();
-            if (mons_can_be_blinded(mon->type))
+            if (defender->is_player())
+                blind_player(damage_done, LIGHTGREEN);
+            else
             {
+                monster* mon = defender->as_monster();
                 mon->add_ench(mon_enchant(ENCH_BLIND, 1, attacker,
                        damage_done * BASELINE_DELAY));
             }

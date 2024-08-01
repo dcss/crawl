@@ -92,8 +92,6 @@ TilesFramework::TilesFramework() :
       m_next_view(coord_def(GXM, GYM)),
       m_next_view_tl(0, 0),
       m_next_view_br(-1, -1),
-      m_current_flash_colour(BLACK),
-      m_next_flash_colour(BLACK),
       m_need_full_map(true),
       m_text_menu("menu_txt"),
       m_print_fg(15)
@@ -205,13 +203,17 @@ void TilesFramework::finish_message()
     m_msg_buf.append("\n");
     const char* fragment_start = m_msg_buf.data();
     const char* data_end = m_msg_buf.data() + m_msg_buf.size();
+#ifdef DEBUG_WEBSOCKETS
     int fragments = 0;
+#endif
     while (fragment_start < data_end)
     {
         int fragment_size = data_end - fragment_start;
         if (fragment_size > m_max_msg_size)
             fragment_size = m_max_msg_size;
+#ifdef DEBUG_WEBSOCKETS
         fragments++;
+#endif
 
         for (unsigned int i = 0; i < m_dest_addrs.size(); ++i)
         {
@@ -341,6 +343,7 @@ wint_t TilesFramework::_receive_control_message()
 
     srcaddr_len = sizeof(srcaddr);
 
+    // XX currently this is not interrupted by HUP
     int len = recvfrom(m_sock, buf, sizeof(buf),
                        0,
                        (sockaddr *) &srcaddr, &srcaddr_len);
@@ -989,14 +992,7 @@ static bool _update_statuses(player_info& c)
     status_info inf;
     for (unsigned int status = 0; status <= STATUS_LAST_STATUS; ++status)
     {
-        if (status == DUR_DIVINE_SHIELD)
-        {
-            inf = status_info();
-            if (!you.duration[status])
-                continue;
-            inf.short_text = "divinely shielded";
-        }
-        else if (status == DUR_ICEMAIL_DEPLETED)
+        if (status == DUR_ICEMAIL_DEPLETED)
         {
             inf = status_info();
             if (you.duration[status] <= ICEMAIL_TIME / ICEMAIL_MAX)
@@ -1235,8 +1231,12 @@ void TilesFramework::_send_player(bool force_full)
     {
         json_open_object(to_string(i));
         item_def item = get_item_known_info(you.inv[i]);
-        if ((char)i == you.equip[EQ_WEAPON] && is_weapon(item) && you.corrosion_amount())
+        if (((char)i == you.equip[EQ_WEAPON] && is_weapon(item)
+             || (char)i == you.equip[EQ_OFFHAND] && you.offhand_weapon())
+            && you.corrosion_amount())
+        {
             item.plus -= 1 * you.corrosion_amount();
+        }
         _send_item(c.inv[i], item, c.inv_uselessness[i], force_full);
         json_close_object(true);
     }
@@ -1556,6 +1556,10 @@ void TilesFramework::_send_cell(const coord_def &gc,
         col = (_get_highlight(col) << 4) | macro_colour(col & 0xF);
         json_write_int("col", col);
     }
+    if (current_sc.flash_colour != next_sc.flash_colour)
+        json_write_int("flc", next_sc.flash_colour);
+    if (current_sc.flash_alpha != next_sc.flash_alpha)
+        json_write_int("fla", next_sc.flash_alpha);
 
     json_open_object("t");
     {
@@ -1689,7 +1693,7 @@ void TilesFramework::_send_cell(const coord_def &gc,
             if (fg_changed || player_doll_changed)
             {
                 send_doll(last_player_doll, in_water, false);
-                if (Options.tile_use_monster != MONS_0)
+                if (player_uses_monster_tile())
                 {
                     monster_info minfo(MONS_PLAYER, MONS_PLAYER);
                     minfo.props[MONSTER_TILE_KEY] =
@@ -1848,6 +1852,10 @@ void TilesFramework::_send_map(bool force_full)
     coord_def last_gc(0, 0);
     bool send_gc = true;
 
+    int flash_colour = you.flash_colour;
+    if (flash_colour == BLACK)
+        flash_colour = viewmap_flash_colour();
+
     json_open_array("cells");
     for (int y = 0; y < GYM; y++)
         for (int x = 0; x < GXM; x++)
@@ -1861,7 +1869,11 @@ void TilesFramework::_send_map(bool force_full)
             {
                 screen_cell_t *cell = &m_next_view(gc);
 
-                draw_cell(cell, gc, false, m_current_flash_colour);
+                if (you.flash_where && you.flash_where->is_affected(gc) <= 0)
+                    draw_cell(cell, gc, false, 0);
+                else
+                    draw_cell(cell, gc, false, flash_colour);
+
                 pack_cell_overlays(gc, m_next_view);
             }
 
@@ -1995,10 +2007,6 @@ void TilesFramework::load_dungeon(const crawl_view_buffer &vbuf,
     if (m_ui_state == UI_CRT)
         set_ui_state(UI_NORMAL);
 
-    m_next_flash_colour = you.flash_colour;
-    if (m_next_flash_colour == BLACK)
-        m_next_flash_colour = viewmap_flash_colour();
-
     // First re-render the area that was covered by vbuf the last time
     for (int y = m_next_view_tl.y; y <= m_next_view_br.y; y++)
         for (int x = m_next_view_tl.x; x <= m_next_view_br.x; x++)
@@ -2090,8 +2098,6 @@ void TilesFramework::_send_everything()
     // UI State
     _send_ui_state(m_ui_state);
     m_last_ui_state = m_ui_state;
-
-    send_message("{\"msg\":\"flash\",\"col\":%d}", m_current_flash_colour);
 
     _send_cursor(CURSOR_MOUSE);
     _send_cursor(CURSOR_TUTORIAL);
@@ -2206,15 +2212,7 @@ void TilesFramework::redraw()
     _send_messages();
 
     if (m_need_redraw && m_view_loaded)
-    {
-        if (m_current_flash_colour != m_next_flash_colour)
-        {
-            send_message("{\"msg\":\"flash\",\"col\":%d}",
-                         m_next_flash_colour);
-            m_current_flash_colour = m_next_flash_colour;
-        }
         _send_map(false);
-    }
 
     m_need_redraw = false;
     m_last_tick_redraw = get_milliseconds();

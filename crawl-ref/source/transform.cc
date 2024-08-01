@@ -16,6 +16,7 @@
 #include "describe.h"
 #include "english.h"
 #include "env.h"
+#include "god-abil.h"
 #include "god-item.h"
 #include "god-passive.h" // passive_t::resist_polymorph
 #include "invent.h" // check_old_item_warning
@@ -119,9 +120,11 @@ Form::Form(const form_entry &fe)
       blocked_slots(fe.blocked_slots), size(fe.size),
       can_cast(fe.can_cast),
       uc_colour(fe.uc_colour), uc_attack_verbs(fe.uc_attack_verbs),
-      can_bleed(fe.can_bleed),
       keeps_mutations(fe.keeps_mutations),
       changes_physiology(fe.changes_physiology),
+      has_blood(fe.has_blood), has_hair(fe.has_hair),
+      has_bones(fe.has_bones), has_feet(fe.has_feet),
+      has_eyes(fe.has_eyes), has_ears(fe.has_ears),
       shout_verb(fe.shout_verb),
       shout_volume_modifier(fe.shout_volume_modifier),
       hand_name(fe.hand_name), foot_name(fe.foot_name),
@@ -1064,6 +1067,32 @@ public:
 };
 #endif
 
+class FormSlaughter : public Form
+{
+private:
+    FormSlaughter() : Form(transformation::slaughter) { }
+    DISALLOW_COPY_AND_ASSIGN(FormSlaughter);
+public:
+    static const FormSlaughter &instance() { static FormSlaughter inst; return inst; }
+
+    /**
+     * Get a message for untransforming from this form.
+     */
+    string get_untransform_message() const override
+    {
+        return "Makhleb calls their payment due...";
+    }
+
+    /**
+     * % screen description
+     */
+    string get_long_name() const override
+    {
+        const int boost = you.props[MAKHLEB_SLAUGHTER_BOOST_KEY].get_int();
+        return make_stringf("vessel of slaughter (+%d%% damage done)", boost);
+    }
+};
+
 static const Form* forms[] =
 {
     &FormNone::instance(),
@@ -1100,6 +1129,7 @@ static const Form* forms[] =
     &FormBeast::instance(),
     &FormMaw::instance(),
     &FormFlux::instance(),
+    &FormSlaughter::instance(),
 };
 
 const Form* get_form(transformation xform)
@@ -1180,26 +1210,123 @@ bool form_can_swim(transformation form)
 }
 
 // Used to mark transformations which override species intrinsics.
-bool form_changed_physiology(transformation form)
+bool form_changes_physiology(transformation form)
 {
     return get_form(form)->changes_physiology;
-}
-
-/**
- * Does this form have blood?
- *
- * @param form      The form in question.
- * @return          Whether the form can bleed, sublime, etc.
- */
-bool form_can_bleed(transformation form)
-{
-    return get_form(form)->can_bleed != FC_FORBID;
 }
 
 // Used to mark forms which keep most form-based mutations.
 bool form_keeps_mutations(transformation form)
 {
     return get_form(form)->keeps_mutations;
+}
+
+/**
+ * Does this form have blood?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has blood (can bleed, sublime, etc.).
+ */
+bool form_has_blood(transformation form)
+{
+    form_capability result = get_form(form)->has_blood;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_blood(you.species);
+}
+
+/**
+ * Does this form have hair?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has hair.
+ */
+bool form_has_hair(transformation form)
+{
+    form_capability result = get_form(form)->has_hair;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_hair(you.species);
+}
+
+/**
+ * Does this form have bones?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has bones.
+ */
+bool form_has_bones(transformation form)
+{
+    form_capability result = get_form(form)->has_bones;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_bones(you.species);
+}
+
+/**
+ * Does this form have feet?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has feet.
+ */
+bool form_has_feet(transformation form)
+{
+    form_capability result = get_form(form)->has_feet;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_feet(you.species);
+}
+
+/**
+ * Does this form have eyes?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has eyes.
+ */
+bool form_has_eyes(transformation form)
+{
+    form_capability result = get_form(form)->has_eyes;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_eyes(you.species);
+}
+
+/**
+ * Does this form have ears?
+ *
+ * @param form      The form in question.
+ * @return          Whether the form has ears.
+ */
+bool form_has_ears(transformation form)
+{
+    form_capability result = get_form(form)->has_ears;
+
+    if (result == FC_ENABLE)
+        return true;
+    else if (result == FC_FORBID)
+        return false;
+    else
+        return species::has_ears(you.species);
 }
 
 static set<equipment_type>
@@ -1556,6 +1683,9 @@ undead_form_reason lifeless_prevents_form(transformation which_trans,
     if (which_trans == transformation::none)
         return UFR_GOOD; // everything can become itself
 
+    if (which_trans == transformation::slaughter)
+        return UFR_GOOD; // Godly power can transcend such things as unlife
+
     if (!you.has_mutation(MUT_VAMPIRISM))
         return UFR_TOO_DEAD; // ghouls & mummies can't become anything else
 
@@ -1741,7 +1871,7 @@ static void _enter_form(int pow, transformation which_trans, bool was_flying)
 {
     set<equipment_type> rem_stuff = _init_equipment_removal(which_trans);
 
-    if (form_changed_physiology(which_trans))
+    if (form_changes_physiology(which_trans))
         merfolk_stop_swimming();
 
     // Give the transformation message.
@@ -2003,6 +2133,9 @@ void untransform(bool skip_move)
     you.turn_is_over = true;
     if (you.transform_uncancellable)
         you.transform_uncancellable = false;
+
+    if (old_form == transformation::slaughter)
+        makhleb_enter_crucible_of_flesh(15);
 }
 
 void return_to_default_form()
@@ -2152,7 +2285,7 @@ bool draconian_dragon_exception()
 {
     return species::is_draconian(you.species)
            && (you.form == transformation::dragon
-               || !form_changed_physiology());
+               || !form_changes_physiology());
 }
 
 transformation form_for_talisman(const item_def &talisman)

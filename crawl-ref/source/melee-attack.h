@@ -22,8 +22,9 @@ enum unarmed_attack_type
     UNAT_PSEUDOPODS,
     UNAT_TENTACLES,
     UNAT_MAW,
+    UNAT_EXECUTIONER_BLADE,
     UNAT_FIRST_ATTACK = UNAT_CONSTRICT,
-    UNAT_LAST_ATTACK = UNAT_MAW,
+    UNAT_LAST_ATTACK = UNAT_EXECUTIONER_BLADE,
     NUM_UNARMED_ATTACKS,
 };
 
@@ -63,6 +64,8 @@ public:
     bool would_prompt_player();
 
     static void chaos_affect_actor(actor *victim);
+
+    bool player_do_aux_attack(unarmed_attack_type atk);
 
 private:
     /* Attack phases */
@@ -142,12 +145,13 @@ private:
     void mons_do_eyeball_confusion();
     void mons_do_tendril_disarm();
     void apply_black_mark_effects();
+    void apply_sign_of_ruin_effects();
     void do_ooze_engulf();
     void try_parry_disarm();
 private:
     // Player-attack specific stuff
     // Auxiliary unarmed attacks.
-    bool player_aux_unarmed();
+    bool player_do_aux_attacks();
     bool player_gets_aux_punch();
     void player_aux_setup(unarmed_attack_type atk);
     bool player_aux_test_hit();
@@ -190,6 +194,10 @@ private:
     void copy_to(melee_attack &other);
 
     vorpal_damage_type damage_type;
+
+    // Is a special stab against a sleeping monster by a Dithmenos player
+    // shadow (affects messaging).
+    bool is_shadow_stab;
 };
 
 string aux_attack_desc(unarmed_attack_type unat, int force_damage = -1);

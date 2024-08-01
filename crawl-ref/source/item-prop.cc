@@ -259,7 +259,7 @@ static const armour_def Armour_prop[] =
         ARMF_RES_ELEC),
     DRAGON_ARMOUR(SHADOW,      "shadow",                 11, -150,  800,
         ard(ARMF_STEALTH, 4)),
-    DRAGON_ARMOUR(GOLD,        "gold",                   12, -230,  800,
+    DRAGON_ARMOUR(GOLDEN,      "golden",                 12, -230,  800,
         ARMF_RES_FIRE | ARMF_RES_COLD | ARMF_RES_POISON),
 
 #undef DRAGON_ARMOUR
@@ -1408,7 +1408,7 @@ static map<monster_type, armour_type> _monster_hides = {
     { MONS_STEAM_DRAGON,        ARM_STEAM_DRAGON_ARMOUR },
     { MONS_ACID_DRAGON,         ARM_ACID_DRAGON_ARMOUR },
     { MONS_STORM_DRAGON,        ARM_STORM_DRAGON_ARMOUR },
-    { MONS_GOLDEN_DRAGON,       ARM_GOLD_DRAGON_ARMOUR },
+    { MONS_GOLDEN_DRAGON,       ARM_GOLDEN_DRAGON_ARMOUR },
     { MONS_SWAMP_DRAGON,        ARM_SWAMP_DRAGON_ARMOUR },
     { MONS_PEARL_DRAGON,        ARM_PEARL_DRAGON_ARMOUR },
     { MONS_SHADOW_DRAGON,       ARM_SHADOW_DRAGON_ARMOUR },
@@ -2482,7 +2482,7 @@ bool ring_has_stackable_effect(const item_def &item)
     {
     case RING_PROTECTION_FROM_FIRE:
     case RING_PROTECTION_FROM_COLD:
-    case RING_LIFE_PROTECTION:
+    case RING_POSITIVE_ENERGY:
     case RING_STEALTH:
     case RING_WIZARDRY:
     case RING_FIRE:
@@ -2803,7 +2803,7 @@ int get_jewellery_life_protection(const item_def &ring, bool check_artp)
     int res = 0;
 
     // check for ego resistance
-    if (ring.sub_type == RING_LIFE_PROTECTION)
+    if (ring.sub_type == RING_POSITIVE_ENERGY)
         res += 1;
 
     if (check_artp && is_artefact(ring))
@@ -2985,7 +2985,7 @@ bool gives_resistance(const item_def &item)
                 || item.sub_type == RING_POISON_RESISTANCE
                 || item.sub_type == RING_PROTECTION_FROM_COLD
                 || item.sub_type == RING_RESIST_CORROSION
-                || item.sub_type == RING_LIFE_PROTECTION
+                || item.sub_type == RING_POSITIVE_ENERGY
                 || item.sub_type == RING_WILLPOWER
                 || item.sub_type == RING_FIRE
                 || item.sub_type == RING_ICE

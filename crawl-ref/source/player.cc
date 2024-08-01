@@ -946,16 +946,24 @@ bool player_can_use_armour()
     return false;
 }
 
+bool player_has_hair(bool temp, bool include_mutations)
+{
+    if (include_mutations &&
+        you.get_mutation_level(MUT_SHAGGY_FUR, temp))
+    {
+        return true;
+    }
+
+    if (temp)
+        return form_has_hair(you.form);
+
+    return species::has_hair(you.species);
+}
+
 bool player_has_feet(bool temp, bool include_mutations)
 {
-    if (you.has_innate_mutation(MUT_CONSTRICTING_TAIL)
-        || you.has_innate_mutation(MUT_FLOAT)
-        || you.has_innate_mutation(MUT_PAWS) // paws are not feet?
-        || you.has_tentacles(temp)
-        || you.fishtail && temp)
-    {
+    if (temp && you.fishtail)
         return false;
-    }
 
     if (include_mutations &&
         (you.get_mutation_level(MUT_HOOVES, temp) == 3
@@ -964,7 +972,32 @@ bool player_has_feet(bool temp, bool include_mutations)
         return false;
     }
 
-    return true;
+    if (temp)
+        return form_has_feet(you.form);
+
+    return species::has_feet(you.species);
+}
+
+bool player_has_eyes(bool temp, bool include_mutations)
+{
+    if (include_mutations &&
+        you.get_mutation_level(MUT_EYEBALLS, temp))
+    {
+        return true;
+    }
+
+    if (temp)
+        return form_has_eyes(you.form);
+
+    return species::has_eyes(you.species);
+}
+
+bool player_has_ears(bool temp)
+{
+    if (temp)
+        return form_has_ears(you.form);
+
+    return species::has_ears(you.species);
 }
 
 // Returns false if the player is wielding a weapon inappropriate for Berserk.
@@ -1873,7 +1906,7 @@ int player_prot_life(bool allow_random, bool temp, bool items)
     if (items)
     {
         // rings
-        pl += you.wearing(EQ_RINGS, RING_LIFE_PROTECTION);
+        pl += you.wearing(EQ_RINGS, RING_POSITIVE_ENERGY);
 
         // armour (checks body armour only)
         pl += you.wearing_ego(EQ_ALL_ARMOUR, SPARM_POSITIVE_ENERGY);
@@ -2023,7 +2056,7 @@ bool player_effectively_in_light_armour()
 bool player_is_shapechanged()
 {
     // TODO: move into data
-    return form_changed_physiology(you.form)
+    return form_changes_physiology(you.form)
         && you.form != transformation::death;
 }
 
@@ -2335,10 +2368,6 @@ int player_shield_class(int scale, bool random, bool ignore_temporary)
     shield += qazlal_sh_boost() * 100;
     shield += you.wearing(EQ_AMULET, AMU_REFLECTION) * AMU_REFLECT_SH * 100;
     shield += you.scan_artefacts(ARTP_SHIELDING) * 200;
-
-    // divine shield
-    if (!ignore_temporary)
-        shield += tso_sh_boost() * 100;
 
     return random ? div_rand_round(shield * scale, 100) : ((shield * scale) / 100);
 }
@@ -3565,6 +3594,14 @@ bool player::clarity(bool items) const
 bool player::faith(bool items) const
 {
     return you.has_mutation(MUT_FAITH) || actor::faith(items);
+}
+
+bool player::reflection(bool items) const
+{
+    if (you.duration[DUR_DIVINE_SHIELD])
+        return true;
+
+    return actor::reflection(items);
 }
 
 /// Does the player have permastasis?
@@ -4912,6 +4949,66 @@ void barb_player(int turns, int pow)
     }
 }
 
+/**
+ * Players are rather more susceptible to dazzling: only those who can't
+ * be blinded are immune.
+ */
+bool player::can_be_dazzled() const
+{
+    return can_be_blinded();
+}
+
+/**
+ * Players can be blinded only if they have eyes.
+ */
+bool player::can_be_blinded() const
+{
+    return player_has_eyes();
+}
+
+/**
+ * Increase the player's blindness duration.
+ *
+ * @param amount   The number of turns to increase blindness duration by.
+ */
+void blind_player(int amount, colour_t flavour_colour)
+{
+    ASSERT(!crawl_state.game_is_arena());
+
+    if (!you.can_be_dazzled())
+    {
+        mpr("Your vision flashes for a moment.");
+        return;
+    }
+
+    if (amount <= 0)
+        return;
+
+    const int current = you.duration[DUR_BLIND];
+    you.increase_duration(DUR_BLIND, amount, 50);
+
+    if (you.duration[DUR_BLIND] > current)
+    {
+        you.props[BLIND_COLOUR_KEY] = flavour_colour;
+        if (current > 0)
+            mpr("You are blinded for an even longer time.");
+        else
+            mpr("You are blinded!");
+        learned_something_new(HINT_YOU_ENCHANTED);
+        xom_is_stimulated((you.duration[DUR_BLIND] - current) / BASELINE_DELAY);
+    }
+}
+
+// Returns the percentage chance any attack or dodgeable beam will miss at a
+// given distance. (ie: 30%, 45%, 60%, 75%, 90%)
+int player_blind_miss_chance(int distance)
+{
+    if (you.duration[DUR_BLIND])
+        return min(90, 15 + (distance * 15));
+    else
+        return 0;
+}
+
 void dec_berserk_recovery_player(int delay)
 {
     if (!you.duration[DUR_BERSERK_COOLDOWN])
@@ -5865,14 +5962,14 @@ void player::banish(const actor* /*agent*/, const string &who, const int power,
     if (player_in_branch(BRANCH_ARENA))
     {
         simple_god_message(" prevents your banishment from the Arena!",
-                           GOD_OKAWARU);
+                           false, GOD_OKAWARU);
         return;
     }
 
     if (you.duration[DUR_BEOGH_DIVINE_CHALLENGE])
     {
         simple_god_message(" refuses to let the Abyss claim you during a challenge!",
-                           GOD_BEOGH);
+                           false, GOD_BEOGH);
 
         return;
     }
@@ -6010,7 +6107,9 @@ void player::shield_block_succeeded(actor *attacker)
 {
     actor::shield_block_succeeded(attacker);
 
-    shield_blocks++;
+    if (!you.duration[DUR_DIVINE_SHIELD])
+        shield_blocks++;
+
     practise_shield_block();
     if (is_shield(shield()))
         count_action(CACT_BLOCK, shield()->sub_type);
@@ -6700,6 +6799,8 @@ mon_holy_type player::holiness(bool temp, bool incl_form) const
         {
             holi = MH_NONLIVING;
         }
+        else if (f == transformation::slaughter)
+            holi = MH_DEMONIC;
     }
 
     // Petrification takes precedence over base holiness and lich form
@@ -6804,8 +6905,7 @@ bool player::res_miasma(bool temp) const
 {
     if (has_mutation(MUT_FOUL_STENCH)
         || is_nonliving(temp)
-        || cur_form(temp)->res_miasma()
-        || temp && you.props.exists(MIASMA_IMMUNE_KEY))
+        || cur_form(temp)->res_miasma())
     {
         return true;
     }
@@ -6858,11 +6958,13 @@ bool player::res_torment() const
     return get_form()->res_neg() == 3
            || you.has_mutation(MUT_VAMPIRISM) && !you.vampire_alive
            || you.petrified()
-    // This should probably be (you.holiness & MH_PLANT), but treeform
-    // doesn't currently make you a plant, and I suspect changing that
-    // would cause other bugs. (For example, being able to wield holy
-    // weapons as a demonspawn & keep them while untransformed?)
+    // This should probably be (you.holiness & MH_PLANT), but
+    // transforming doesn't currently make you a plant, and I suspect
+    // changing that would cause other bugs. (For example, being able
+    // to wield holy weapons as a demonspawn in treeform & keep them
+    // while untransformed?)
            || you.form == transformation::tree
+           || you.form == transformation::fungus
 #if TAG_MAJOR_VERSION == 34
            || player_equip_unrand(UNRAND_ETERNAL_TORMENT)
 #endif
@@ -6896,6 +6998,9 @@ int player::willpower() const
 
 int player_willpower(bool temp)
 {
+    if (temp && you.form == transformation::slaughter)
+        return WILL_INVULN;
+
     if (player_equip_unrand(UNRAND_FOLLY))
         return 0;
 
@@ -7155,7 +7260,7 @@ int player::hurt(const actor *agent, int amount, beam_type flavour,
     }
 
     if ((flavour == BEAM_DESTRUCTION || flavour == BEAM_MINDBURST)
-        && can_bleed())
+        && has_blood())
     {
         blood_spray(pos(), type, amount / 5);
     }
@@ -7436,25 +7541,26 @@ bool player::has_tail(bool allow_tran) const
     {
         // these transformations bring a tail with them
         if (form == transformation::dragon)
-            return 1;
+            return true;
 
         // Most transformations suppress a tail.
         if (!form_keeps_mutations())
-            return 0;
+            return false;
     }
 
     // XXX: Do merfolk in water belong under allow_tran?
     if (species::is_draconian(species)
+        || species == SP_FELID
         || has_mutation(MUT_CONSTRICTING_TAIL, allow_tran)
         || fishtail // XX respect allow_tran
         || get_mutation_level(MUT_ARMOURED_TAIL, allow_tran)
         || get_mutation_level(MUT_STINGER, allow_tran)
         || get_mutation_level(MUT_WEAKNESS_STINGER, allow_tran))
     {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 // Whether the player has a usable offhand for the
@@ -7683,12 +7789,29 @@ bool player::can_polymorph() const
     return !(transform_uncancellable || is_lifeless_undead());
 }
 
-bool player::can_bleed(bool temp) const
+bool player::has_blood(bool temp) const
 {
-    if (temp && !form_can_bleed(form))
+    if (is_lifeless_undead(temp))
         return false;
 
-    return !is_lifeless_undead(temp) && !is_nonliving(temp);
+    if (temp)
+    {
+        if (petrified())
+            return false;
+
+        return form_has_blood(form);
+    }
+
+    return species::has_blood(you.species);
+}
+
+bool player::has_bones(bool temp) const
+{
+    if (temp)
+        return form_has_bones(you.form);
+;
+
+    return species::has_bones(you.species);
 }
 
 bool player::can_drink(bool temp) const
@@ -8188,7 +8311,7 @@ bool player::made_nervous_by(const monster *mons)
     return false;
 }
 
-void player::weaken(actor */*attacker*/, int pow)
+void player::weaken(const actor */*attacker*/, int pow)
 {
     if (!duration[DUR_WEAK])
         mprf(MSGCH_WARN, "You feel your attacks grow feeble.");

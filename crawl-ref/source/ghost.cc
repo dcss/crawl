@@ -713,7 +713,7 @@ void ghost_demon::pick_apostle_spells(apostle_type type, int pow)
                 picker.pick(wizard_primary_spells, pow, SPELL_NO_SPELL);
 
             spell_type primary2 = SPELL_NO_SPELL;
-            int pow2 = pow - random_range(0, 20);
+            int pow2 = max(-10, pow - random_range(0, 20));
             for (int tries = 0; tries < 3; ++tries)
             {
                 // Keep rerolling until we find something other than our starting
@@ -1095,8 +1095,6 @@ spell_type ghost_demon::translate_spell(spell_type spell) const
     case SPELL_CONTROLLED_BLINK:
         return SPELL_BLINK;
 #endif
-    case SPELL_NECROTISE:
-        return SPELL_PAIN;
     case SPELL_SWIFTNESS:
         return SPELL_SPRINT;
     case SPELL_CONFUSING_TOUCH:

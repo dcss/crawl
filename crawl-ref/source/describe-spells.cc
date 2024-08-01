@@ -363,7 +363,7 @@ static string _range_string(const spell_type &spell, const monster_info *mon_own
 {
     auto flags = get_spell_flags(spell);
     int pow = mons_power_for_hd(spell, hd);
-    int range = spell_range(spell, pow, false);
+    int range = spell_range(spell, pow, mon_owner && mon_owner->is(MB_PLAYER_SERVITOR));
     const bool has_range = mon_owner
                         && range > 0
                         && !testbits(flags, spflag::selfench);
@@ -526,6 +526,22 @@ static string _effect_string(spell_type spell, const monster_info *mon_owner)
     {
         const int pow = mons_power_for_hd(SPELL_DRAINING_GAZE, hd);
         return make_stringf("0-%d MP", pow / 8); // >_> >_>
+    }
+
+    if (spell == SPELL_WIND_BLAST)
+    {
+        const int pow = mons_power_for_hd(SPELL_WIND_BLAST, hd);
+        return make_stringf("2d%d*", default_collision_damage(pow, false).size);
+    }
+
+    if (spell == SPELL_FORCE_LANCE)
+    {
+        const int pow = mons_power_for_hd(SPELL_FORCE_LANCE, hd);
+            return make_stringf("%dd%d(+%dd%d)",
+                _spell_damage(spell, hd).num,
+                _spell_damage(spell, hd).size,
+                default_collision_damage(pow, false).num,
+                default_collision_damage(pow, false).size);
     }
 
     if (spell == SPELL_HOARFROST_BULLET)

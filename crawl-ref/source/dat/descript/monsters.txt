@@ -76,7 +76,8 @@ Blorkula was offered succour by a missionary of Beogh and became a portly and
 vigorous orc with a strange obsession with colour instead.
 
 He wields magic tinged with every hue of the rainbow, and has mastered the art
-of dividing his own form among its many colours to avoid killing blows.
+of dividing his own form among its many colours to avoid killing blows - though
+even he must rest a while before doing so a second time.
 %%%%
 Boris
 
@@ -526,9 +527,8 @@ daring leaps! But watch out for her knives!
 %%%%
 Terence
 
-A violent murderer who kills for both pleasure and profit, Terence has been
-forced into hiding after a botched job. There's a price on his head, and he
-can't afford to leave anyone who sees him alive!
+A veteran of a war against the armataurs' elephant-riders. He has recently
+retired to make a new home in the dungeon.
 %%%%
 Tiamat
 
@@ -1130,11 +1130,6 @@ demonspawn
 A half-mortal, half-demonic creature, with its hellish heritage asserting
 itself through a certain devilish cast to its features.
 %%%%
-demonspawn black sun
-
-A half-mortal, half-demonic creature, covered in icy blue scales. It wields
-powers of darkness from its devotion to the deities of death.
-%%%%
 demonspawn blood saint
 
 A half-mortal, half-demonic creature, radiating an intense heat. It weaves
@@ -1146,11 +1141,17 @@ A half-mortal, half-demonic creature, oozing with dark energies. It twists
 space around itself, and can corrupt weapons, armour and even the very flesh of
 its opponents.
 %%%%
+demonspawn soul scholar
+
+A half-mortal, half-demonic creature, covered in icy blue scales. Its devotion
+to the deities of death grants it great insight into the vulnerabilities and
+applications of mortal souls.
+%%%%
 demonspawn warmonger
 
 A half-mortal, half-demonic creature, now more beast than whatever species it
-is descended from. It is devoted to combat, disrupting the magic of its foes as
-it battles endlessly.
+is descended from. It is devoted to martial combat, disrupting the magic of its
+foes as it feasts off of endless conflict.
 %%%%
 diamond obelisk
 
@@ -1472,6 +1473,14 @@ gnoll sergeant
 
 A commander of a pack of gnolls. Scars on its stout body give evidence of how
 it earned its rank.
+%%%%
+globe of annihilation
+
+A roiling sphere of intense destructive energies, drawn from the fabric of the
+Hells themselves. It pursues a designated target inexorably, growing in size as
+it travels. If it collides with either a creature or wall, it will explode
+violently - though its creator is protected from the wild destruction unleashed
+as it does so.
 %%%%
 goblin
 
@@ -2114,7 +2123,7 @@ gather for whatever worrying activities orcs enjoy.
 %%%%
 orc apostle
 
-A orcish wayfarer who has been touched by the hand of Beogh. Whether out of
+An orcish wayfarer who has been touched by the hand of Beogh. Whether out of
 religious devotion or personal jealousy, they have come to bar your path.
 
 Hold nothing back - for neither they nor their followers will do so.
@@ -2141,8 +2150,8 @@ bloodcurdling shouts.
 %%%%
 orc priest
 
-A servant of Beogh, the ancient and cruel god of the orcs. Beogh rewards its
-devoted prayers by striking down its enemies.
+A servant of Beogh, the ancient god of the orcs. Beogh rewards its devoted
+prayers by striking down its enemies.
 %%%%
 orc sorcerer
 
@@ -2396,7 +2405,7 @@ and decay to all it touches.
 sacred lotus
 
 A large and vivid bloom drifting placidly upon the surface of the water. The
-cradle of the lotus's petals shine with eternity and elegance- while it is
+cradle of the lotus's petals shine with eternity and elegance - while it is
 entirely harmless, it would take immense effort to destroy it.
 %%%%
 salamander
@@ -2609,6 +2618,13 @@ soul eater
 
 A demon that manifests as a malignantly shifting shadow gliding through the
 air. It radiates an intense aura of negative force.
+%%%%
+soul wisp
+
+A tiny fragment of a living soul, splintered from the body in which it belongs.
+Too mindless to be fully controlled, it seeks nothing but to reunite with its
+greater self once more - unfortunately, this process tends to be more violent
+than the magic which created it.
 %%%%
 spark wasp
 
@@ -3489,7 +3505,7 @@ naga warlord
 
 <naga warrior>
 %%%%
-sulfuric acid blob
+sulphuric acid blob
 
 <acid blob>
 %%%%

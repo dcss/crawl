@@ -1250,6 +1250,12 @@ namespace quiver
             qdesc.cprintf("%s", spell == SPELL_MAXWELLS_COUPLING ?
                                 "Capacitive Coupling" : spell_title(spell));
 
+            if (spell == SPELL_GRAVE_CLAW)
+            {
+                qdesc.cprintf(" (%d/%d)", you.props[GRAVE_CLAW_CHARGES_KEY].get_int()
+                                        , GRAVE_CLAW_MAX_CHARGES);
+            }
+
             if (fail_severity(spell) > 0)
             {
                 qdesc.cprintf(" (%s)",
@@ -1382,8 +1388,7 @@ namespace quiver
         case ABIL_STEAM_BREATH:
         case ABIL_NOXIOUS_BREATH:
         case ABIL_DAMNATION:
-        case ABIL_MAKHLEB_MINOR_DESTRUCTION:
-        case ABIL_MAKHLEB_MAJOR_DESTRUCTION:
+        case ABIL_MAKHLEB_DESTRUCTION:
         case ABIL_LUGONU_BANISH:
         case ABIL_BEOGH_SMITING:
         case ABIL_QAZLAL_UPHEAVAL:

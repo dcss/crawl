@@ -1270,6 +1270,8 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
                                                   0, 1);
     case SPELL_INNER_FLAME:
         return make_unique<targeter_inner_flame>(&you, range);
+    case SPELL_SOUL_SPLINTER:
+        return make_unique<targeter_soul_splinter>(&you, range);
     case SPELL_SIMULACRUM:
         return make_unique<targeter_simulacrum>(&you, range);
     case SPELL_LEDAS_LIQUEFACTION:
@@ -1283,9 +1285,10 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
                                             silence_min_range(pow));
     case SPELL_MERCURY_VAPOURS:
         return make_unique<targeter_smite>(&you, range, 0, 1);
+    case SPELL_GRAVE_CLAW:
+        return make_unique<targeter_smite>(&you, range);
 
     // at player's position only but not a selfench
-    case SPELL_ROT:
     case SPELL_SUBLIMATION_OF_BLOOD:
     case SPELL_BORGNJORS_REVIVIFICATION:
     case SPELL_BLASTMOTE:
@@ -1388,7 +1391,7 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
         return make_unique<targeter_explosive_beam>(&you, pow, range);
     case SPELL_NOXIOUS_BREATH:
         // Note the threshold where it becomes possible to make clouds off the main beam
-        return make_unique<targeter_explosive_beam>(&you, pow, range, pow > 10);
+        return make_unique<targeter_explosive_beam>(&you, pow, range, false, pow > 10);
     case SPELL_GALVANIC_BREATH:
         return make_unique<targeter_galvanic>(&you, pow, range);
     case SPELL_NULLIFYING_BREATH:
@@ -1402,6 +1405,9 @@ unique_ptr<targeter> find_spell_targeter(spell_type spell, int pow, int range)
 
     case SPELL_HELLFIRE_MORTAR:
         return make_unique<targeter_mortar>(&you, range);
+
+    case SPELL_PUTREFACTION:
+        return make_unique<targeter_putrefaction>(range);
 
     default:
         break;
@@ -1504,10 +1510,14 @@ static int _to_hit_pct(const monster_info& mi, int acc)
         }
     }
 
+    int base_chance = 0;
     if (iters <= 0) // probably low monster ev?
-        return 100;
+        base_chance = 100;
+    else
+        base_chance = hits * 100 / iters;
 
-    return hits * 100 / iters;
+    base_chance = base_chance * (100 - player_blind_miss_chance(you.pos().distance_from(mi.pos))) / 100;
+    return base_chance;
 }
 
 static vector<string> _desc_hit_chance(const monster_info& mi, int acc)
@@ -1517,7 +1527,11 @@ static vector<string> _desc_hit_chance(const monster_info& mi, int acc)
     const int hit_pct = _to_hit_pct(mi, acc);
     if (hit_pct == -1)
         return vector<string>{};
-    return vector<string>{make_stringf("%d%% to hit", hit_pct)};
+
+    ostringstream result;
+    describe_hit_chance(hit_pct, result, nullptr, false,
+                        you.pos().distance_from(mi.pos));
+    return vector<string>{result.str()};
 }
 
 vector<string> desc_beam_hit_chance(const monster_info& mi, targeter* hitfunc)
@@ -1535,7 +1549,11 @@ static vector<string> _desc_plasma_hit_chance(const monster_info& mi, int powc)
     const int hit_pct = _to_hit_pct(mi, beam.hit);
     if (hit_pct == -1)
         return vector<string>{};
-    return vector<string>{make_stringf("2x%d%% to hit", hit_pct)};
+
+    ostringstream result;
+    describe_hit_chance(hit_pct, result, nullptr, false,
+                        you.pos().distance_from(mi.pos));
+    return vector<string>{make_stringf("2x%s", result.str().c_str())};
 }
 
 static vector<string> _desc_intoxicate_chance(const monster_info& mi,
@@ -1641,8 +1659,14 @@ static vector<string> _desc_electric_charge_hit_chance(const monster_info& mi)
 {
     melee_attack attk(&you, nullptr);
     attk.charge_pow = 1; // to give the accuracy bonus
-    const int acc_pct = to_hit_pct(mi, attk, true);
-    return vector<string>{make_stringf("%d%% to hit", acc_pct)};
+
+    vector<string> desc;
+    ostringstream result;
+    // Pass in our own attack and specify distance 1 so we get correct to-hit
+    // for where the attack *will* be from
+    describe_to_hit(mi, result, nullptr, false, &attk, 1);
+    desc.emplace_back(result.str());
+    return desc;
 }
 
 static vector<string> _desc_insubstantial(const monster_info& mi, string desc)
@@ -2019,6 +2043,13 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
                 _spell_failure_rate_description(spell).c_str());
         }
 
+        if (spell == SPELL_GRAVE_CLAW)
+        {
+            title += make_stringf("<lightgrey> (%d/%d uses available)</lightgrey>",
+                                  you.props[GRAVE_CLAW_CHARGES_KEY].get_int(),
+                                  GRAVE_CLAW_MAX_CHARGES);
+        }
+
         spell_targeting_behaviour beh(spell);
 
         direction_chooser_args args;
@@ -2107,7 +2138,7 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
         {
             // And you thought you'd Haunt your way out of penance...
             simple_god_message(" does not allow the disloyal to dabble in "
-                               "death!", GOD_KIKUBAAQUDGHA);
+                               "death!", false, GOD_KIKUBAAQUDGHA);
 
             // The spell still goes through, but you get a miscast anyway.
             miscast_effect(you, nullptr,
@@ -2124,7 +2155,7 @@ spret your_spells(spell_type spell, int powc, bool actual_spell,
         {
             // And you thought you'd Fire Storm your way out of penance...
             simple_god_message(" does not allow the disloyal to dabble in "
-                               "destruction!", GOD_VEHUMET);
+                               "destruction!", false, GOD_VEHUMET);
 
             // The spell still goes through, but you get a miscast anyway.
             miscast_effect(you, nullptr, {miscast_source::god, GOD_VEHUMET},
@@ -2316,7 +2347,7 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
         return cast_thunderbolt(&you, powc, target, fail);
 
     case SPELL_DAZZLING_FLASH:
-        return cast_dazzling_flash(powc, fail);
+        return cast_dazzling_flash(&you, powc, fail);
 
     case SPELL_CHAIN_OF_CHAOS:
         return cast_chain_spell(SPELL_CHAIN_OF_CHAOS, powc, &you, fail);
@@ -2433,8 +2464,8 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
     case SPELL_BORGNJORS_VILE_CLUTCH:
         return cast_vile_clutch(powc, beam, fail);
 
-    case SPELL_ROT:
-        return cast_dreadful_rot(powc, fail);
+    case SPELL_PUTREFACTION:
+        return cast_putrefaction(monster_at(target), powc, fail);
 
     // Our few remaining self-enchantments.
     case SPELL_SWIFTNESS:
@@ -2504,6 +2535,9 @@ static spret _do_cast(spell_type spell, int powc, const dist& spd,
 
     case SPELL_MERCURY_VAPOURS:
         return cast_mercury_vapours(powc, spd.target, fail);
+
+    case SPELL_GRAVE_CLAW:
+        return cast_grave_claw(you, spd.target, powc, fail);
 
     case SPELL_BLINKBOLT:
         return blinkbolt(powc, beam, fail);
@@ -2915,13 +2949,10 @@ string spell_damage_string(spell_type spell, bool evoked, int pow, bool terse)
         case SPELL_AIRSTRIKE:
             return describe_airstrike_dam(base_airstrike_damage(pow));
         case SPELL_PILEDRIVER:
-            return make_stringf("2d(%d-%d)",
-                        collision_damage(piledriver_collision_power(pow, 1), false).size,
-                        collision_damage(piledriver_collision_power(pow, 4), false).size);
+            return make_stringf("(3-9)d%d", piledriver_collision_damage(pow, 1, false).size);
         case SPELL_GELLS_GAVOTTE:
-            return make_stringf("2d(%d-%d)",
-                        collision_damage(gavotte_impact_power(pow, 1), false).size,
-                        collision_damage(gavotte_impact_power(pow, 4), false).size);
+            return make_stringf("2d(%d-%d)", gavotte_impact_damage(pow, 1, false).size,
+                                             gavotte_impact_damage(pow, 4, false).size);
 
         case SPELL_FULSOME_FUSILLADE:
             return make_stringf("(3-5)d%d", _spell_damage(spell, pow).size);
@@ -2959,7 +2990,7 @@ string spell_damage_string(spell_type spell, bool evoked, int pow, bool terse)
         else
             return make_stringf("%s (+%s)",
                 dam_str.c_str(),
-                describe_collision_dam(collision_damage(pow, false)).c_str());
+                describe_collision_dam(default_collision_damage(pow, false)).c_str());
     }
 
     if (spell == SPELL_LRD

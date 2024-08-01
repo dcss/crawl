@@ -73,6 +73,11 @@ static void _post_shackles_effect()
     yred_end_blasphemy();
 }
 
+static void _end_growing_destruction()
+{
+    you.props.erase(MAKHLEB_ATROCITY_STACKS_KEY);
+}
+
 // properties of the duration.
 enum duration_flags : uint32_t
 {
@@ -524,10 +529,9 @@ static const duration_def duration_data[] =
       "horrified", "horror",
       "You are horrified, weakening your attacks and spells.", D_NO_FLAGS},
     { DUR_DIVINE_SHIELD,
-      0, "",
+      LIGHTBLUE, "",
       "divinely shielded", "divine shield",
-      "You are shielded by the power of the Shining One.", D_NO_FLAGS,
-      {{ "", tso_remove_divine_shield }}},
+      "You are shielded by the power of the Shining One.", D_NO_FLAGS},
     { DUR_CLEAVE,
       LIGHTBLUE, "Cleave",
       "cleaving", "cleave",
@@ -585,11 +589,6 @@ static const duration_def duration_data[] =
       "on word of chaos cooldown", "word of chaos cooldown",
       "You are unable to speak a word of chaos.", D_NO_FLAGS,
       {{ "You are ready to speak a word of chaos again." }}},
-    { DUR_DUEL_COMPLETE, LIGHTGREY, "Duel",
-      "duelling", "duel complete",
-      "Your duel has come to an end.", D_EXPIRES,
-      {{ "", okawaru_end_duel },
-      { "Okawaru bids you farewell from the Arena.", 1 }}, 6},
     { DUR_SAP_MAGIC, YELLOW, "Sap",
       "magic-sapped", "sap magic",
       "Casting spells may cause you to lose access to your magic.",
@@ -630,6 +629,10 @@ static const duration_def duration_data[] =
       "on siphon cooldown", "siphon cooldown",
       "You are unable to siphon essence.", D_NO_FLAGS,
       {{ "You are ready to siphon essence again." }}},
+    { DUR_CELEBRANT_COOLDOWN,
+      YELLOW, "-Bloodrite",
+      "on bloodrite cooldown", "bloodrite cooldown",
+      "You are unable to performed a blood rite.", D_NO_FLAGS},
     { DUR_JINXBITE, LIGHTBLUE, "Jinx",
       "jinxed", "jinxbite",
       "You are surrounded by jinxing sprites.", D_DISPELLABLE | D_EXPIRES,
@@ -643,7 +646,30 @@ static const duration_def duration_data[] =
     { DUR_PRIMORDIAL_NIGHTFALL, MAGENTA, "Nightfall",
       "nightfall", "nightfall",
       "You are enveloped in primordial darkness.", D_EXPIRES,
-      {{ "Night gives way to day once more." }}},
+      {{ "Night gives way to day once more.", update_vision_range }}},
+    { DUR_BLIND, RED, "Blind", "blinded", "blindness",
+      "The further away your target is the more your accuracy is reduced.",
+      D_DISPELLABLE | D_EXPIRES, {{ "",
+        [](){mprf(MSGCH_RECOVERY, "Your vision returns to normal.");}}}},
+    { DUR_SIGN_OF_RUIN, RED, "Ruin",
+      "sign of ruin", "ruin",
+      "The sign of ruin enfeebles you when you suffer attacks.", D_DISPELLABLE,
+      {{ "The sign of ruin upon you fades." }}},
+    { DUR_INFERNAL_LEGION,
+      WHITE, "Legion",
+      "unleashing the legion", "infernal legion",
+      "You are beckoning forth the legions of chaos.", D_EXPIRES,
+      {{ "Your infernal gateway subsides." }}},
+    { DUR_EXECUTION,
+      LIGHTBLUE, "Execution",
+      "surrounded by blades", "execution",
+      "You are surrounded by a whirlwind of blades.", D_EXPIRES,
+      {{ "You feel a little less murderous for the moment." }}},
+    { DUR_GROWING_DESTRUCTION,
+      LIGHTBLUE, "Destr",
+      "growing destruction", "growing destruction",
+      "Your Destruction is growing increasingly wild.", D_EXPIRES,
+      {{ "", _end_growing_destruction}}},
     //TODO this needs rewrite
     { DUR_GASTRONOMIC, MAGENTA, "Gut", "transposing a stomach", "gastronomic expanse",
       "You are transposing a stomach with part of the dungeon.", D_DISPELLABLE,},
@@ -722,6 +748,7 @@ static const duration_def duration_data[] =
     { DUR_BEOGH_SEEKING_VENGEANCE, LIGHTRED, "Vengeance", "", "vengeance",
       "You are seeking vengeance for the death of your brethren.", D_NO_FLAGS},
     { DUR_CONSTRICTION_IMMUNITY, 0, "", "", "constrict immune", "", D_NO_FLAGS, {{""}}},
+    { DUR_GRAVE_CLAW_RECHARGE, 0, "", "", "grave claw recharging", "", D_NO_FLAGS},
 
 #if TAG_MAJOR_VERSION == 34
     // And removed ones
@@ -773,5 +800,6 @@ static const duration_def duration_data[] =
     { DUR_CORPSE_ROT, 0, "", "", "old corpse rot", "", D_NO_FLAGS },
     { DUR_LOCKED_DOWN, 0, "", "", "old stuck", "", D_NO_FLAGS },
     { DUR_BINDING_SIGIL_WARNING, 0, "", "", "old binding sigil", "", D_NO_FLAGS },
+    { DUR_DUEL_COMPLETE, 0, "", "", "old duel complete", "", D_NO_FLAGS },
 #endif
 };

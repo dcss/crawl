@@ -119,7 +119,7 @@ tomli==2.0.1
     #   pyproject-hooks
     #   pytest
     #   tox
-tornado==6.4
+tornado==6.4.1
     # via -r requirements.in/base.txt
 tox==4.14.1
     # via -r requirements.in/dev.txt
@@ -129,7 +129,7 @@ virtualenv==20.25.1
     # via tox
 wheel==0.43.0
     # via pip-tools
-zipp==3.18.1
+zipp==3.19.1
     # via importlib-metadata
 
 # The following packages are considered to be unsafe in a requirements file:

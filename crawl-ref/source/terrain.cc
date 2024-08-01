@@ -514,7 +514,7 @@ bool feat_is_trap(dungeon_feature_type feat)
     return get_feature_def(feat).flags & FFT_TRAP;
 }
 
-/** Is this feature a type of water, with the concomitant dangers/bonuss?
+/** Is this feature a type of water, with the concomitant dangers/bonuses?
  */
 bool feat_is_water(dungeon_feature_type feat)
 {
@@ -1048,7 +1048,9 @@ static coord_def _dgn_find_nearest_square(
 static bool _item_safe_square(const coord_def &pos)
 {
     const dungeon_feature_type feat = env.grid(pos);
-    return feat_is_traversable(feat) && !feat_destroys_items(feat);
+    return feat_is_traversable(feat)
+            && !feat_is_closed_door(feat)
+            && !feat_destroys_items(feat);
 }
 
 static bool _item_traversable_square(const coord_def &pos)
@@ -1070,6 +1072,7 @@ static bool _dgn_shift_item(const coord_def &pos, item_def &item)
     {
         int index = item.index();
         move_item_to_grid(&index, np);
+
         return true;
     }
     return false;
@@ -1301,6 +1304,11 @@ void dungeon_terrain_changed(const coord_def &pos,
 {
     if (env.grid(pos) == nfeat)
         return;
+
+    // Cannot change the terrain beneath the orb's starting location by any means.
+    if (env.grid(pos) == DNGN_ORB_DAIS)
+        return;
+
     // If we're trying to place a wall on top of a monster, push it out of the
     // way first.
     if (feat_is_wall(nfeat) && monster_at(pos))
@@ -1940,6 +1948,8 @@ const char* feat_type_name(dungeon_feature_type feat)
         return "shop";
     if (feat_is_fountain(feat))
         return "fountain";
+    if (feat == DNGN_ORB_DAIS)
+        return "dais";
     if (feat == DNGN_UNSEEN)
         return "unknown terrain";
     return "floor";
@@ -2041,6 +2051,12 @@ void temp_change_terrain(coord_def pos, dungeon_feature_type newfeat, int dur,
                          terrain_change_type type, int mid)
 {
     dungeon_feature_type old_feat = env.grid(pos);
+
+    // We can't actually change this, so don't add a map marker that will add
+    // a confusing 'summoned' to the feature name when examining it.
+    if (old_feat == DNGN_ORB_DAIS)
+        return;
+
     tile_flavour old_flv = tile_env.flv(pos);
     for (map_marker *marker : env.markers.get_markers_at(pos))
     {

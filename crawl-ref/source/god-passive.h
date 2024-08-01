@@ -283,8 +283,6 @@ void gozag_move_level_gold_to_top();
 void gozag_move_gold_to_top(const coord_def p);
 void gozag_count_level_gold();
 
-int tso_sh_boost();
-
 int qazlal_sh_boost(int piety = you.piety);
 void qazlal_storm_clouds();
 void qazlal_element_adapt(beam_type flavour, int strength);
@@ -315,4 +313,6 @@ bool wu_jian_post_move_effects(bool did_wall_jump,
                                const coord_def& initial_position);
 bool wu_jian_move_triggers_attacks(coord_def new_pos);
 
-void okawaru_handle_duel();
+void makhleb_tyrant_buff();
+void makhleb_celebrant_bloodrite();
+void makhleb_execution_activate();

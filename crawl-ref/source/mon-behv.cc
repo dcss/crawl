@@ -850,7 +850,13 @@ void handle_behaviour(monster* mon)
             }
 
             if (stop_retreat)
+            {
                 mons_end_withdraw_order(*mon);
+                // XXX: The above function already sets this, but otherwise they
+                //      will be ignored just below. Ugh.
+                new_beh = BEH_SEEK;
+                new_foe = MHITYOU;
+            }
             else
                 mon->props[LAST_POS_KEY] = mon->pos();
 
@@ -991,7 +997,7 @@ void behaviour_event(monster* mon, mon_event_type event, const actor *src,
         dprf("Disturbing %s", mon->name(DESC_A, true).c_str());
 #endif
         // Assumes disturbed by noise...
-        if (mon->asleep())
+        if (mon->asleep() && !mons_just_slept(*mon))
             mon->behaviour = BEH_WANDER;
 
         // A bit of code to make Projected Noise actually do
@@ -1047,7 +1053,7 @@ void behaviour_event(monster* mon, mon_event_type event, const actor *src,
         // either, retreat.
         try_pathfind(mon);
         if (mons_intel(*mon) > I_BRAINLESS && !mons_can_attack(*mon)
-            && target_is_unreachable(mon))
+            && target_is_unreachable(mon) && !mons_just_slept(*mon))
         {
             mon->behaviour = BEH_RETREAT;
         }
@@ -1066,7 +1072,7 @@ void behaviour_event(monster* mon, mon_event_type event, const actor *src,
             }
             mon->del_ench(ENCH_FEAR, true);
         }
-        else if (!mons_is_fleeing(*mon))
+        else if (!mons_is_fleeing(*mon) && !mons_just_slept(*mon))
             mon->behaviour = BEH_SEEK;
 
         if (src == &you && mon->angered_by_attacks())
@@ -1117,8 +1123,9 @@ void behaviour_event(monster* mon, mon_event_type event, const actor *src,
             break;
         }
 
-        // Orders to withdraw take precedence over interruptions
-        if (mon->behaviour == BEH_WITHDRAW)
+        // Orders to withdraw take precedence over interruptions, and monsters
+        // forced to sleep should not react at all.
+        if (mon->behaviour == BEH_WITHDRAW || mons_just_slept(*mon))
             break;
 
         // Avoid moving friendly explodey things out of BEH_WANDER.
@@ -1392,6 +1399,21 @@ void make_mons_leave_level(monster* mon)
 {
     if (mon->pacified())
     {
+        // Have pacified orcs drop their gear to avoid potentially tedious
+        // methods of trying to get something to kill them before they leave the
+        // level, or the deeply unflavorful approach of simply killing them for
+        // it and putting up with Beogh being upset with you.
+        if (mons_genus(mon->type) == MONS_ORC && you_worship(GOD_BEOGH))
+        {
+            if (you.can_see(*mon))
+            {
+                simple_monster_message(*mon,
+                    make_stringf(" donates %s equipment to the cause.",
+                        mon->pronoun(PRONOUN_POSSESSIVE).c_str()).c_str());
+            }
+            monster_drop_things(mon);
+        }
+
         if (you.can_see(*mon))
             _mons_indicate_level_exit(mon);
 

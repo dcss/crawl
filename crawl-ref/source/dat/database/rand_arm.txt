@@ -17,6 +17,8 @@ _armour_animal_
 # microorganisms
 Amoeba
 
+Tardigrade
+
 # insects
 Ant
 
@@ -175,6 +177,8 @@ Hecatoncheires
 Hippogriff
 
 Kraken
+
+Pooka
 
 Skiapode
 

@@ -16,6 +16,7 @@ struct mutation_def
     const char* gain[3];    ///< Message when you gain the mutation.
     const char* lose[3];    ///< Message when you lose the mutation.
     tileidx_t   tile;       ///< Icon for the mutation.
+    const char* will_gain[3]; ///< Message on the 'A' screen future XL gain of the mutation.
 };
 
 struct mutation_category_def
@@ -326,6 +327,7 @@ static const mutation_def mut_data[] =
   {"You feel stable.",
    "You feel stable.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_PERSISTENT_DRAIN, 5, 1, mutflag::bad, false,
@@ -336,6 +338,7 @@ static const mutation_def mut_data[] =
   {"You begin to recover more slowly from draining effects.", "", ""},
 
   {"You recover from draining at a normal speed again.", "", ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_STRONG_WILLED, 5, 3, mutflag::good, false,
@@ -352,6 +355,7 @@ static const mutation_def mut_data[] =
   {"You no longer feel strong-willed.",
    "You feel less strong-willed.",
    "You feel less strong-willed."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_FAST, 0, 3, mutflag::good, true,
@@ -389,7 +393,7 @@ static const mutation_def mut_data[] =
 { MUT_ACUTE_VISION, 2, 1, mutflag::good, false,
   "see invisible",
 
-  {"You have supernaturally acute eyesight. (SInv)", "", ""},
+  {"You have supernaturally acute vision. (SInv)", "", ""},
   {"Your vision sharpens.", "", ""},
   {"Your vision seems duller.", "", ""},
 
@@ -402,6 +406,7 @@ static const mutation_def mut_data[] =
   {"Armour fits poorly on your strangely shaped body.", "", ""},
   {"Your body twists and deforms.", "", ""},
   {"Your body's shape seems more normal.", "", ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 // Naga only
@@ -509,10 +514,11 @@ static const mutation_def mut_data[] =
   {"Your urge to shout disappears.",
    "Your urge to scream lessens.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 #if TAG_MAJOR_VERSION == 34
-{ MUT_NOISE_DAMPENING, 2, 1, mutflag::good, false,
+{ MUT_NOISE_DAMPENING, 0, 1, mutflag::good, false,
   "noise suppression",
 
   {"You passively dampen the noise of your surroundings.", "", ""},
@@ -529,8 +535,7 @@ static const mutation_def mut_data[] =
   {"You possess an exceptional clarity of mind.", "", ""},
   {"Your thoughts seem clearer.", "", ""},
   {"Your thinking seems confused.", "", ""},
-
-    TILEG_MUT_CLARITY
+  TILEG_MUT_CLARITY
 },
 
 { MUT_BERSERK, 7, 2, mutflag::bad, false,
@@ -547,6 +552,7 @@ static const mutation_def mut_data[] =
   {"You feel a little more calm.",
    "You feel a little less angry.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_DETERIORATION, 10, 2, mutflag::bad, false,
@@ -563,6 +569,7 @@ static const mutation_def mut_data[] =
   {"You feel healthier.",
    "You feel a little healthier.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 #if TAG_MAJOR_VERSION == 34
@@ -614,6 +621,7 @@ static const mutation_def mut_data[] =
   {"You no longer feel a hidden potential within.",
    "Your hidden genetic potential wanes.",
    ""},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_DEVOLUTION, 4, 2, mutflag::bad, false,
@@ -630,6 +638,7 @@ static const mutation_def mut_data[] =
   {"You no longer feel a malignance within.",
    "Your genetic malignance weakens.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_FRAIL, 10, 3, mutflag::bad, false,
@@ -646,6 +655,7 @@ static const mutation_def mut_data[] =
   {"You feel robust.",
    "You feel robust.",
    "You feel robust."},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_ROBUST, 5, 3, mutflag::good, false,
@@ -740,6 +750,8 @@ static const mutation_def mut_data[] =
   {"Your magical nature develops, letting you fly evasively.",
    "", ""},
   {"", "", ""},
+  0,
+  {"Your magical flight will help you evade attacks. (EV + 4)"}
 },
 
 { MUT_ACROBATIC, 0, 1, mutflag::good, false,
@@ -776,6 +788,7 @@ static const mutation_def mut_data[] =
    "", ""},
   {"", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_WARMUP_STRIKES, 0, 1, mutflag::bad, true,
@@ -802,6 +815,7 @@ static const mutation_def mut_data[] =
   {"You can hurl damnation.", "", ""},
   {"You smell a hint of brimstone.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 // body-slot facets
@@ -819,7 +833,6 @@ static const mutation_def mut_data[] =
   {"The horns on your head shrink away.",
    "The horns on your head shrink a bit.",
    "The horns on your head shrink a bit."},
-
   TILEG_MUT_HORNS,
 },
 
@@ -829,6 +842,7 @@ static const mutation_def mut_data[] =
   {"You have a beak for a mouth.", "", ""},
   {"Your mouth lengthens and hardens into a beak!", "", ""},
   {"Your beak shortens and softens into a mouth.", "", ""},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_CLAWS, 2, 3, mutflag::good, true,
@@ -845,6 +859,7 @@ static const mutation_def mut_data[] =
   {"Your fingernails shrink to normal size.",
    "Your fingernails look duller.",
    "Your hands feel fleshier."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_FANGS, 1, 3, mutflag::good, true,
@@ -861,8 +876,7 @@ static const mutation_def mut_data[] =
   {"Your teeth shrink to normal size.",
    "Your teeth shrink and become duller.",
    "Your teeth shrink and become duller."},
-
-    TILEG_MUT_FANGS
+  TILEG_MUT_FANGS,
 },
 
 { MUT_HOOVES, 5, 3, mutflag::good, true,
@@ -879,6 +893,7 @@ static const mutation_def mut_data[] =
   {"Your hooves expand and flesh out into feet!",
    "Your hooves look more like feet.",
    "Your hooves look more like feet."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_ANTENNAE, 4, 3, mutflag::good, true,
@@ -913,6 +928,7 @@ static const mutation_def mut_data[] =
   {"Your talons dull and shrink into feet.",
    "Your talons look more like feet.",
    "Your talons look more like feet."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 // Octopode only
@@ -930,6 +946,7 @@ static const mutation_def mut_data[] =
   {"Your tentacle spike disappears.",
    "Your tentacle spike becomes smaller.",
    "Your tentacle spike recedes somewhat."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 #if TAG_MAJOR_VERSION == 34
 
@@ -951,6 +968,8 @@ static const mutation_def mut_data[] =
    "Your tail grows strong enough to constrict your enemies.", ""},
   {"Your lower body returns to normal.",
    "Your snake tail weakens and can no longer constrict your enemies.", ""},
+   0,
+   {0, "Your tail will grow strong enough to constrict your foes."}
 },
 
 // Naga and Draconian only
@@ -968,6 +987,7 @@ static const mutation_def mut_data[] =
   {"The barb on your tail disappears.",
    "The barb on your tail seems less sharp.",
    "The barb on your tail seems less sharp."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 // Draconian/gargoyle only
@@ -1096,6 +1116,9 @@ static const mutation_def mut_data[] =
   {"You shed all your fur.",
    "Your thick fur recedes somewhat.",
    "Your shaggy fur recedes somewhat."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
+
+  {0, 0, "Your shaggy fur will keep you warm. (AC + 3, rC+)"}
 },
 
 { MUT_HIGH_MAGIC, 2, 3, mutflag::good, false,
@@ -1112,6 +1135,7 @@ static const mutation_def mut_data[] =
   {"You feel less energetic.",
    "You feel less energetic.",
    "You feel less energetic."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_LOW_MAGIC, 9, 3, mutflag::bad, false,
@@ -1128,6 +1152,7 @@ static const mutation_def mut_data[] =
   {"You feel more energetic.",
    "You feel more energetic.",
    "You feel more energetic."},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_WILD_MAGIC, 6, 3, mutflag::good, false,
@@ -1144,6 +1169,7 @@ static const mutation_def mut_data[] =
   {"You regain control of your magic.",
    "You feel more in control of your magic.",
    "You feel more in control of your magic."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_SUBDUED_MAGIC, 6, 3, mutflag::bad, false,
@@ -1160,6 +1186,7 @@ static const mutation_def mut_data[] =
   {"Your magic regains its normal vibrancy.",
    "Your connection to magic feels less subdued.",
    "Your connection to magic feels less subdued."},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_DEMONIC_MAGIC, 0, 3, mutflag::good, false,
@@ -1174,8 +1201,6 @@ static const mutation_def mut_data[] =
    "Your wands become infused with your menacing aura."},
 
   {"","",""},
-
-
   TILEG_MUT_DEMONIC_MAGIC,
 },
 
@@ -1295,6 +1320,7 @@ static const mutation_def mut_data[] =
   {"Your sharp spines disappear entirely.",
    "Your sharp spines retract somewhat.",
    "Your sharp spines retract somewhat."},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_POWERED_BY_DEATH, 0, 3, mutflag::good, false,
@@ -1343,6 +1369,7 @@ static const mutation_def mut_data[] =
    "You feel saturated with power."},
 
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_MANA_SHIELD, 0, 1, mutflag::good, false,
@@ -1390,6 +1417,7 @@ static const mutation_def mut_data[] =
   {"Your body returns to its normal consistency.",
    "Your body becomes less malleable.",
    "Your body becomes less viscous."},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_EYEBALLS, 0, 3, mutflag::good | mutflag::jiyva, true,
@@ -1406,6 +1434,7 @@ static const mutation_def mut_data[] =
   {"The eyeballs on your body disappear.",
    "The eyeballs on your body recede somewhat.",
    "The eyeballs on your body recede somewhat."},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_TRANSLUCENT_SKIN, 0, 3, mutflag::good | mutflag::jiyva, true,
@@ -1422,6 +1451,7 @@ static const mutation_def mut_data[] =
   {"Your skin returns to its normal opacity.",
    "Your skin's translucency fades.",
    "Your skin's transparency fades."},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_PSEUDOPODS, 0, 3, mutflag::good | mutflag::jiyva, true,
@@ -1438,6 +1468,7 @@ static const mutation_def mut_data[] =
   {"Your pseudopods retract into your body.",
    "Your pseudopods become smaller.",
    "Your pseudopods become smaller."},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 #if TAG_MAJOR_VERSION == 34
 
@@ -1456,6 +1487,7 @@ static const mutation_def mut_data[] =
   {"You have acidic saliva.", "", ""},
   {"Acid begins to drip from your mouth.", "", ""},
   {"Your mouth feels dry.", "", ""},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_ANTIMAGIC_BITE, 0, 1, mutflag::good, true,
@@ -1497,6 +1529,7 @@ static const mutation_def mut_data[] =
   {"You feel less repulsive.",
    "You feel less repulsive.",
    "You feel less repulsive."},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_ICY_BLUE_SCALES, 0, 3, mutflag::good, true,
@@ -1711,6 +1744,8 @@ static const mutation_def mut_data[] =
   {"You feel more encumbered by your armour.",
    "You feel more encumbered by your armour.",
    "You feel more encumbered by your armour."},
+
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_SANGUINE_ARMOUR, 0, 3, mutflag::good, false,
@@ -1727,6 +1762,8 @@ static const mutation_def mut_data[] =
   {"You feel your blood become entirely quiescent.",
    "You feel your blood thin.",
    "You feel your blood thin."},
+
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_BIG_BRAIN, 0, 3, mutflag::good, false,
@@ -1761,6 +1798,8 @@ static const mutation_def mut_data[] =
   {"Your skin no longer functions as natural camouflage.",
    "Your natural camouflage becomes less effective.",
    "Your natural camouflage becomes less effective."},
+
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_IGNITE_BLOOD, 0, 3, mutflag::good, false,
@@ -1773,7 +1812,6 @@ static const mutation_def mut_data[] =
    "Your blood runs red-hot!",
    "Your blood burns even hotter!"},
   {"", "", ""},
-
   TILEG_MUT_IGNITE_BLOOD,
 },
 
@@ -1790,7 +1828,6 @@ static const mutation_def mut_data[] =
   },
 
   {"", "", ""},
-
   TILEG_MUT_FOUL_STENCH,
 },
 
@@ -1800,6 +1837,7 @@ static const mutation_def mut_data[] =
   {"You are covered in slimy tendrils that may disarm your opponents.", "", ""},
   {"Thin, slimy tendrils emerge from your body.", "", ""},
   {"Your tendrils retract into your body.", "", ""},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_JELLY_GROWTH, 0, 1, mutflag::good | mutflag::jiyva, true,
@@ -1808,6 +1846,7 @@ static const mutation_def mut_data[] =
   {"You have a small jelly attached to you that senses nearby items.", "", ""},
   {"Your body partially splits into a small jelly.", "", ""},
   {"The jelly growth is reabsorbed into your body.", "", ""},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_JELLY_MISSILE, 0, 1, mutflag::good | mutflag::jiyva, true,
@@ -1816,6 +1855,7 @@ static const mutation_def mut_data[] =
   {"You have a small jelly attached to you that may absorb projectiles.", "", ""},
   {"Your body partially splits into a small jelly.", "", ""},
   {"The jelly growth is reabsorbed into your body.", "", ""},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 { MUT_PETRIFICATION_RESISTANCE, 0, 1, mutflag::good, false,
@@ -1874,6 +1914,7 @@ static const mutation_def mut_data[] =
   {"Your melee attacks may debilitate your foes.", "", ""},
   {"An ominous black mark forms on your body.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_SILENCE_AURA, 0, 1, mutflag::good, false,
@@ -1882,6 +1923,7 @@ static const mutation_def mut_data[] =
   {"You are surrounded by an aura of silence.", "", ""},
   {"An unnatural silence shrouds you.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_HEX_ENHANCER, 0, 1, mutflag::good, false,
@@ -1890,6 +1932,7 @@ static const mutation_def mut_data[] =
   {"Your hexes are more powerful.", "", ""},
   {"You feel devilish.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_CORRUPTING_PRESENCE, 0, 2, mutflag::good, false,
@@ -1899,6 +1942,7 @@ static const mutation_def mut_data[] =
    "Your presence sometimes corrodes or deforms those you injure.", ""},
   {"You feel corrupt.", "Your corrupting presence intensifies.", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_WORD_OF_CHAOS, 0, 1, mutflag::good, false,
@@ -1907,6 +1951,7 @@ static const mutation_def mut_data[] =
   {"You can speak a Word of Chaos.", "", ""},
   {"Your tongue twists.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_DEMONIC_WILL, 0, 1, mutflag::good, false,
@@ -1915,6 +1960,7 @@ static const mutation_def mut_data[] =
   {"You punish those that try to bend your will. (Will+)", "", ""},
   {"You feel wilful.", "", ""},
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_WEAKNESS_STINGER, 0, 3, mutflag::good, true,
@@ -1929,6 +1975,7 @@ static const mutation_def mut_data[] =
    "Your stinger grows larger and begins to produce weakening toxins."},
 
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_DEMONIC_TOUCH, 0, 3, mutflag::good, true,
@@ -1943,6 +1990,7 @@ static const mutation_def mut_data[] =
    "Your hands twist and begin to emit a powerful aura of unholy energy."},
 
   {"", "", ""},
+  TILEG_MUT_GENERIC_DEMONSPAWN_MUTATION,
 },
 
 { MUT_COLD_BLOODED, 0, 1, mutflag::bad, true,
@@ -1991,6 +2039,7 @@ static const mutation_def mut_data[] =
   {"You no longer become unable to drink potions after taking damage.",
    "You lose the ability to drink potions when taking damage less often.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_READ_SAFETY, 7, 2, mutflag::bad, false,
@@ -2005,6 +2054,7 @@ static const mutation_def mut_data[] =
   {"You no longer become unable to read scrolls after taking damage.",
    "You lose the ability to read scrolls when taking damage less often.",
    ""},
+  TILEG_MUT_GENERIC_BAD_MUTATION,
 },
 
 { MUT_MISSING_HAND, 0, 1, mutflag::bad, false,
@@ -2225,6 +2275,7 @@ static const mutation_def mut_data[] =
   {"You expend magic power (3 MP) to strengthen your wands.", "", ""},
   {"You feel your magical essence link to the dungeon's wands.", "", ""},
   {"Your magical essence no longer links to wands of the dungeon.", "", ""},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_UNSKILLED, 0, 3, mutflag::bad, false,
@@ -2312,6 +2363,7 @@ static const mutation_def mut_data[] =
   {"You are resistant to acid. (rCorr)", "", ""},
   {"You feel resistant to acid.", "",  ""},
   {"You feel less resistant to acid.", "", ""},
+  TILEG_MUT_GENERIC_GOOD_MUTATION,
 },
 
 { MUT_QUADRUMANOUS, 0, 1, mutflag::good, false,
@@ -2411,6 +2463,8 @@ static const mutation_def mut_data[] =
   {"You are afflicted with vampirism.", "You are afflicted with vampirism and can become a bat while bloodless.", ""},
   {"You feel a craving for blood.", "You can now turn into a vampire bat when bloodless.", ""},
   {"Your craving for blood subsides.", "You can no longer turn into a bat.", ""},
+  0,
+  {"", "You will be able to turn into a vampire bat when bloodless.", ""}
 },
 
 { MUT_MERTAIL, 0, 1, mutflag::good, true,
@@ -2466,6 +2520,7 @@ static const mutation_def mut_data[] =
     {"Your melee attacks may engulf your foes in ooze.", "", ""},
     {"You begin exuding ooze.", "", ""},
     {"You stop exuding ooze.", "", ""},
+  TILEG_MUT_GENERIC_JIYVA_MUTATION,
 },
 
 // Sadly console size restrictions prevent more than one level of this existing
@@ -2548,6 +2603,139 @@ static const mutation_def mut_data[] =
   {"Your spellcasting becomes less encumbered by armour.", "", ""},
   {"Your spellcasting no longer less encumbered by armour.", "", ""},
 },
+
+// Makhleb-specific mutations
+
+{ MUT_MAKHLEB_DESTRUCTION_GEH, 0, 1, mutflag::good, false,
+  "Gehenna destruction",
+
+  {"You draw destruction from the endless fires of Gehenna.", "", ""},
+  {"You feel your soul grow hot with the fiery destruction of Gehenna.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MAJOR_DESTRUCTION_OF_GEHENNA,
+},
+
+{ MUT_MAKHLEB_DESTRUCTION_COC, 0, 1, mutflag::good, false,
+  "Cocytus destruction",
+
+  {"You draw destruction from the frigid wastes of Cocytus.", "", ""},
+  {"You feel your soul grow cold with the frigid destruction of Cocytus.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MAJOR_DESTRUCTION_OF_COCYTUS,
+},
+
+{ MUT_MAKHLEB_DESTRUCTION_TAR, 0, 1, mutflag::good, false,
+  "Tartarus destruction",
+
+  {"You draw destruction from the wailing grief of Tartarus.", "", ""},
+  {"You feel your soul grow tainted with the deathly destruction of Tartarus.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MAJOR_DESTRUCTION_OF_TARTARUS,
+},
+
+{ MUT_MAKHLEB_DESTRUCTION_DIS, 0, 1, mutflag::good, false,
+  "Dis destruction",
+
+  {"You draw destruction from the ruthless spite of Dis.", "", ""},
+  {"You feel your soul grow bitter with the corrosive destruction of Dis.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MAJOR_DESTRUCTION_OF_DIS,
+},
+
+{ MUT_MAKHLEB_MARK_HAEMOCLASM, 0, 1, mutflag::makhleb, false,
+  "Mark of Haemoclasm",
+
+  {"You bear the Mark of Haemoclasm.", "", ""},
+  {"Gore shall rain upon your enemies.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_HAEMOCLASM,
+},
+
+{ MUT_MAKHLEB_MARK_LEGION, 0, 1, mutflag::makhleb, false,
+  "Mark of the Legion",
+
+  {"You bear the Mark of the Legion.", "", ""},
+  {"The armies of chaos are now yours to lead.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_THE_LEGION,
+},
+
+{ MUT_MAKHLEB_MARK_CARNAGE, 0, 1, mutflag::makhleb, false,
+  "Mark of Carnage",
+
+  {"You bear the Mark of Carnage.", "", ""},
+  {"Your servants grow eager to unleash destruction.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_CARNAGE,
+},
+
+{ MUT_MAKHLEB_MARK_ANNIHILATION, 0, 1, mutflag::makhleb, false,
+  "Mark of Annihilation",
+
+  {"You bear the Mark of Annihilation.", "", ""},
+  {"You feel the destructive energies within you surge violently.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_ANNIHILATION,
+},
+
+{ MUT_MAKHLEB_MARK_TYRANT, 0, 1, mutflag::makhleb, false,
+  "Mark of the Tyrant",
+
+  {"You bear the Mark of the Tyrant.", "", ""},
+  {"Even fiends shall kneel before you now.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_THE_TYRANT,
+},
+
+{ MUT_MAKHLEB_MARK_CELEBRANT, 0, 1, mutflag::makhleb, false,
+  "Mark of the Celebrant",
+
+  {"You bear the Mark of the Celebrant.", "", ""},
+  {"Your suffering will be repaid in blood.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_THE_CELEBRANT,
+},
+
+{ MUT_MAKHLEB_MARK_EXECUTION, 0, 1, mutflag::makhleb, false,
+  "Mark of Execution",
+
+  {"You bear the Mark of Execution.", "", ""},
+  {"Murder takes root in your soul.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_EXECUTION,
+},
+
+{ MUT_MAKHLEB_MARK_ATROCITY, 0, 1, mutflag::makhleb, false,
+  "Mark of Atrocity",
+
+  {"You bear the Mark of Atrocity.", "", ""},
+  {"You will scour this world clean.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_ATROCITY,
+},
+
+{ MUT_MAKHLEB_MARK_FANATIC, 0, 1, mutflag::makhleb, false,
+  "Mark of the Fanatic",
+
+  {"You bear the Mark of the Fanatic.", "", ""},
+  {"You will become an instrument of Makhleb's will.", "", ""},
+  {"", "", ""},
+
+  TILEG_MUT_MARK_OF_THE_FANATIC,
+},
+
 };
 
 static const mutation_category_def category_mut_data[] =

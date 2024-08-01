@@ -149,7 +149,7 @@ enum monster_info_flags
     MB_POISON_VULN,
     MB_AGILE,
     MB_FROZEN,
-    MB_BLACK_MARK,
+    MB_SIGN_OF_RUIN,
     MB_SAP_MAGIC,
     MB_SHROUD,
     MB_CORROSION,
@@ -234,6 +234,9 @@ enum monster_info_flags
     MB_RIMEBLIGHT,
     MB_ARMED,
     MB_SHADOWLESS,
+    MB_PLAYER_SERVITOR,
+    MB_FROZEN_IN_TERROR,
+    MB_SOUL_SPLINTERED,
     NUM_MB_FLAGS
 };
 
@@ -284,6 +287,7 @@ struct monster_info_base
     bool sleepwalking;
     bool backlit;
     bool umbraed;
+    int shield_bonus;
 
     uint32_t client_id;
 };
@@ -476,3 +480,5 @@ void mons_to_string_pane(string& desc, int& desc_colour, bool fullname,
                            int count);
 void mons_conditions_string(string& desc, const vector<monster_info>& mi,
                             int start, int count, bool equipment);
+
+string description_for_ench(enchant_type type);

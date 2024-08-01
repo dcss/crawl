@@ -172,8 +172,18 @@ struct mgen_data
             && (mons_is_player_shadow(*_summoner->as_monster())
                 || _summoner->real_attitude() == ATT_MARIONETTE))
         {
+            // Summons that would appear around a marionette caster appear
+            // around the player instead. (All bets are off it any more custom
+            // placement is used.)
+            if (pos == _summoner->pos()
+                && _summoner->real_attitude() == ATT_MARIONETTE)
+            {
+                pos = you.pos();
+            }
+
             summoner = &you;
             behaviour = BEH_FRIENDLY;
+
         }
         else
             summoner = _summoner;
@@ -189,8 +199,8 @@ struct mgen_data
                || cls == MONS_HOARFROST_CANNON
                || cls == MONS_PILE_OF_DEBRIS
                || cls == MONS_HELLFIRE_MORTAR
+               || cls == MONS_GLOBE_OF_ANNIHILATION
                || summon_type == SPELL_ANIMATE_DEAD
-               || summon_type == SPELL_NECROTISE
                || summon_type == SPELL_DEATH_CHANNEL
                || summon_type == SPELL_BIND_SOULS
                || summon_type == SPELL_SIMULACRUM

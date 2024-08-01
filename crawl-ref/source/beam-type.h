@@ -41,6 +41,8 @@ enum beam_type                  // bolt::flavour
     BEAM_CRYSTALLIZING,
     BEAM_WARPING,
     BEAM_QAZLAL,
+    BEAM_HAEMOCLASM,
+    BEAM_BLOODRITE,
 
     // Enchantments
     BEAM_SLOW,
@@ -90,7 +92,7 @@ enum beam_type                  // bolt::flavour
     BEAM_VAMPIRIC_DRAINING,
     BEAM_CONCENTRATE_VENOM,
     BEAM_ENFEEBLE,
-    BEAM_NECROTISE,
+    BEAM_SOUL_SPLINTER,
     BEAM_VITRIFY,
     BEAM_VITRIFYING_GAZE,
     BEAM_WEAKNESS,

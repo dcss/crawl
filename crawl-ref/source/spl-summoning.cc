@@ -976,96 +976,6 @@ spret cast_call_imp(int pow, god_type god, bool fail)
     return spret::success;
 }
 
-static bool _summon_demon_wrapper(int pow, god_type god, int spell,
-                                  monster_type mon, int dur, bool friendly,
-                                  bool charmed)
-{
-    bool success = false;
-
-    if (monster *demon = create_monster(
-            mgen_data(mon,
-                      friendly ? BEH_FRIENDLY :
-                       charmed ? BEH_CHARMED
-                               : BEH_HOSTILE,
-                      you.pos(), MHITYOU, MG_FORCE_BEH | MG_AUTOFOE)
-            .set_summoned(&you, dur, spell, god)))
-    {
-        success = true;
-
-        mpr("A demon appears!");
-
-        if (!friendly)
-        {
-            mpr(charmed ? "You don't feel so good about this..."
-                        : "It doesn't seem very happy.");
-        }
-        else if (mon == MONS_CRIMSON_IMP || mon == MONS_WHITE_IMP
-                || mon == MONS_IRON_IMP || mon == MONS_SHADOW_IMP)
-        {
-            _monster_greeting(demon, "_friendly_imp_greeting");
-        }
-
-        if (charmed && !friendly)
-        {
-            int charm_dur = random_range(15 + pow / 14, 27 + pow / 11)
-                            * BASELINE_DELAY;
-
-            mon_enchant charm = demon->get_ench(ENCH_CHARM);
-            charm.duration = charm_dur;
-            demon->update_ench(charm);
-
-            // Ensure that temporarily-charmed demons will outlast their charm
-            mon_enchant abj = demon->get_ench(ENCH_ABJ);
-            if (charm.duration + 100 > abj.duration)
-            {
-                abj.duration = charm.duration + 100;
-                demon->update_ench(abj);
-            }
-
-            // Affects messaging, and stuns demon a turn upon charm wearing off
-            demon->props[CHARMED_DEMON_KEY].get_bool() = true;
-        }
-    }
-
-    return success;
-}
-
-static bool _summon_common_demon(int pow, god_type god, int spell)
-{
-    const int chance = 70 - (pow / 3);
-    monster_type type = MONS_PROGRAM_BUG;
-
-    if (x_chance_in_y(chance, 100))
-        type = random_demon_by_tier(4);
-    else
-        type = random_demon_by_tier(3);
-
-    return _summon_demon_wrapper(pow, god, spell, type,
-                                 min(2 + (random2(pow) / 4), 6),
-                                 true, false);
-}
-
-bool summon_demon_type(monster_type mon, int pow, god_type god,
-                       int spell, bool friendly)
-{
-    return _summon_demon_wrapper(pow, god, spell, mon,
-                                 min(2 + (random2(pow) / 4), 6),
-                                 friendly, false);
-}
-
-spret cast_summon_demon(int pow)
-{
-    // Don't prompt here, since this is invoked automatically by the
-    // obsidian axe. The player shouldn't have control.
-
-    mpr("You open a gate to Pandemonium!");
-
-    if (!_summon_common_demon(pow, GOD_NO_GOD, SPELL_SUMMON_DEMON))
-        canned_msg(MSG_NOTHING_HAPPENS);
-
-    return spret::success;
-}
-
 static bool _butterfly_knockback(coord_def p)
 {
     monster* mon = monster_at(p);
@@ -1073,7 +983,7 @@ static bool _butterfly_knockback(coord_def p)
         return false;
 
     const int dist = random_range(2, 4);
-    if (!mon->knockback(you, dist, -1, "sudden gust"))
+    if (!mon->knockback(you, dist, 0, "sudden gust"))
         return false;
 
     behaviour_event(mon, ME_ALERT, &you);
@@ -2293,6 +2203,7 @@ static const map<spell_type, summon_cap> summonsdata =
     { SPELL_MARTYRS_KNELL,            { 1, 1 } },
     { SPELL_HAUNT,                    { 8, 8 } },
     { SPELL_SUMMON_CACTUS,            { 1, 1 } },
+    { SPELL_SOUL_SPLINTER,            { 1, 1 } },
     // Monster-only spells
     { SPELL_SHADOW_CREATURES,         { 0, 4 } },
     { SPELL_SUMMON_SPIDERS,           { 0, 5 } },
@@ -3255,4 +3166,66 @@ bool hellfire_mortar_active(const actor& agent)
     }
 
     return false;
+}
+
+bool make_soul_wisp(const actor& agent, monster& victim)
+{
+    if (!mons_can_be_spectralised(victim))
+        return false;
+
+    // Don't try to create a wisp from a monster who's already had one made from
+    // them. (This causes wierd messaging and removes the Weak effect).
+    if (victim.props.exists(SOUL_SPLINTERED_KEY))
+    {
+        if (agent.is_player() && victim.observable())
+        {
+            mprf("A fragment of %s is already outside their body!",
+                    victim.name(DESC_THE).c_str());
+        }
+        return false;
+    }
+
+    vector<coord_def> spots;
+    for (adjacent_iterator ai(victim.pos()); ai; ++ai)
+    {
+        if (monster_habitable_grid(MONS_SOUL_WISP, env.grid(*ai))
+            && !actor_at(*ai) && agent.see_cell_no_trans(*ai))
+        {
+            spots.push_back(*ai);
+        }
+    }
+    if (spots.size() <= 0)
+    {
+        if (agent.is_player())
+            mpr("There's no room for the soul wisp to form!");
+        return false;
+    }
+
+    if (you.see_cell(victim.pos()))
+    {
+        mprf("A fragment of %s soul is dislodged from %s body.",
+                victim.name(DESC_ITS).c_str(),
+                victim.pronoun(PRONOUN_POSSESSIVE).c_str());
+
+    }
+
+    mgen_data mg = _summon_data(agent, MONS_SOUL_WISP, 2, GOD_NO_GOD, SPELL_SOUL_SPLINTER);
+    mg.pos = spots[random2(spots.size())];
+    mg.flags |= MG_FORCE_PLACE;
+
+    // Damage improves when extracted from stronger enemies, but they are always fragile.
+    mg.hd = 2 + div_rand_round(victim.get_experience_level(), 2);
+    mg.hp = random_range(5, 8);
+
+    monster* wisp = create_monster(mg);
+
+    wisp->add_ench(mon_enchant(ENCH_HAUNTING, 1, &victim, INFINITE_DURATION));
+    victim.weaken(&agent, wisp->get_ench(ENCH_ABJ).duration / 10);
+    victim.props[SOUL_SPLINTERED_KEY]= true;
+
+    // Let wisp act immediately (so that if it appears behind the enemy, the
+    // enemy won't simply move out of range first).
+    wisp->speed_increment = 80;
+
+    return true;
 }

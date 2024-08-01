@@ -869,96 +869,29 @@ static void _place_twister_clouds(monster *mon)
     polar_vortex_damage(mon, -10);
 }
 
-static void _place_monster_set_god(monster *mon, monster_type cls,
-                                   level_id place)
+static void _place_monster_maybe_override_god(monster *mon, monster_type cls,
+                                              level_id place)
 {
-    // Give priestly monsters a god.
-    if (mon->is_priest())
+    // [ds] Vault defs can request priest monsters of unusual types.
+    if (mon->is_priest() && mon->god == GOD_NO_GOD)
     {
-        // Berserkers belong to Trog.
-        if (cls == MONS_SPRIGGAN_BERSERKER)
-            mon->god = GOD_TROG;
-        // Death knights belong to Yredelemnul.
-        else if (cls == MONS_DEATH_KNIGHT)
-            mon->god = GOD_YREDELEMNUL;
-        // Seraphim follow the Shining One.
-        else if (cls == MONS_SERAPH)
-            mon->god = GOD_SHINING_ONE;
-        // Draconian stormcallers worship Qazlal.
-        else if (cls == MONS_DRACONIAN_STORMCALLER)
-            mon->god = GOD_QAZLAL;
-        // Demonspawn blood saints, hell knights, and Asterion worship Makhleb.
-        else if (cls == MONS_DEMONSPAWN_BLOOD_SAINT
-                 || cls == MONS_HELL_KNIGHT
-                 || cls == MONS_ASTERION)
-        {
-            mon->god = GOD_MAKHLEB;
-        }
-        else if (cls == MONS_DEMONSPAWN_BLACK_SUN
-                 || cls == MONS_BURIAL_ACOLYTE)
-        {
-            mon->god = GOD_KIKUBAAQUDGHA;
-        }
-        else if (cls == MONS_DEMONSPAWN_CORRUPTER
-                 || cls == MONS_MLIOGLOTL)
-        {
-            mon->god = GOD_LUGONU;
-        }
-        else
-        {
-            switch (mons_genus(cls))
-            {
-            case MONS_ORC:
-                mon->god = GOD_BEOGH;
-                break;
-            case MONS_JELLY:
-                mon->god = GOD_JIYVA;
-                break;
-            case MONS_MUMMY:
-            case MONS_DRACONIAN:
-            case MONS_ELF:
-                // [ds] Vault defs can request priest monsters of unusual types.
-            default:
-                mon->god = GOD_NAMELESS;
-                break;
-            }
-        }
-
+        mon->god = GOD_NAMELESS;
         return;
     }
 
-    // The Royal Jelly belongs to Jiyva.
-    if (cls == MONS_ROYAL_JELLY)
-        mon->god = GOD_JIYVA;
-    // Mennas belongs to Zin.
-    else if (cls == MONS_MENNAS)
-        mon->god = GOD_ZIN;
-    // Yiuf is a faithful Xommite.
-    else if (cls == MONS_CRAZY_YIUF)
-        mon->god = GOD_XOM;
-    // Grinder and Ignacio belong to Makhleb.
-    else if (cls == MONS_GRINDER
-             || cls == MONS_IGNACIO)
-    {
-        mon->god = GOD_MAKHLEB;
-    }
-    // 1 out of 7 non-priestly orcs are unbelievers.
-    else if (mons_genus(cls) == MONS_ORC)
+    // 1 out of 7 non-priestly orcs who are unbelievers stay that way,
+    // and the others follow Beogh's word.
+    if (mons_genus(cls) == MONS_ORC && mon->god == GOD_NO_GOD)
     {
         if (!one_chance_in(7))
             mon->god = GOD_BEOGH;
     }
-    else if (cls == MONS_APIS)
-        mon->god = GOD_ELYVILON;
-    else if (cls == MONS_PROFANE_SERVITOR)
-        mon->god = GOD_YREDELEMNUL;
-    // Angels (other than Mennas) and daevas belong to TSO, but 1 out of
-    // 7 in the Abyss are adopted by Xom.
-    else if (mons_class_holiness(cls) == MH_HOLY)
+    // 1 out of 7 angels or darvas who normally worship TSO are adopted
+    // by Xom if they're in the Abyss.
+    else if ((cls == MONS_ANGEL || cls == MONS_DAEVA)
+              && mon->god == GOD_SHINING_ONE)
     {
-        if (place != BRANCH_ABYSS || !one_chance_in(7))
-            mon->god = GOD_SHINING_ONE;
-        else
+        if (one_chance_in(7) && place == BRANCH_ABYSS)
             mon->god = GOD_XOM;
     }
 }
@@ -1124,7 +1057,10 @@ static monster* _place_monster_aux(const mgen_data &mg, const monster *leader,
         mons_make_god_gift(*mon, mg.god);
     // Not a god gift. Give the monster a god.
     else
-        _place_monster_set_god(mon, mg.cls, mg.place);
+    {
+        mon->god = m_ent->god;
+        _place_monster_maybe_override_god(mon, mg.cls, mg.place);
+    }
 
     // Monsters that need halos/silence auras/umbras.
     if ((mon->holiness() & MH_HOLY)
@@ -1951,7 +1887,7 @@ static const map<monster_type, band_set> bands_by_leader = {
     { MONS_SPRIGGAN_RIDER,  { {3}, {{ BAND_SPRIGGAN_RIDERS, {1, 3} }}}},
     { MONS_SPRIGGAN_BERSERKER, { {2}, {{ BAND_SPRIGGANS, {2, 4} }}}},
     { MONS_SPRIGGAN_DEFENDER, { {}, {{ BAND_SPRIGGAN_ELITES, {2, 5} }}}},
-    { MONS_THE_ENCHANTRESS, { {}, {{ BAND_ENCHANTRESS, {6, 11}, true }}}},
+    { MONS_ENCHANTRESS, { {}, {{ BAND_ENCHANTRESS, {6, 11}, true }}}},
     { MONS_SHAMBLING_MANGROVE, { {4}, {{ BAND_SPRIGGAN_RIDERS, {1, 2} }}}},
     { MONS_VAMPIRE_KNIGHT,  { {4}, {{ BAND_PHANTASMAL_WARRIORS, {2, 3}, true }}}},
     { MONS_RAIJU,           { {}, {{ BAND_RAIJU, {2, 4} }}}},
@@ -1960,7 +1896,7 @@ static const map<monster_type, band_set> bands_by_leader = {
     { MONS_DEMONSPAWN_BLOOD_SAINT, { {}, {{ BAND_BLOOD_SAINT, {1, 3} }}}},
     { MONS_DEMONSPAWN_WARMONGER, { {}, {{ BAND_WARMONGER, {1, 3} }}}},
     { MONS_DEMONSPAWN_CORRUPTER, { {}, {{ BAND_CORRUPTER, {1, 3} }}}},
-    { MONS_DEMONSPAWN_BLACK_SUN, { {}, {{ BAND_BLACK_SUN, {1, 3} }}}},
+    { MONS_DEMONSPAWN_SOUL_SCHOLAR, { {}, {{ BAND_SOUL_SCHOLAR, {1, 3} }}}},
     { MONS_VASHNIA,         { {}, {{ BAND_VASHNIA, {3, 6}, true }}}},
     { MONS_ROBIN,           { {}, {{ BAND_ROBIN, {10, 13}, true }}}},
     { MONS_RAKSHASA,        { {2, 0, []() {
@@ -2523,7 +2459,7 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
                                  {{MONS_DEMONSPAWN_BLOOD_SAINT, 1},
                                   {MONS_DEMONSPAWN_WARMONGER, 1},
                                   {MONS_DEMONSPAWN_CORRUPTER, 1},
-                                  {MONS_DEMONSPAWN_BLACK_SUN, 1}}}},
+                                  {MONS_DEMONSPAWN_SOUL_SCHOLAR, 1}}}},
 
     { BAND_WARMONGER,           {{{MONS_EXECUTIONER, 1},
                                   {MONS_SIN_BEAST, 3}},
@@ -2531,7 +2467,7 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
                                  {{MONS_DEMONSPAWN_BLOOD_SAINT, 1},
                                   {MONS_DEMONSPAWN_WARMONGER, 1},
                                   {MONS_DEMONSPAWN_CORRUPTER, 1},
-                                  {MONS_DEMONSPAWN_BLACK_SUN, 1}}}},
+                                  {MONS_DEMONSPAWN_SOUL_SCHOLAR, 1}}}},
 
     { BAND_CORRUPTER,           {{{MONS_CACODEMON, 1},
                                   {MONS_SHADOW_DEMON, 3}},
@@ -2539,15 +2475,15 @@ static const map<band_type, vector<member_possibilities>> band_membership = {
                                  {{MONS_DEMONSPAWN_BLOOD_SAINT, 1},
                                   {MONS_DEMONSPAWN_WARMONGER, 1},
                                   {MONS_DEMONSPAWN_CORRUPTER, 1},
-                                  {MONS_DEMONSPAWN_BLACK_SUN, 1}}}},
+                                  {MONS_DEMONSPAWN_SOUL_SCHOLAR, 1}}}},
 
-    { BAND_BLACK_SUN,           {{{MONS_REAPER, 1},
+    { BAND_SOUL_SCHOLAR,        {{{MONS_REAPER, 1},
                                   {MONS_SOUL_EATER, 1}},
 
                                  {{MONS_DEMONSPAWN_BLOOD_SAINT, 1},
                                   {MONS_DEMONSPAWN_WARMONGER, 1},
                                   {MONS_DEMONSPAWN_CORRUPTER, 1},
-                                  {MONS_DEMONSPAWN_BLACK_SUN, 1}}}},
+                                  {MONS_DEMONSPAWN_SOUL_SCHOLAR, 1}}}},
     // for Grunn
     { BAND_DOOM_HOUNDS,         {{{MONS_DOOM_HOUND, 1}}}},
     // for Norris
@@ -3026,7 +2962,8 @@ monster* create_monster(mgen_data mg, bool fail_msg)
 }
 
 bool find_habitable_spot_near(const coord_def& where, monster_type mon_type,
-                              int radius, bool allow_centre, coord_def& empty)
+                              int radius, bool allow_centre, coord_def& empty,
+                              bool in_player_sight)
 {
     int good_count = 0;
 
@@ -3040,6 +2977,9 @@ bool find_habitable_spot_near(const coord_def& where, monster_type mon_type,
             continue;
 
         if (!monster_habitable_grid(mon_type, env.grid(*ri)))
+            continue;
+
+        if (in_player_sight && !you.see_cell_no_trans(*ri))
             continue;
 
         if (one_chance_in(++good_count))

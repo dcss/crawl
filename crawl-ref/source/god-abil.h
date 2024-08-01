@@ -11,6 +11,7 @@
 #include "god-type.h"
 #include "item-prop-enum.h" // brand_type
 #include "los-type.h"
+#include "mutation-type.h"
 #include "random.h"
 #include "recite-eligibility.h"
 #include "recite-type.h"
@@ -32,6 +33,9 @@ class dist;
 #define OKAWARU_DUEL_TARGET_KEY "okawaru_duel_target"
 #define OKAWARU_DUEL_CURRENT_KEY "okawaru_duel_current"
 #define OKAWARU_DUEL_ABANDONED_KEY "okawaru_duel_abandoned"
+#define OKAWARU_DUEL_ORIG_HP_KEY "okawaru_duel_hp"
+#define OKAWARU_DUEL_ORIG_MP_KEY "okawaru_duel_mp"
+#define OKAWARU_DUEL_ITEMS_KEY "okawaru_duel_floor_items"
 
 #define BEOGH_DAMAGE_DONE_KEY "beogh_damage_done"
 #define ORCIFICATION_LEVEL_KEY "orcification_level"
@@ -79,6 +83,14 @@ const char * const GOZAG_SHOP_COST_KEY       = "gozag_shop_cost_%d";
 #define YRED_SHACKLES_KEY "shackles_bound"
 
 #define NIGHTFALL_INITIAL_DUR_KEY "nightfall_initial_dur"
+#define DITHMENOS_MARIONETTE_SPELLS_KEY "marionette_spells_valid"
+
+#define MAKHLEB_OFFERED_MARKS_KEY "makhleb_offered_marks"
+#define MAKHLEB_ATROCITY_STACKS_KEY "makhleb_atrocity_stacks"
+#define MAKHLEB_ATROCITY_MAX_STACKS 3
+#define MAKHLEB_SLAUGHTER_BOOST_KEY "makhleb_slaughter_slaying"
+#define MAKHLEB_CRUCIBLE_VICTIM_KEY "makhleb_crucible_victim"
+#define MAKHLEB_CRUCIBLE_DEBT_KEY "makhleb_crucible_debt"
 
 struct bolt;
 class stack_iterator;
@@ -103,7 +115,7 @@ spret zin_imprison(const coord_def& target, bool fail);
 void zin_sanctuary();
 
 void tso_divine_shield();
-void tso_remove_divine_shield();
+void tso_expend_divine_shield_charge();
 
 void elyvilon_purification();
 void elyvilon_divine_vigour();
@@ -169,6 +181,7 @@ string dithmenos_cannot_shadowslip_reason();
 spret dithmenos_shadowslip(bool fail);
 spret dithmenos_nightfall(bool fail);
 bool valid_marionette_spell(spell_type spell);
+void dithmenos_cache_marionette_viability();
 string dithmenos_cannot_marionette_reason();
 spret dithmenos_marionette(monster& target, bool fail);
 
@@ -228,10 +241,25 @@ void wu_jian_heavenly_storm();
 
 bool okawaru_duel_active();
 spret okawaru_duel(const coord_def& target, bool fail);
+void okawaru_duel_healing();
+void okawaru_end_duel(bool kicked_out = false);
 void okawaru_remove_heroism();
 void okawaru_remove_finesse();
-void okawaru_end_duel();
 
 vector<coord_def> find_slimeable_walls();
 spret jiyva_oozemancy(bool fail);
 void jiyva_end_oozemancy();
+
+int makhleb_get_atrocity_stacks();
+void makhleb_setup_destruction_beam(bolt& beam, int power, bool signature_only);
+spret makhleb_unleash_destruction(int power, bolt& beam, bool fail);
+spret makhleb_scouring_destruction(int power, bolt& beam, bool fail);
+void makhleb_infernal_servant();
+void makhleb_inscribe_mark(mutation_type mark);
+spret makhleb_infernal_legion(bool fail);
+void makhleb_infernal_legion_tick(int delay);
+void makhleb_vessel_of_slaughter();
+
+void makhleb_enter_crucible_of_flesh(int debt);
+void makhleb_handle_crucible_of_flesh();
+void makhleb_crucible_kill(monster& victim);

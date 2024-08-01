@@ -13,6 +13,7 @@
 #include "chardump.h"
 #include "cloud.h"
 #include "coordit.h"
+#include "database.h"
 #include "directn.h"
 #include "env.h"
 #include "fight.h"
@@ -30,8 +31,10 @@
 #include "los.h"
 #include "losglobal.h"
 #include "map-knowledge.h"
+#include "mapdef.h"
 #include "melee-attack.h"
 #include "message.h"
+#include "mon-behv.h"
 #include "mon-cast.h"
 #include "mon-death.h"
 #include "mon-place.h"
@@ -47,11 +50,15 @@
 #include "stringutil.h"
 #include "tag-version.h"
 #include "terrain.h"
+#include "tiledoll.h"
+#include "tile-env.h"
+#include "rltiles/tiledef-dngn.h"
+#include "tileview.h"
 #include "throw.h"
 #include "unwind.h"
 
 // TODO: template out the differences between this and god_power.
-// TODO: use the display method rather than dummy powers in god_powers.
+// TODO: add and use a display method rather than dummy powers in god_powers.
 // TODO: finish using these for implementing passive abilities.
 struct god_passive
 {
@@ -60,78 +67,14 @@ struct god_passive
     // -1 means it is present even under penance;
     int rank;
     passive_t pasv;
-    /** Message to be given on gain of this passive.
-     *
-     * If the string begins with an uppercase letter, it is treated as
-     * a complete sentence. Otherwise, if it contains the substring " NOW ",
-     * the string "You " is prepended. Otherwise, the string "You NOW " is
-     * prepended to the message, with the " NOW " then being replaced.
-     *
-     * The substring "GOD" is replaced with the name of the god.
-     * The substring " NOW " is replaced with " now " for messages about
-     * gaining the ability, or " " for messages about having the ability.
-     *
-     * Examples:
-     *   "have super powers"
-     *     => "You have super powers", "You now have super powers."
-     *   "are NOW powerful"
-     *     => "You are powerful", "You are now powerful."
-     *   "Your power is NOW great"
-     *     => "Your power is great", "Your power is now great"
-     *   "GOD NOW makes you powerful"
-     *     => "Moloch makes you powerful", "Moloch now makes you powerful"
-     *   "GOD grants you a boon"
-     *     => "Moloch grants you a boon" (in all situations)
-     *
-     * FIXME: This member is currently unused.
-     *
-     * @see god_passive::loss.
-     */
-    const char* gain;
-    /** Message to be given on loss of this passive.
-     *
-     * If empty, use the gain message. This makes sense only if the message
-     * contains " NOW ", either explicitly or implicitly through not
-     * beginning with a capital letter.
-     *
-     * The substring "GOD" is replaced with the name of the god.
-     * The substring " NOW " is replaced with " no longer ".
-     *
-     * Examples:
-     *   "have super powers"
-     *     => "You no longer have super powers"
-     *   "are NOW powerful"
-     *     => "You are no longer powerful"
-     *   "Your power is NOW great"
-     *     => "Your power is no longer great"
-     *   "GOD NOW makes you powerful"
-     *     => "Moloch no longer makes you powerful"
-     *   "GOD grants you a boon"
-     *     => "Moloch grants you a boon" (probably incorrect)
-     *
-     * FIXME: This member is currently unused.
-     *
-     * @see god_passive::gain.
-     */
-    const char* loss;
 
-    god_passive(int rank_, passive_t pasv_, const char* gain_,
-                const char* loss_ = "")
-        : rank{rank_}, pasv{pasv_}, gain{gain_}, loss{*loss_ ? loss_ : gain_}
+    god_passive(int rank_, passive_t pasv_)
+    : rank{rank_}, pasv{pasv_}
     { }
 
-    god_passive(int rank_, const char* gain_, const char* loss_ = "")
-        : god_passive(rank_, passive_t::none, gain_, loss_)
+    god_passive(int rank_)
+    : god_passive(rank_, passive_t::none)
     { }
-
-    void display(bool gaining, const char* fmt) const
-    {
-        const char * const str = gaining ? gain : loss;
-        if (isupper(str[0]))
-            god_speaks(you.religion, str);
-        else
-            god_speaks(you.religion, make_stringf(fmt, str).c_str());
-    }
 };
 
 static const vector<god_passive> god_passives[] =
@@ -141,65 +84,36 @@ static const vector<god_passive> god_passives[] =
 
     // Zin
     {
-        { -1, passive_t::protect_from_harm,
-              "GOD sometimes watches over you",
-              "GOD no longer watches over you"
-        },
-        { -1, passive_t::resist_mutation,
-              "GOD can shield you from mutations",
-              "GOD NOW shields you from mutations"
-        },
-        { -1, passive_t::resist_polymorph,
-              "GOD can protect you from unnatural transformations",
-              "GOD NOW protects you from unnatural transformations",
-        },
-        { -1, passive_t::resist_hell_effects,
-              "GOD can protect you from effects of Hell",
-              "GOD NOW protects you from effects of Hell"
-        },
-        { -1, passive_t::warn_shapeshifter,
-              "GOD will NOW warn you about shapeshifters"
-        },
-        {
-          6, passive_t::cleanse_mut_potions,
-              "GOD cleanses your potions of mutation",
-              "GOD no longer cleanses your potions of mutation",
-        }
+        { -1, passive_t::protect_from_harm },
+        { -1, passive_t::resist_mutation },
+        { -1, passive_t::resist_polymorph },
+        { -1, passive_t::resist_hell_effects },
+        { -1, passive_t::warn_shapeshifter },
+        { 6, passive_t::cleanse_mut_potions }
     },
 
     // TSO
     {
-        { -1, passive_t::protect_from_harm,
-              "GOD sometimes watches over you",
-              "GOD no longer watches over you"
-        },
-        { -1, passive_t::abjuration_protection_hd,
-              "GOD NOW protects your summons from abjuration" },
-        { -1, passive_t::bless_followers_vs_evil,
-              "GOD NOW blesses your followers when they kill evil beings" },
-        { -1, passive_t::restore_hp_mp_vs_evil,
-              "gain health and magic from killing evil beings" },
-        { -1, passive_t::no_stabbing,
-              "are NOW prevented from stabbing unaware creatures" },
-        {  0, passive_t::halo, "are NOW surrounded by divine halo" },
+        { -1, passive_t::protect_from_harm },
+        { -1, passive_t::abjuration_protection_hd },
+        { -1, passive_t::bless_followers_vs_evil },
+        { -1, passive_t::no_stabbing },
+        {  0, passive_t::halo },
+        {  1, passive_t::restore_hp_mp_vs_evil },
     },
 
     // Kikubaaqudgha
     {
-        {  2, passive_t::miscast_protection_necromancy,
-              "GOD NOW protects you from necromancy miscasts"
-              " and mummy death curses"
-        },
-        {  4, passive_t::resist_torment,
-              "GOD NOW protects you from torment" },
+        {  2, passive_t::miscast_protection_necromancy },
+        {  4, passive_t::resist_torment },
     },
 
     // Yredelemnul
     {
-        {  -1, passive_t::umbra, "are NOW surrounded by an aura of darkness" },
-        {  -1, passive_t::reaping, "can NOW harvest souls to fight along side you" },
-        {  -1, passive_t::nightvision, "can NOW see well in the dark" },
-        {  -1, passive_t::r_spectral_mist, "are NOW immune to spectral mist" },
+        {  -1, passive_t::umbra },
+        {  -1, passive_t::reaping },
+        {  -1, passive_t::nightvision },
+        {  -1, passive_t::r_spectral_mist },
     },
 
     // Xom
@@ -207,23 +121,19 @@ static const vector<god_passive> god_passives[] =
 
     // Vehumet
     {
-        { -1, passive_t::mp_on_kill,
-              "have a chance to gain magical power from killing" },
-        {  3, passive_t::spells_success,
-              "are NOW less likely to miscast destructive spells" },
-        {  4, passive_t::spells_range,
-              "can NOW cast destructive spells farther" },
+        {  1, passive_t::mp_on_kill },
+        {  3, passive_t::spells_success },
+        {  4, passive_t::spells_range },
     },
 
     // Okawaru
     {
-        { -1, passive_t::no_allies,
-              "are NOW prevented from gaining allies" },
+        { -1, passive_t::no_allies },
     },
 
     // Makhleb
     {
-        { -1, passive_t::restore_hp, "gain health from killing" },
+        { 1, passive_t::restore_hp },
     },
 
     // Sif Muna
@@ -231,12 +141,8 @@ static const vector<god_passive> god_passives[] =
 
     // Trog
     {
-        { -1, passive_t::abjuration_protection,
-              "GOD NOW protects your allies from abjuration"
-        },
-        {  0, passive_t::extend_berserk,
-              "GOD NOW extends your berserk rage on killing"
-        },
+        { -1, passive_t::abjuration_protection },
+        {  0, passive_t::extend_berserk },
     },
 
     // Nemelex
@@ -246,145 +152,94 @@ static const vector<god_passive> god_passives[] =
 
     // Elyvilon
     {
-        { -1, passive_t::lifesaving,
-              "GOD carefully watches over you",
-              "GOD no longer watches over you"
-        },
-        { -1, passive_t::protect_ally,
-              "GOD can protect the life of your allies",
-              "GOD NOW protects the life of your allies"
-        },
+        { -1, passive_t::lifesaving },
+        { -1, passive_t::protect_ally },
     },
 
     // Lugonu
     {
-        { -1, passive_t::safe_distortion,
-              "are NOW protected from distortion unwield effects" },
-        { -1, passive_t::wrath_banishment,
-              "GOD will NOW banish foes whenever another god meddles" },
-        { -1, passive_t::map_rot_res_abyss,
-              "remember the shape of the Abyss better" },
-        {  5, passive_t::attract_abyssal_rune,
-              "GOD will NOW help you find the Abyssal rune" },
+        { -1, passive_t::safe_distortion },
+        { -1, passive_t::wrath_banishment },
+        { -1, passive_t::map_rot_res_abyss },
+        {  5, passive_t::attract_abyssal_rune },
     },
 
     // Beogh
     {
-        {  1, passive_t::convert_orcs, "Orcs sometimes recognise you as one of their own" },
-        {  5, passive_t::water_walk, "walk on water" },
+        {  1, passive_t::convert_orcs },
+        {  5, passive_t::water_walk },
     },
 
     // Jiyva
     {
-        { -1, passive_t::neutral_slimes,
-              "Slimes and eye monsters are NOW neutral towards you" },
-        { -1, passive_t::jellies_army,
-              "GOD NOW summons slimes to protect you" },
-        { -1, passive_t::jelly_eating,
-              "GOD NOW allows slimes to devour items" },
-        {  0, passive_t::slime_wall_immune,
-              "are NOW immune to slime covered walls" },
-        {  1, passive_t::jelly_regen,
-              "GOD NOW accelerates your HP and MP regeneration" },
-        {  2, passive_t::resist_corrosion,
-              "GOD NOW protects you from corrosion" },
-        {  5, passive_t::spawn_slimes_on_hit,
-              "spawn slimes when struck by massive blows" },
-        {  6, passive_t::unlock_slime_vaults,
-              "GOD NOW grants you access to the hidden treasures"
-              " of the Slime Pits"
-        },
+        { -1, passive_t::neutral_slimes },
+        { -1, passive_t::jellies_army },
+        { -1, passive_t::jelly_eating },
+        {  0, passive_t::slime_wall_immune },
+        {  1, passive_t::jelly_regen },
+        {  2, passive_t::resist_corrosion },
+        {  5, passive_t::spawn_slimes_on_hit },
+        {  6, passive_t::unlock_slime_vaults },
     },
 
     // Fedhas
     {
-        { -1, passive_t::pass_through_plants,
-              "can NOW walk through plants" },
-        { -1, passive_t::shoot_through_plants,
-              "can NOW safely fire through allied plants" },
-        {  0, passive_t::friendly_plants,
-              "Allied plants are NOW friendly towards you" },
+        { -1, passive_t::pass_through_plants },
+        { -1, passive_t::shoot_through_plants },
+        {  0, passive_t::friendly_plants },
     },
 
     // Cheibriados
     {
-        { -1, passive_t::no_haste,
-              "are NOW protected from inadvertent hurry" },
-        { -1, passive_t::slowed, "move less quickly" },
-        {  0, passive_t::slow_orb_run,
-              "GOD will NOW aid your escape with the Orb of Zot",
-        },
-        {  0, passive_t::stat_boost,
-              "GOD NOW supports your attributes"
-        },
-        {  0, passive_t::slow_abyss,
-              "GOD will NOW slow the Abyss"
-        },
+        { -1, passive_t::no_haste },
+        { -1, passive_t::slowed },
+        {  0, passive_t::slow_orb_run },
+        {  0, passive_t::stat_boost },
+        {  0, passive_t::slow_abyss },
         // TODO: this one should work regardless of penance, maybe?
-        {  0, passive_t::slow_zot,
-              "GOD will NOW slow Zot's hunt for you"
-        },
-        {  0, passive_t::slow_poison, "process poison slowly" },
+        {  0, passive_t::slow_zot },
+        {  0, passive_t::slow_poison },
     },
 
     // Ashenzari
     {
-        { -1, passive_t::want_curses, "prefer cursed items" },
-        {  0, passive_t::detect_portals, "sense portals" },
-        {  0, passive_t::detect_montier, "sense threats" },
-        {  0, passive_t::detect_items, "sense items" },
-        {  0, passive_t::bondage_skill_boost,
-              "get a skill boost from cursed items" },
-        {  1, passive_t::identify_items, "sense the properties of items" },
-        {  2, passive_t::sinv, "are NOW clear of vision" },
-        {  3, passive_t::clarity, "are NOW clear of mind" },
-        {  4, passive_t::avoid_traps, "avoid traps" },
-        {  4, passive_t::scrying,
-              "reveal the structure of the nearby dungeon" },
+        { -1, passive_t::want_curses },
+        {  0, passive_t::detect_portals },
+        {  0, passive_t::detect_montier },
+        {  0, passive_t::detect_items },
+        {  0, passive_t::bondage_skill_boost },
+        {  1, passive_t::identify_items },
+        {  2, passive_t::sinv},
+        {  3, passive_t::clarity },
+        {  4, passive_t::avoid_traps },
+        {  4, passive_t::scrying },
     },
 
     // Dithmenos
     {
-        {  1, passive_t::dampen_noise,
-              "You NOW dampen all noise in your surroundings." },
-        {  2, passive_t::shadow_attacks,
-              "Your attacks are NOW mimicked by a shadow" },
-        {  2, passive_t::shadow_spells,
-              "Your attack spells are NOW mimicked by a shadow" },
+        {  1, passive_t::dampen_noise },
+        {  2, passive_t::shadow_attacks },
+        {  2, passive_t::shadow_spells },
     },
 
     // Gozag
     {
-        {  0, passive_t::goldify_corpses,
-              "GOD NOW turns all corpses to gold" },
-        {  0, passive_t::gold_aura, "have a gold aura" },
+        {  0, passive_t::goldify_corpses },
+        {  0, passive_t::gold_aura },
     },
 
     // Qazlal
     {
-        {  0, passive_t::cloud_immunity, "and your divine allies are ADV immune to clouds" },
-        {  1, passive_t::storm_shield,
-              "generate elemental clouds to protect yourself" },
-        {  4, passive_t::upgraded_storm_shield,
-              "Your chances to be struck by projectiles are NOW reduced" },
-        {  5, passive_t::elemental_adaptation,
-              "Elemental attacks NOW leave you somewhat more resistant"
-              " to them"
-        }
+        {  0, passive_t::cloud_immunity },
+        {  1, passive_t::storm_shield },
+        {  4, passive_t::upgraded_storm_shield },
+        {  5, passive_t::elemental_adaptation }
     },
 
     // Ru
     {
-        {  1, passive_t::aura_of_power,
-              "Your enemies will sometimes fail their attack or even hit themselves",
-              "Your enemies will NOW fail their attack or hit themselves"
-        },
-        {  2, passive_t::upgraded_aura_of_power,
-              "Enemies that inflict damage upon you will sometimes receive"
-              " a detrimental status effect",
-              "Enemies that inflict damage upon you will NOW receive"
-              " a detrimental status effect"
-        },
+        {  1, passive_t::aura_of_power },
+        {  2, passive_t::upgraded_aura_of_power },
     },
 
 #if TAG_MAJOR_VERSION == 34
@@ -397,22 +252,20 @@ static const vector<god_passive> god_passives[] =
 
     // Hepliaklqana
     {
-        {  1, passive_t::frail,
-              "GOD NOW siphons a part of your essence into your ancestor" },
-        {  5, passive_t::transfer_drain,
-              "drain nearby creatures when transferring your ancestor" },
+        {  1, passive_t::frail },
+        {  5, passive_t::transfer_drain },
     },
 
     // Wu Jian
     {
-        { 0, passive_t::wu_jian_lunge, "perform damaging attacks by moving towards foes." },
-        { 1, passive_t::wu_jian_whirlwind, "lightly attack monsters by moving around them." },
-        { 2, passive_t::wu_jian_wall_jump, "perform airborne attacks in an area by jumping off a solid obstacle." },
+        { 0, passive_t::wu_jian_lunge },
+        { 1, passive_t::wu_jian_whirlwind },
+        { 2, passive_t::wu_jian_wall_jump },
     },
 
     // Ignis
     {
-        { 0, passive_t::resist_fire, "resist fire." },
+        { 0, passive_t::resist_fire },
     }, // TODO
 };
 COMPILE_CHECK(ARRAYSZ(god_passives) == NUM_GODS);
@@ -849,16 +702,6 @@ int qazlal_sh_boost(int piety)
     return min(piety, piety_breakpoint(5)) / 10;
 }
 
-// Not actually passive, but placing it here so that it can be easily compared
-// with Qazlal's boost.
-int tso_sh_boost()
-{
-    if (!you.duration[DUR_DIVINE_SHIELD])
-        return 0;
-
-    return you.attribute[ATTR_DIVINE_SHIELD];
-}
-
 void qazlal_storm_clouds()
 {
     if (!have_passive(passive_t::storm_shield))
@@ -1046,6 +889,31 @@ ru_interference get_ru_attack_interference_level()
         return DO_NOTHING;
 }
 
+// Are there any targets in view which a shadow could act against?
+static bool _shadow_target_exists()
+{
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (you.can_see(**mi) && !mi->wont_attack() && !mons_is_firewood(**mi))
+            return true;
+    }
+
+    return false;
+}
+
+// Gets all eligible enemy targets in view of the player, in random order
+static vector<monster*> _get_shadow_targets()
+{
+    vector<monster*> valid_targs;
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (you.can_see(**mi) && !mi->wont_attack() && !mons_is_firewood(**mi))
+            valid_targs.push_back(*mi);
+    }
+    shuffle_array(valid_targs);
+    return valid_targs;
+}
+
 constexpr int DITH_MELEE_SHADOW_INTERVAL = 150;
 #define DITH_SHADOW_INTERVAL_KEY "dith_shadow_interval"
 
@@ -1072,7 +940,7 @@ static bool _shadow_will_act(bool spell, bool melee)
     // For spells:  15% chance at min piety, 25% chance at 160 piety.
     const int range = piety_breakpoint(5) - minpiety;
     return x_chance_in_y(10 + (spell ? 5 : 0)
-                          + ((you.piety - minpiety) * 10 / range), 100);
+                          + ((min(piety_breakpoint(5), (int)you.piety) - minpiety) * 10 / range), 100);
 
     return true;
 }
@@ -1089,6 +957,31 @@ monster* dithmenos_get_player_shadow()
         return nullptr;
     const int mid = you.props[DITH_SHADOW_MID_KEY].get_int();
     return monster_by_mid(mid);
+}
+
+// Returns index of the new item
+static int _clone_player_weapon(const item_def* wpn)
+{
+    int index = get_mitm_slot(10);
+    if (index == NON_ITEM)
+        return index;
+
+    item_def& new_item = env.item[index];
+    if (wpn->base_type == OBJ_STAVES)
+    {
+        new_item.base_type = OBJ_WEAPONS;
+        new_item.sub_type  = WPN_STAFF;
+    }
+    else
+    {
+        new_item.base_type = wpn->base_type;
+        new_item.sub_type  = wpn->sub_type;
+    }
+    new_item.quantity = 1;
+    new_item.rnd = 1;
+    new_item.flags   |= ISFLAG_SUMMONED;
+
+    return index;
 }
 
 monster* create_player_shadow(coord_def pos, bool friendly, spell_type spell_known)
@@ -1110,26 +1003,22 @@ monster* create_player_shadow(coord_def pos, bool friendly, spell_type spell_kno
     // Do a basic clone of the weapon (same base type, but no brand or plusses).
     // Also magical staves become plain staves instead.
     int wpn_index  = NON_ITEM;
+    int wpn2_index = NON_ITEM;
     item_def* wpn = you.weapon();
     if (wpn && is_weapon(*wpn))
     {
-        wpn_index = get_mitm_slot(10);
+        wpn_index = _clone_player_weapon(wpn);
         if (wpn_index == NON_ITEM)
             return nullptr;
-        item_def& new_item = env.item[wpn_index];
-        if (wpn->base_type == OBJ_STAVES)
-        {
-            new_item.base_type = OBJ_WEAPONS;
-            new_item.sub_type  = WPN_STAFF;
-        }
-        else
-        {
-            new_item.base_type = wpn->base_type;
-            new_item.sub_type  = wpn->sub_type;
-        }
-        new_item.quantity = 1;
-        new_item.rnd = 1;
-        new_item.flags   |= ISFLAG_SUMMONED;
+    }
+
+    // Clone a Coglin's second weapon also
+    if (you.has_mutation(MUT_WIELD_OFFHAND) && you.offhand_weapon()
+        && is_weapon(*you.offhand_weapon()))
+    {
+        wpn2_index = _clone_player_weapon(you.offhand_weapon());
+        if (wpn_index == NON_ITEM)
+            return nullptr;
     }
 
     mgen_data mg(MONS_PLAYER_SHADOW, friendly ? BEH_FRIENDLY : BEH_HOSTILE,
@@ -1148,6 +1037,8 @@ monster* create_player_shadow(coord_def pos, bool friendly, spell_type spell_kno
     {
         if (wpn_index)
             destroy_item(wpn_index);
+        if (wpn2_index)
+            destroy_item(wpn2_index);
         return nullptr;
     }
 
@@ -1156,6 +1047,14 @@ monster* create_player_shadow(coord_def pos, bool friendly, spell_type spell_kno
 
     if (wpn_index != NON_ITEM)
         mon->pickup_item(env.item[wpn_index], false, true);
+    if (wpn2_index != NON_ITEM)
+    {
+        mon->pickup_item(env.item[wpn2_index], false, true);
+
+        // Randomize order, like for players
+        if (coinflip())
+            mon->swap_weapons(false);
+    }
 
     if (friendly)
     {
@@ -1402,19 +1301,6 @@ static bool _simple_shot_tracer(coord_def source, coord_def target, mid_t source
     return mons_should_fire(tracer);
 }
 
-// Gets all eligible enemy targets in view of the player, in random order
-static vector<monster*> _get_shadow_targets()
-{
-    vector<monster*> valid_targs;
-    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
-    {
-        if (you.can_see(**mi) && !mi->wont_attack() && !mons_is_firewood(**mi))
-            valid_targs.push_back(*mi);
-    }
-    shuffle_array(valid_targs);
-    return valid_targs;
-}
-
 // Gets all spots within a certain radius of the player where your shadow could
 // be placed. (These will be sorted to prefer spots at distance 2-3 at random,
 // with adjacent spots only at the end, so that the shadow will prefer to be
@@ -1502,6 +1388,10 @@ static coord_def _shadow_already_okay_for_ranged(coord_def preferred_target)
 {
     monster* shadow = dithmenos_get_player_shadow();
     if (!shadow)
+        return coord_def();
+
+    // Check that it's actually wielding a ranged weapon.
+    if (!shadow->launcher())
         return coord_def();
 
     if (_simple_shot_tracer(shadow->pos(), preferred_target, shadow->mid))
@@ -1620,6 +1510,17 @@ void dithmenos_shadow_shoot(const dist &d, const item_def &item)
 
     mons_throw(mon, shot);
 
+    // Give Coglins a shot with their other weapon, if they have one
+    if (you.has_mutation(MUT_WIELD_OFFHAND)
+        && mon->mslot_item(MSLOT_ALT_WEAPON)
+        && is_range_weapon(*mon->mslot_item(MSLOT_ALT_WEAPON)))
+    {
+        mon->swap_weapons(false);
+        populate_fake_projectile(*mon->launcher(), fake_proj);
+        shot.item = missile;
+        mons_throw(mon, shot);
+    }
+
     // Store this action's target so that it can be reused on future turns.
     if (monster_at(aim) && monster_at(aim)->alive())
         mon->props[DITH_SHADOW_LAST_TARGET_KEY].get_int() = monster_at(aim)->mid;
@@ -1726,7 +1627,6 @@ static coord_def _find_shadow_aoe_position(int radius, bool test_bind = false,
 
     // Now let's see how many targets are in range from each shadow spot and
     // randomly pick the best of these.
-    int num_tests = 0;
     for (size_t i = 0; i < valid_spots.size(); ++i)
     {
         int score = 0;
@@ -1745,7 +1645,6 @@ static coord_def _find_shadow_aoe_position(int radius, bool test_bind = false,
         {
             best_spot = valid_spots[i];
             best_score = score;
-            ++num_tests;
         }
     }
 
@@ -1907,7 +1806,11 @@ void dithmenos_shadow_spell(spell_type spell)
             pos = _find_shadow_aoe_position(you.current_vision);
 
         default:
-            pos = _get_shadow_spots()[0];
+        case SPELL_SHADOW_PUPPET:
+            // Don't cast this spell without any enemies in sight, to prevent
+            // tedious pre-casting by the player.
+            if (_shadow_target_exists())
+                pos = _get_shadow_spots()[0];
             break;
     }
 
@@ -2374,19 +2277,179 @@ void uskayaw_bonds_audience()
         you.props[USKAYAW_BOND_TIMER] = 0;
 }
 
-// Clean up after a duel ends. If we're still in the Arena, start a timer to
-// kick the player back out (after they've had some time to loot), and if
-// we've left the Arena via the gate, clear the timer.
-void okawaru_handle_duel()
+// Checks whether there is at least one possible Tyrant buff that a given
+// qualifies for, but does not yet have.
+static bool _is_tyrant_buffable(monster* mon)
 {
-    if (player_in_branch(BRANCH_ARENA)
-        && !okawaru_duel_active()
-        && !you.duration[DUR_DUEL_COMPLETE])
+    return !mon->has_ench(ENCH_HASTE)
+            || !mon->has_ench(ENCH_MIGHT)
+            || !mon->has_ench(ENCH_REGENERATION)
+            || (mon->has_spells() && !mon->has_ench(ENCH_EMPOWERED_SPELLS));
+}
+
+static bool _is_infernal_servant(monster* mon)
+{
+    return mon->has_ench(ENCH_SUMMON)
+            && mon->get_ench(ENCH_SUMMON).degree == MON_SUMM_AID
+            && mon->summoner == MID_PLAYER;
+}
+
+// Upon killing an enemy, maybe buff a nearby servant
+void makhleb_tyrant_buff()
+{
+    int count = 0;
+    monster* demon = nullptr;
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
     {
-        you.set_duration(DUR_DUEL_COMPLETE, random_range(15, 25));
+        if (mi->friendly())
+        {
+            if (_is_infernal_servant(*mi) && _is_tyrant_buffable(*mi))
+            {
+                if (one_chance_in(++count))
+                    demon = *mi;
+            }
+        }
     }
 
-    if (!player_in_branch(BRANCH_ARENA) && you.duration[DUR_DUEL_COMPLETE])
-        you.duration[DUR_DUEL_COMPLETE] = 0;
+    enum tyrant_buff
+    {
+        HASTE,
+        MIGHT,
+        REGEN,
+        BRILLIANCE,
+    };
 
+    if (demon)
+    {
+        vector<tyrant_buff> buffs;
+
+        if (!demon->has_ench(ENCH_HASTE))
+            buffs.push_back(HASTE);
+        if (!demon->has_ench(ENCH_MIGHT))
+            buffs.push_back(MIGHT);
+        if (!demon->has_ench(ENCH_REGENERATION))
+            buffs.push_back(REGEN);
+        if (demon->has_spells() && !demon->has_ench(ENCH_EMPOWERED_SPELLS))
+            buffs.push_back(BRILLIANCE);
+
+        shuffle_array(buffs);
+
+        switch (buffs[0])
+        {
+            case HASTE:
+                demon->add_ench(ENCH_HASTE);
+                break;
+
+            case MIGHT:
+                demon->add_ench(ENCH_MIGHT);
+                break;
+
+            case REGEN:
+                demon->add_ench(ENCH_REGENERATION);
+                break;
+
+            case BRILLIANCE:
+                demon->add_ench(ENCH_EMPOWERED_SPELLS);
+                break;
+        }
+
+        simple_monster_message(*demon, " is spurred on by your onslaught.");
+    }
+}
+
+constexpr int BLOODRITE_MIN_SHOTS = 8;
+
+void makhleb_celebrant_bloodrite()
+{
+    if (you.hp * 2 > you.hp_max
+        || !you.has_mutation(MUT_MAKHLEB_MARK_CELEBRANT)
+        || you.duration[DUR_CELEBRANT_COOLDOWN])
+    {
+        return;
+    }
+
+    vector<coord_def> targs;
+    for (monster_near_iterator mi(you.pos(), LOS_NO_TRANS); mi; ++mi)
+    {
+        if (!mi->wont_attack() && !mons_is_firewood(**mi))
+            targs.push_back(mi->pos());
+    }
+
+    // Don't activate or go on cooldown if there's nothing to shoot at.
+    if (targs.empty())
+        return;
+
+    mpr("You consecrate your suffering and invoke the rites of blood!");
+
+    shuffle_array(targs);
+
+    int shots_fired = 0;
+    int repeats = 0;
+
+    bolt beam;
+    beam.range        = you.current_vision;
+    beam.source       = you.pos();
+    beam.source_id    = MID_PLAYER;
+    beam.attitude     = ATT_FRIENDLY;
+    beam.thrower      = KILL_YOU;
+    zappy(ZAP_BLOOD_ARROW, 15 + you.skill(SK_INVOCATIONS, 2), false, beam);
+
+    beam.draw_delay   = 10;
+
+    // Fire once at every visible target. If that doesn't hit the minimum number
+    // of shots, fire at most a second time at each of these targets.
+    while (shots_fired < BLOODRITE_MIN_SHOTS && repeats < 2)
+    {
+        for (size_t i = 0; i < targs.size()
+                && (repeats == 0 || shots_fired < BLOODRITE_MIN_SHOTS); ++i)
+        {
+            beam.target = targs[i];
+            beam.fire();
+            view_clear_overlays();
+            ++shots_fired;
+        }
+        ++repeats;
+        shuffle_array(targs);
+    }
+
+    // If firing twice at every target still didn't hit the minimum number of
+    // shots, fire the rest of them completely at random.
+    while (shots_fired < BLOODRITE_MIN_SHOTS)
+    {
+        coord_def targ = you.pos();
+        targ.x += random_range(-LOS_RADIUS, LOS_RADIUS);
+        targ.y += random_range(-LOS_RADIUS, LOS_RADIUS);
+
+        if (targ == you.pos())
+            continue;
+
+        beam.target = targ;
+        beam.fire();
+        view_clear_overlays();
+        ++shots_fired;
+    }
+
+    you.duration[DUR_CELEBRANT_COOLDOWN] = 1;
+}
+
+void makhleb_execution_activate()
+{
+    string talk = getSpeakString("Makhleb executioner chatter");
+    mprf(MSGCH_TALK, "<lightred>%s</lightred>", talk.c_str());
+    mprf(MSGCH_DURATION, "A whirlwind of blades manifests around you!");
+
+    you.duration[DUR_EXECUTION] = random_range(50, 70);
+#ifdef USE_TILE
+    init_player_doll();
+#endif
+
+    for (adjacent_iterator ai(you.pos()); ai; ++ai)
+    {
+        monster* mon = monster_at(*ai);
+        if (mon && mon->alive() && !mon->wont_attack())
+        {
+            melee_attack shred(&you, mon);
+            shred.player_do_aux_attack(UNAT_EXECUTIONER_BLADE);
+        }
+    }
 }

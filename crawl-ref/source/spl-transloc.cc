@@ -2065,9 +2065,12 @@ vector<coord_def> possible_piledriver_targets()
     return targs;
 }
 
-int piledriver_collision_power(int pow, int dist)
+dice_def piledriver_collision_damage(int pow, int dist, bool random)
 {
-    return (pow + 42) * (1 + (dist * 2)) / 3;
+    if (!random)
+        return dice_def(1 + (dist * 2), 2 + (pow + 10) / 15);
+    else
+        return dice_def(1 + (dist * 2), 2 + (div_rand_round(pow + 10, 15)));
 }
 
 spret cast_piledriver(int pow, bool fail)
@@ -2106,8 +2109,8 @@ spret cast_piledriver(int pow, bool fail)
     you.move_to_pos(path[path.size() - 3]);
 
     // Apply collision damage (scaling with distance covered)
-    const int scaled_pow = piledriver_collision_power(pow, path.size() - 2);
-    mon->collide(path.back(), &you, scaled_pow);
+    const int dmg = piledriver_collision_damage(pow, path.size() - 2, true).roll();
+    mon->collide(path.back(), &you, dmg);
 
     // Now trigger location effects (to avoid dispersal traps causing all sorts
     // of problems with keeping the two of us together in the middle)
@@ -2118,9 +2121,12 @@ spret cast_piledriver(int pow, bool fail)
     return spret::success;
 }
 
-int gavotte_impact_power(int pow, int dist)
+dice_def gavotte_impact_damage(int pow, int dist, bool random)
 {
-    return (pow * 3 / 4 + 35) * (dist + 5) / 2;
+    if (!random)
+        return dice_def(2, (pow * 3 / 4 + 35) * (dist + 5) / 20 + 1);
+    else
+        return dice_def(2, div_rand_round((pow * 3 / 4 + 35) * (dist + 5), 20) + 1);
 }
 
 static void _maybe_penance_for_collision(god_conduct_trigger conducts[3], actor& victim)
@@ -2157,7 +2163,7 @@ static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
         if (!victim.can_pass_through_feat(env.grid(next_pos)) && i > 1
             && !victim.is_player())
         {
-            victim.collide(next_pos, &you, gavotte_impact_power(pow, i));
+            victim.collide(next_pos, &you, gavotte_impact_damage(pow, i, true).roll());
             _maybe_penance_for_collision(conducts, victim);
             break;
         }
@@ -2166,7 +2172,7 @@ static void _push_actor(actor& victim, coord_def dir, int dist, int pow)
             if (i > 1 && &victim != act_at_space && !victim.is_player()
                 && !act_at_space->is_player())
             {
-                victim.collide(next_pos, &you, gavotte_impact_power(pow, i));
+                victim.collide(next_pos, &you, gavotte_impact_damage(pow, i, true).roll());
                 _maybe_penance_for_collision(conducts, victim);
                 _maybe_penance_for_collision(conducts, *act_at_space);
             }
@@ -2259,7 +2265,7 @@ spret cast_gavotte(int pow, const coord_def dir, bool fail)
     return spret::success;
 }
 
-static bool _gavotte_will_wall_slam(const monster* mon, coord_def dir)
+static bool _gavotte_will_wall_slam(const monster* mon, coord_def dir, bool actual)
 {
     // Scan in our push direction. We want to find at least one tile of open
     // space before the nearest solid feature or stationary monster. Non-stationary
@@ -2283,14 +2289,18 @@ static bool _gavotte_will_wall_slam(const monster* mon, coord_def dir)
         // least one space before doing so.
         monster* mon_at_pos = monster_at(pos);
         if (!mon->can_pass_through_feat(env.grid(pos))
-            ||mon_at_pos && mon_at_pos->is_stationary())
+            || mon_at_pos && mon_at_pos->is_stationary()
+               && (actual || mon_at_pos->visible_to(&you)))
         {
             return steps < GAVOTTE_DISTANCE;
         }
         // Skip over mobile monsters as 'free' spaces (since we can all pile up
         // against a wall)
-        else if (mon_at_pos && !mon_at_pos->is_stationary())
+        else if (mon_at_pos && !mon_at_pos->is_stationary()
+                 && (actual || mon_at_pos->visible_to(&you)))
+        {
             steps++;
+        }
 
         steps--;
     }
@@ -2298,15 +2308,16 @@ static bool _gavotte_will_wall_slam(const monster* mon, coord_def dir)
     return false;
 }
 
-vector<monster*> gavotte_affected_monsters(const coord_def dir)
+vector<monster*> gavotte_affected_monsters(const coord_def dir, bool actual)
 {
     vector<monster*> affected;
 
     for (monster_near_iterator mi(you.pos()); mi; ++mi)
     {
-        if (!mi->is_stationary() && you.see_cell_no_trans(mi->pos()))
+        if (!mi->is_stationary() && you.see_cell_no_trans(mi->pos())
+            && (actual || you.can_see(**mi)))
         {
-            if (_gavotte_will_wall_slam(*mi, dir))
+            if (_gavotte_will_wall_slam(*mi, dir, actual))
                 affected.push_back(*mi);
         }
     }

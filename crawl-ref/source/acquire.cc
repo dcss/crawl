@@ -324,7 +324,7 @@ static armour_type _useless_armour_type()
             return random_choose(ARM_FIRE_DRAGON_ARMOUR,
                                  ARM_ICE_DRAGON_ARMOUR,
                                  ARM_PEARL_DRAGON_ARMOUR,
-                                 ARM_GOLD_DRAGON_ARMOUR,
+                                 ARM_GOLDEN_DRAGON_ARMOUR,
                                  ARM_SHADOW_DRAGON_ARMOUR,
                                  ARM_STORM_DRAGON_ARMOUR);
         default:
@@ -1374,7 +1374,7 @@ int acquirement_create_item(object_class_type class_wanted,
         && agent < NUM_GODS)
     {
         if (!quiet && agent == GOD_XOM)
-            simple_god_message(" snickers.", GOD_XOM);
+            simple_god_message(" snickers.", false, GOD_XOM);
         else
             return _failed_acquirement(quiet);
     }
@@ -1950,7 +1950,7 @@ bool coglin_invent_gizmo()
 {
     if (inv_count() >= ENDOFPACK)
     {
-        mpr("You don't have room to hold a gizmo!");
+        mpr("You don't have room to hold a gizmo! Drop something first.");
         return false;
     }
 

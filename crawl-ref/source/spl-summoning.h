@@ -51,9 +51,6 @@ int mons_ball_lightning_per_cast(int pow, bool random = true);
 spret cast_summon_lightning_spire(int pow, god_type god, bool fail);
 
 spret cast_call_imp(int pow, god_type god, bool fail);
-bool summon_demon_type(monster_type mon, int pow, god_type god = GOD_NO_GOD,
-                       int spell = 0, bool friendly = true);
-spret cast_summon_demon(int pow);
 spret summon_shadow_creatures();
 spret cast_summon_horrible_things(int pow, god_type god, bool fail);
 bool can_cast_malign_gateway();
@@ -139,3 +136,5 @@ spret cast_hoarfrost_cannonade(const actor& agent, int pow, bool fail);
 dice_def hellfire_mortar_damage(int pow);
 spret cast_hellfire_mortar(const actor& agent, bolt& beam, int pow, bool fail);
 bool hellfire_mortar_active(const actor& agent);
+
+bool make_soul_wisp(const actor& agent, monster& victim);

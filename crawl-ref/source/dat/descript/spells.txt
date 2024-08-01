@@ -111,12 +111,6 @@ Bind Souls spell
 Bestows an enchantment on other nearby living creatures that causes them to
 rise as simulacra after being slain.
 %%%%
-Black Mark spell
-
-Empowers the caster and any nearby allies to debilitate their foes on a
-successful melee attack, allowing them to inflict draining, cause weakness, or
-deplete magical power.
-%%%%
 Blink Allies Away spell
 
 Blinks allies in sight of the caster away from a nearby enemy.
@@ -313,15 +307,18 @@ Chaos Breath spell
 
 Exhales a large cloud of fumes filled with the very essence of chaos.
 %%%%
-Cigotuvi's Dreadful Rot spell
+Cigotuvi's Putrefaction spell
 
-Rots away a part of the caster's flesh to produce a cloud of miasma around them.
-The miasma slows and powerfully poisons any living creature that lingers within -
-including the caster, if they tarry after casting. Most living creatures are
-terrified of miasma and will not willingly enter it.
+Magically accelerates the decay of damaged living tissue, causing great clouds
+of miasma to billow forth from a targeted victim's wounds over several turns
+which may slow and heavily poison any living creature who stands in them. Air
+currents will prevent this pestilence from forming wherever the caster is
+standing, but they are not otherwise protected from its effects.
 
-The rot leaves the caster's health temporarily drained. The undead can still use
-this spell, but fleshless beings (e.g., those made of stone) cannot.
+This spell may only be cast on a living creature who is at least heavily
+wounded, and channelling such necrotic energies will leave the caster's own
+health temporarily drained (though spellpower will reduce the intensity of this
+side-effect).
 %%%%
 Cleansing Flame spell
 
@@ -628,7 +625,8 @@ once more.
 Force Lance spell
 
 Fires a shaft of concussive force. If the impact deals damage, it may knock the
-target back.
+target back. If this knockback causes the target to hit a wall or another
+creature, both will take additional damage.
 %%%%
 Forceful Invitation spell
 
@@ -755,6 +753,17 @@ Grasping Roots spell
 Calls giant grasping roots from deep underground that hold and constrict their
 victim. The roots will retreat if the victim breaks free or if the caller moves
 out of view.
+%%%%
+Grave Claw spell
+
+Calls forth the spite of the recently dead to skewer a targeted enemy with
+shards of bone. This spell never misses, and will pin its target in place for
+several turns, but casting it rapidly consumes the remnants of death that linger
+upon the caster.
+
+You can stockpile enough malice to cast this spell at most three times, and this
+can only be replenished by causing the death of a sufficient number of living
+beings.
 %%%%
 Greater Servant of Makhleb spell
 
@@ -1153,12 +1162,6 @@ Mud Breath spell
 
 <Mud Breath ability>
 %%%%
-Necrotise spell
-
-Agonizingly rots away the victim's flesh. Those slain by this spell (or otherwise
-dying immediately afterward) may rise as skeletons to fight for the caster. Only
-the living can be affected.
-%%%%
 Noxious Breath spell
 
 <Noxious Breath ability>
@@ -1444,7 +1447,7 @@ to the strong impact and cutting edges.
 %%%%
 Shadowball spell
 
-Hurls a ball of flickering shadows which explodes in a small area.
+Hurls a ball of flickering shadows, which explodes in a small area.
 %%%%
 Shadow Beam spell
 
@@ -1519,6 +1522,13 @@ from any source grants immunity to binding.
 Only one set of sigils can be maintained at a time, and they will expire
 prematurely if they leave your sight.
 %%%%
+Sign of Ruin spell
+
+Inflicts the sign of ruin upon a group of enemies, condemning their bodies to
+inexorable decay and collapse. Whenever anything bearing this sign receives
+damage from a melee attack, they will suffer heavy draining and may additionally
+become either slow, weak, or blind.
+%%%%
 Silence spell
 
 Eliminates all sound near the caster. This makes reading scrolls, casting
@@ -1552,6 +1562,17 @@ Fires a sharp dart of hardened chitin.
 Smiting spell
 
 Smites any targeted enemy within sight, with no direct line of fire required.
+%%%%
+Soul Splinter spell
+
+Attempts to force a tiny fragment of a living, holy, or demonic being's soul to
+take leave of their body and manifest as a soul wisp. This wisp is nominally
+under the necromancer's control, but will focus its attacks foremost on the
+creature it was created from, instinctually trying to return to its proper home
+once more.
+
+Wisps created from more powerful souls have more damaging attacks, but are
+always fragile.
 %%%%
 Spawn Tentacles spell
 
@@ -1875,8 +1896,8 @@ Throw Klown Pie spell
 
 Throws a harmful yet strangely delicious pie that can inflict its victim with a
 number of irresistible and debilitating temporary effects. These include
-inducing vertigo, silence, fire vulnerability, stat drain, fragility, or an
-aversion to drinking potions.
+inducing vertigo, silence, fire vulnerability, stat drain, fragility, blindness,
+or an aversion to drinking potions.
 %%%%
 Thunderbolt spell
 
@@ -2005,7 +2026,8 @@ requiring line of sight but not line of fire.
 %%%%
 Wind Blast spell
 
-Causes a strong gust of wind, pushing away creatures and clouds in a cone.
+Causes a strong gust of wind, pushing away creatures and clouds in a cone. If
+this causes a creature to collide with something, it will take damage.
 %%%%
 Woodweal spell
 
