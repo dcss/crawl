@@ -222,11 +222,11 @@ bool player::is_habitable_feat(dungeon_feature_type actual_grid) const
 size_type player::body_size(size_part_type psize, bool base) const
 {
     const auto charsize = species::size(species, psize);
-    if (base)
+    if (base && you.form != transformation::dungeon_denizen)
         return charsize;
     else
     {
-        size_type tf_size = get_form()->size;
+        size_type tf_size = get_form()->get_size();
         return tf_size == SIZE_CHARACTER ? charsize : tf_size;
     }
 }
@@ -800,10 +800,10 @@ static bool _god_prevents_berserk_haste(bool intentional)
 
 /**
  * Make the player go berserk!
- * @param intentional If true, this was initiated by the player, so god conduts
- *                    about anger apply.
+ * @param intentional If true, this was initiated by the player, and so god
+ *                    conducts about anger apply.
  * @param potion      If true, this was caused by the player quaffing !berserk;
- *                    and we get additional messages if goingn berserk isn't
+ *                    and we get additional messages if going berserk isn't
  *                    possible.
  * @return            True if we went berserk, false otherwise.
  */

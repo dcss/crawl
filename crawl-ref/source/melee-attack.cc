@@ -651,8 +651,9 @@ bool melee_attack::handle_phase_hit()
     {
         if (needs_message)
         {
-            attack_verb = attacker->is_player()
-                                    ? attack_verb
+            // TODO: Verb update for DD for more hitwording variety
+            attack_verb = attacker->is_player() && !get_form()->use_assumed_monster_stats
+                                    ? attacker->conj_verb(attack_verb)
                                     : attacker->conj_verb(mons_attack_verb());
 
             // TODO: Clean this up if possible, checking atype for do / does is ugly
@@ -2307,7 +2308,7 @@ void melee_attack::set_attack_verb(int damage)
 
     case -1: // unarmed
     {
-        const FormAttackVerbs verbs = get_form(you.form)->uc_attack_verbs;
+        const FormAttackVerbs verbs = get_form(you.form)->get_uc_attack_verbs();
         if (verbs.weak != nullptr)
         {
             if (damage < HIT_WEAK)
@@ -2440,6 +2441,21 @@ bool melee_attack::player_monattk_hit_effects()
         && stab_bonus > 0)
     {
         _player_vampire_draws_blood(defender->as_monster(), damage_done, true);
+    }
+
+    // Unarmed and untransformed form shifters will try to use a stabbing situation
+    // to gain transformation charges.
+    if (you.has_mutation(MUT_FORM_SHIFTER)
+        && !using_weapon()
+        && damage_done > 0
+        && stab_attempt
+        && stab_bonus == 1
+        && you.form == transformation::none)
+    {
+        mprf("Essence shoots up your %s from %s as you absorb their being!",
+            you.arm_name(true).c_str(),
+            defender->as_monster()->name(DESC_THE, true).c_str());
+        gain_form_shift_uses(1);
     }
 
     if (!defender->alive())
@@ -2934,7 +2950,9 @@ void melee_attack::announce_hit()
         }
 
         mprf("You %s %s%s%s%s%s%s",
-             attack_verb.c_str(),
+             get_form()->use_assumed_monster_stats ?
+                attacker->conj_verb(mons_attack_verb()).c_str() :
+                attack_verb.c_str(),
              defender->name(DESC_THE).c_str(), verb_degree.c_str(),
              weapon_desc().c_str(),
              charge_desc().c_str(), debug_damage_number().c_str(),
@@ -2955,7 +2973,8 @@ bool melee_attack::mons_do_poison()
     else
         amount = random_range(hd * 2, hd * 4);
 
-    if (attacker->as_monster()->has_ench(ENCH_CONCENTRATE_VENOM))
+    if (attacker->is_monster()
+     && attacker->as_monster()->has_ench(ENCH_CONCENTRATE_VENOM))
     {
         // Attach our base poison damage to the curare effect
         return curare_actor(attacker, defender, "concentrated venom",
@@ -2967,8 +2986,9 @@ bool melee_attack::mons_do_poison()
 
     if (needs_message)
     {
-        mprf("%s poisons %s!",
+        mprf("%s poison%s %s!",
                 atk_name(DESC_THE).c_str(),
+                attacker->is_player() ? "": "s",
                 defender_name(true).c_str());
     }
 
@@ -3113,7 +3133,8 @@ void melee_attack::mons_apply_attack_flavour()
     case AF_POISON:
     case AF_POISON_STRONG:
     case AF_REACH_STING:
-        if (attacker->as_monster()->has_ench(ENCH_CONCENTRATE_VENOM)
+        if (attacker->is_monster()
+         && attacker->as_monster()->has_ench(ENCH_CONCENTRATE_VENOM)
             ? coinflip()
             : one_chance_in(3))
         {
@@ -3238,6 +3259,7 @@ void melee_attack::mons_apply_attack_flavour()
     case AF_CONFUSE:
         if (attk_type == AT_SPORE)
         {
+            ASSERT(!attacker->is_player());
             if (defender->is_unbreathing())
                 break;
 
@@ -3547,6 +3569,9 @@ void melee_attack::mons_apply_attack_flavour()
         break;
 
     case AF_SHADOWSTAB:
+        if (attacker->is_player())
+            break;
+
         attacker->as_monster()->del_ench(ENCH_INVIS, true);
         break;
 
@@ -3647,19 +3672,36 @@ void melee_attack::mons_apply_attack_flavour()
         if (!defender->has_blood() || !attacker->can_go_berserk())
             break;
 
-        monster* mon = attacker->as_monster();
-        if (mon->has_ench(ENCH_MIGHT))
+        if (attacker->as_player())
         {
-            mon->del_ench(ENCH_MIGHT, true);
-            mon->add_ench(mon_enchant(ENCH_BERSERK, 1, mon,
-                                      random_range(100, 200)));
-            simple_monster_message(*mon, " enters a blood-rage!");
+            if (you.duration[DUR_MIGHT] > 0)
+            {
+                you.duration[DUR_MIGHT] = 0;
+                you.go_berserk(true, false);
+                mpr("You enter a blood-rage!");
+            }
+            else
+            {
+                you.increase_duration(DUR_MIGHT, 35 + random2(40), 80);
+                mpr("You taste blood and grow stronger!");
+            }
         }
-        else
+        else if (attacker->as_monster())
         {
-            mon->add_ench(mon_enchant(ENCH_MIGHT, 1, mon,
-                                      random_range(100, 200)));
-            simple_monster_message(*mon, " tastes blood and grows stronger!");
+            monster* mon = attacker->as_monster();
+            if (mon->has_ench(ENCH_MIGHT))
+            {
+                mon->del_ench(ENCH_MIGHT, true);
+                mon->add_ench(mon_enchant(ENCH_BERSERK, 1, mon,
+                                        random_range(100, 200)));
+                simple_monster_message(*mon, " enters a blood-rage!");
+            }
+            else
+            {
+                mon->add_ench(mon_enchant(ENCH_MIGHT, 1, mon,
+                                        random_range(100, 200)));
+                simple_monster_message(*mon, " tastes blood and grows stronger!");
+            }
         }
         break;
     }

@@ -1311,7 +1311,9 @@ monster_type mons_genus(monster_type mc)
 {
     if (mc == RANDOM_DRACONIAN || mc == RANDOM_BASE_DRACONIAN
         || mc == RANDOM_NONBASE_DRACONIAN
-        || (mc == MONS_PLAYER_ILLUSION && species::is_draconian(you.species)))
+        || (mc == MONS_PLAYER_ILLUSION && species::is_draconian(you.species))
+        || (you.form == transformation::dungeon_denizen
+            && mons_is_draconian(mc)))
     {
         return MONS_DRACONIAN;
     }
@@ -2383,6 +2385,29 @@ bool flavour_has_reach(attack_flavour flavour)
 bool flavour_has_mobility(attack_flavour flavour)
 {
     return flavour == AF_SWOOP || flavour == AF_FLANK;
+}
+
+/**
+ * What's the innate reach for a given type of monster?
+ *
+ * @param mc        The type of monster in question.
+ * @return          The reach range of the monster in question.
+ */
+reach_type mons_class_innate_reach(monster_type mc)
+{
+    const monsterentry *me = get_monster_data(mc);
+    ASSERT(me);
+    reach_type range = REACH_NONE;
+
+    for (int i = 0; i < MAX_NUM_ATTACKS; ++i)
+    {
+        const attack_flavour fl = me->attack[i].flavour;
+        if (fl == AF_RIFT)
+            range = REACH_THREE;
+        else if (flavour_has_reach(fl))
+            range = max(REACH_TWO, range);
+    }
+    return range;
 }
 
 bool mons_invuln_will(const monster& mon)
