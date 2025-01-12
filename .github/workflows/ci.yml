@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0 # all history - Checkconventioncommit needs to know which commits aren't in master
+          fetch-depth: 0 # all history - Checkconventioncommit needs to know which commits are being merged
       - name: Checkwhite
         run: util/checkwhite -n
         working-directory: crawl-ref/source

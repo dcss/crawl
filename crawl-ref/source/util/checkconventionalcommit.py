@@ -45,6 +45,7 @@ def main():
 
     if ret.stdout is None:
         die(f"Command returned no output, exiting {sys.argv[0]}")
+
     output = ret.stdout.decode("utf-8")
     commits = output.split('\x1E')
     failure = False
@@ -54,10 +55,12 @@ def main():
             # Only should happen e.g. after the last commit
             # Probably is a better way...
             continue
+
         if len(pieces) != 4:
             print_err("Command output had unexpected number of results (%d), exiting" % len(pieces))
             failure = True
             continue
+
         (commit_hash, committer_name, subject, body) = pieces
         commit_hash = commit_hash.replace('\r\n', '').replace('\n', '')
         print("Checking commit %s written by %s" % (commit_hash, committer_name))
@@ -70,6 +73,8 @@ def main():
 
         if contains_newline(subject):
             print_err(f"Commit {committer_name} from {committer_name} contained a newline in the subject!")
+            failure = True
+            continue
 
         for line_number, line in enumerate(body.split('\n')):
             if len(line) > allowed_body_len:
@@ -80,11 +85,11 @@ def main():
                     f"'{line}'")
                 failure = True
                 continue
+
     if failure:
         die("Failed commit message validation!")
     else:
         print("Passed commit message validation!")
-
 
 if __name__ == "__main__":
     main()
