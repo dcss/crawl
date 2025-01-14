@@ -360,9 +360,7 @@ void OGLStateManager::bind_texture(unsigned int texture)
     glDebug("glBindTexture");
 }
 
-void OGLStateManager::load_texture(unsigned char *pixels, unsigned int width,
-                                   unsigned int height, MipMapOptions mip_opt,
-                                   int xoffset, int yoffset)
+void OGLStateManager::load_texture(LoadTextureArgs texture)
 {
     // Assumptions...
 #ifdef __ANDROID__
@@ -387,15 +385,17 @@ void OGLStateManager::load_texture(unsigned char *pixels, unsigned int width,
     glDebug("glTexParameterf GL_TEXTURE_WRAP_T");
 #endif
 #ifndef USE_GLES
-    if (mip_opt == MIPMAP_CREATE)
+    if (texture.mip_opt == MIPMAP_CREATE)
     {
         // TODO: should min react to Options.tile_filter_scaling?
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                         GL_LINEAR_MIPMAP_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                         Options.tile_filter_scaling ? GL_LINEAR : GL_NEAREST);
-        gluBuild2DMipmaps(GL_TEXTURE_2D, bpp, width, height,
-                          texture_format, format, pixels);
+        gluBuild2DMipmaps(GL_TEXTURE_2D, bpp, texture.width, texture.height,
+                          texture_format, format, texture.pixels);
+        // TODO: glGenerateMipmap()
+        // Note: LoadTextureArgs enforces that offset == NO_OFFSET if mip_opt = MIPMAP_CREATE
     }
     else
 #endif
@@ -404,16 +404,16 @@ void OGLStateManager::load_texture(unsigned char *pixels, unsigned int width,
                         Options.tile_filter_scaling ? GL_LINEAR : GL_NEAREST);
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                         Options.tile_filter_scaling ? GL_LINEAR : GL_NEAREST);
-        if (xoffset >= 0 && yoffset >= 0)
+        if (texture.has_offset())
         {
-            glTexSubImage2D(GL_TEXTURE_2D, 0, xoffset, yoffset, width, height,
-                         texture_format, format, pixels);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, texture.xoffset, texture.yoffset, texture.width, texture.height,
+                         texture_format, format, texture.pixels);
             glDebug("glTexSubImage2D");
         }
         else
         {
-            glTexImage2D(GL_TEXTURE_2D, 0, bpp, width, height, 0,
-                         texture_format, format, pixels);
+            glTexImage2D(GL_TEXTURE_2D, 0, bpp, texture.width, texture.height, 0,
+                         texture_format, format, texture.pixels);
             glDebug("glTexImage2D");
         }
     }
